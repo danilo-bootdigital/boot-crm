@@ -108,6 +108,7 @@ export type PipelineStage = {
   ordem: number
   cor: string
   oculto: boolean
+  tipo_especial: 'fechado' | 'perdido' | null
   criado_em: string
   atualizado_em: string
 }
