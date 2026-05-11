@@ -31,7 +31,7 @@ create table profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   organization_id uuid not null references organizations(id),
   nome text not null,
-  email text not null,
+  email text not null unique,
   telefone text,
   cargo user_role not null default 'vendedor',
   disponivel boolean not null default true,
@@ -364,6 +364,10 @@ create index on activities(organization_id, deal_id);
 create index on messages(conversation_id, enviado_em);
 create index on messages(message_id_externo);
 create index on audit_logs(organization_id, criado_em desc);
+create index on conversations(lead_id);
+create index on conversations(whatsapp_instance_id);
+create index on deals(pipeline_id);
+create index on profiles(organization_id);
 
 -- ============================================================
 -- ROW LEVEL SECURITY (RLS)
@@ -487,6 +491,9 @@ create policy "ver audit log" on audit_logs
 create policy "ver organizacoes" on organizations
   for select using (true);
 
+-- organizations não tem policies de INSERT/UPDATE/DELETE:
+-- multi-tenant V1 é single-org, apenas o service role manipula organizations.
+
 -- FK de whatsapp_instance_id em leads (adicionada após criar whatsapp_instances)
 alter table leads
   add constraint leads_whatsapp_instance_id_fkey
@@ -498,7 +505,7 @@ alter table leads
 create or replace function handle_new_user()
 returns trigger
 language plpgsql
-security definer
+security definer set search_path = public
 as $$
 declare
   org_id uuid;
@@ -506,13 +513,21 @@ begin
   -- Pegar a organização padrão (Boot Digital)
   select id into org_id from organizations where slug = 'boot-digital' limit 1;
 
+  if org_id is null then
+    raise exception 'Organização padrão (boot-digital) não encontrada. Execute o INSERT em organizations primeiro.';
+  end if;
+
   insert into profiles (id, organization_id, nome, email, cargo)
   values (
     new.id,
     org_id,
     coalesce(new.raw_user_meta_data->>'nome', split_part(new.email, '@', 1)),
     new.email,
-    coalesce((new.raw_user_meta_data->>'cargo')::user_role, 'vendedor')
+    case
+      when new.raw_user_meta_data->>'cargo' in ('admin','gestor','vendedor','atendimento','financeiro','suporte')
+      then (new.raw_user_meta_data->>'cargo')::user_role
+      else 'vendedor'::user_role
+    end
   );
   return new;
 end;
