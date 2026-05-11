@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import type { LeadOrigem, LeadStatus } from '@/types/database'
+import { distribuirLead } from '@/lib/distribuicao'
 
 async function getUsuarioEOrg() {
   const supabase = await createClient()
@@ -76,6 +77,8 @@ export async function criarLead(formData: FormData) {
     descricao: `Lead "${nome ?? telefone ?? 'sem nome'}" criado manualmente.`,
     lead_id: lead.id,
   })
+
+  await distribuirLead(supabase, lead.id, perfil.organization_id, perfil.id)
 
   revalidatePath('/leads')
   redirect(`/leads/${lead.id}`)
