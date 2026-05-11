@@ -97,6 +97,7 @@ export async function moverDeal(
     .from('pipeline_stages')
     .select('id, nome, tipo_especial')
     .eq('id', estagioDestinoId)
+    .eq('organization_id', perfil.organization_id)
     .single()
 
   if (!etapaDestino) throw new Error('Etapa de destino não encontrada.')
@@ -137,6 +138,7 @@ export async function moverDeal(
     .from('deals')
     .update(updates)
     .eq('id', dealId)
+    .eq('organization_id', perfil.organization_id)
 
   if (error) throw new Error(`Erro ao mover negociação: ${error.message}`)
 
