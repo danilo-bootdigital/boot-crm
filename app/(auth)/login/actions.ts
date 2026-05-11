@@ -12,7 +12,7 @@ export async function entrar(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword({ email, password: senha })
 
   if (error) {
-    if (error.message.includes('Invalid login credentials')) {
+    if (error.code === 'invalid_credentials') {
       redirect('/login?erro=credenciais-invalidas')
     }
     redirect('/login?erro=erro-inesperado')
