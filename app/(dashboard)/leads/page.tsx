@@ -23,8 +23,9 @@ export default async function LeadsPage({ searchParams }: { searchParams: Search
   if (params.origem) query = query.eq('origem', params.origem)
   if (params.responsavel) query = query.eq('responsavel_id', params.responsavel)
   if (params.busca) {
+    const termo = params.busca.replace(/[%_\\]/g, '\\$&')
     query = query.or(
-      `nome.ilike.%${params.busca}%,telefone.ilike.%${params.busca}%,email.ilike.%${params.busca}%`
+      `nome.ilike.%${termo}%,telefone.ilike.%${termo}%,email.ilike.%${termo}%`
     )
   }
 

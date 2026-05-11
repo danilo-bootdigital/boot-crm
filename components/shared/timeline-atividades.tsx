@@ -33,6 +33,10 @@ export async function TimelineAtividades({ leadId, contatoId }: Props) {
   if (leadId) query = query.eq('lead_id', leadId)
   if (contatoId) query = query.eq('contato_id', contatoId)
 
+  if (!leadId && !contatoId) return (
+    <p className="text-sm text-slate-400">Nenhuma atividade disponível.</p>
+  )
+
   const { data: atividades } = await query as { data: AtividadeComAutor[] | null }
 
   if (!atividades || atividades.length === 0) {

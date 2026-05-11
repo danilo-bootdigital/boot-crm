@@ -105,6 +105,7 @@ export async function editarLead(leadId: string, formData: FormData) {
       atualizado_em: new Date().toISOString(),
     })
     .eq('id', leadId)
+    .eq('organization_id', perfil.organization_id)
 
   if (error) throw new Error(`Erro ao editar lead: ${error.message}`)
 
@@ -155,6 +156,7 @@ export async function descartarLead(leadId: string, motivo: string) {
     .from('leads')
     .update({ status: 'descartado', atualizado_em: new Date().toISOString() })
     .eq('id', leadId)
+    .eq('organization_id', perfil.organization_id)
 
   if (error) throw new Error(`Erro ao descartar lead: ${error.message}`)
 
