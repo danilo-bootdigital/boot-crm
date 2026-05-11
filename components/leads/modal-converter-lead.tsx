@@ -24,6 +24,7 @@ export function ModalConverterLead({ lead }: Props) {
     try {
       await converterLeadEmContato(lead.id, formData)
     } catch (e: unknown) {
+      if (e instanceof Error && (e as { digest?: string }).digest?.startsWith('NEXT_REDIRECT')) throw e
       setErro(e instanceof Error ? e.message : 'Erro ao converter lead.')
       setCarregando(false)
     }

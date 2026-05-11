@@ -89,6 +89,7 @@ export async function editarContato(contatoId: string, formData: FormData) {
   const { supabase, perfil } = await getUsuarioEOrg()
 
   const nome = formData.get('nome') as string
+  if (!nome?.trim()) throw new Error('O nome do contato é obrigatório.')
   const email = formData.get('email') as string | null
   const telefone = formData.get('telefone') as string | null
   const cargo = formData.get('cargo') as string | null
@@ -118,6 +119,15 @@ export async function editarContato(contatoId: string, formData: FormData) {
 
 export async function adicionarObservacaoContato(contatoId: string, texto: string) {
   const { supabase, perfil } = await getUsuarioEOrg()
+
+  const { data: contatoExiste } = await supabase
+    .from('contacts')
+    .select('id')
+    .eq('id', contatoId)
+    .eq('organization_id', perfil.organization_id)
+    .single()
+
+  if (!contatoExiste) throw new Error('Contato não encontrado.')
 
   const { error: errAtividade } = await supabase.from('activities').insert({
     organization_id: perfil.organization_id,

@@ -21,6 +21,7 @@ export function ModalNovoContato() {
       await criarContato(formData)
       setAberto(false)
     } catch (e: unknown) {
+      if (e instanceof Error && (e as { digest?: string }).digest?.startsWith('NEXT_REDIRECT')) throw e
       setErro(e instanceof Error ? e.message : 'Erro ao criar contato.')
     } finally {
       setCarregando(false)
