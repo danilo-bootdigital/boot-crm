@@ -59,10 +59,14 @@ export async function alternarStatusUsuario(usuarioId: string, ativo: boolean) {
     throw new Error('Apenas administradores podem alterar status de usuários.')
   }
 
-  await supabase
+  const { error } = await supabase
     .from('profiles')
     .update({ ativo, atualizado_em: new Date().toISOString() })
     .eq('id', usuarioId)
+
+  if (error) {
+    throw new Error(`Erro ao atualizar status: ${error.message}`)
+  }
 
   revalidatePath('/configuracoes/usuarios')
 }
