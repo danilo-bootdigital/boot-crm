@@ -88,6 +88,7 @@ export async function alternarDisponibilidade() {
 
   if (error) throw new Error(`Erro ao alterar disponibilidade: ${error.message}`)
 
+  revalidatePath('/', 'layout')
   revalidatePath('/leads')
   revalidatePath('/configuracoes/distribuicao')
 }

@@ -36,6 +36,7 @@ const MODOS: { valor: DistribuicaoModo; label: string; descricao: string }[] = [
 
 export function FormConfigDistribuicao({ config }: Props) {
   const [modo, setModo] = useState<DistribuicaoModo>(config.modo)
+  const [apenasDisponiveis, setApenasDisponiveis] = useState(config.apenas_disponiveis)
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [sucesso, setSucesso] = useState(false)
@@ -88,7 +89,8 @@ export function FormConfigDistribuicao({ config }: Props) {
               type="checkbox"
               id="apenas_disponiveis"
               name="apenas_disponiveis"
-              defaultChecked={config.apenas_disponiveis}
+              checked={apenasDisponiveis}
+              onChange={(e) => setApenasDisponiveis(e.target.checked)}
               className="h-4 w-4 rounded border-slate-300"
             />
             <Label htmlFor="apenas_disponiveis" className="cursor-pointer">

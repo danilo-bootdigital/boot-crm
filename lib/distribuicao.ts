@@ -30,20 +30,28 @@ async function buscarConfig(
 
   if (data) return data
 
-  const { data: nova } = await supabase
+  // Upsert evita erro de unique constraint se dois leads chegarem simultaneamente para org sem config
+  await supabase
     .from('lead_distribution_config')
-    .insert({
-      organization_id: orgId,
-      modo: 'manual',
-      apenas_disponiveis: false,
-      limite_por_vendedor: null,
-      proximo_vendedor_idx: 0,
-    })
+    .upsert(
+      {
+        organization_id: orgId,
+        modo: 'manual',
+        apenas_disponiveis: false,
+        limite_por_vendedor: null,
+        proximo_vendedor_idx: 0,
+      },
+      { onConflict: 'organization_id', ignoreDuplicates: true }
+    )
+
+  const { data: criada } = await supabase
+    .from('lead_distribution_config')
     .select('id, modo, apenas_disponiveis, limite_por_vendedor, proximo_vendedor_idx')
+    .eq('organization_id', orgId)
     .single()
 
-  if (!nova) throw new Error('Falha ao criar configuração de distribuição.')
-  return nova
+  if (!criada) throw new Error('Falha ao criar configuração de distribuição.')
+  return criada
 }
 
 async function buscarVendedoresElegiveis(
@@ -102,6 +110,8 @@ async function filtrarPorLimite(
     .map(({ vendedor }) => vendedor)
 }
 
+// Tradeoff conhecido: leitura + atualização não são atômicas. Requests simultâneos podem
+// selecionar o mesmo vendedor. Para volume alto, substituir por RPC Postgres com UPDATE...RETURNING.
 async function selecionarRotativo(
   supabase: SupabaseClient,
   configId: string,

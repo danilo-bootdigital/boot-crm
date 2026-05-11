@@ -78,7 +78,9 @@ export async function criarLead(formData: FormData) {
     lead_id: lead.id,
   })
 
-  await distribuirLead(supabase, lead.id, perfil.organization_id, perfil.id)
+  if (!responsavel_id) {
+    await distribuirLead(supabase, lead.id, perfil.organization_id, perfil.id)
+  }
 
   revalidatePath('/leads')
   redirect(`/leads/${lead.id}`)
