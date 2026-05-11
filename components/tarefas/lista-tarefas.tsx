@@ -81,13 +81,15 @@ export function ListaTarefas({
     startTransition(async () => {
       try {
         await concluirTarefa(tarefa.id)
-        setTarefaConcluida({
-          tipo: tarefa.tipo,
-          lead_id: tarefa.lead_id,
-          contato_id: tarefa.contato_id,
-          deal_id: tarefa.deal_id,
-          responsavel_id: perfilId,
-        })
+        if (tarefa.lead_id || tarefa.contato_id || tarefa.deal_id) {
+          setTarefaConcluida({
+            tipo: tarefa.tipo,
+            lead_id: tarefa.lead_id,
+            contato_id: tarefa.contato_id,
+            deal_id: tarefa.deal_id,
+            responsavel_id: perfilId,
+          })
+        }
         router.refresh()
       } catch {
         // erro silencioso — servidor não atualizou

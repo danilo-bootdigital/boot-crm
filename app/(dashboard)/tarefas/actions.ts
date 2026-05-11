@@ -94,7 +94,7 @@ export async function concluirTarefa(tarefaId: string) {
 
   if (!tarefa) throw new Error('Tarefa não encontrada.')
 
-  if (perfil.cargo === 'vendedor' && tarefa.responsavel_id !== perfil.id) {
+  if (['vendedor', 'atendimento'].includes(perfil.cargo) && tarefa.responsavel_id !== perfil.id) {
     throw new Error('Você não tem permissão para concluir esta tarefa.')
   }
 
@@ -119,6 +119,7 @@ export async function concluirTarefa(tarefaId: string) {
   revalidatePath('/tarefas')
   if (tarefa.lead_id) revalidatePath(`/leads/${tarefa.lead_id}`)
   if (tarefa.contato_id) revalidatePath(`/contatos/${tarefa.contato_id}`)
+  if (tarefa.deal_id) revalidatePath('/pipeline')
 }
 
 export async function reabrirTarefa(tarefaId: string) {
@@ -126,14 +127,14 @@ export async function reabrirTarefa(tarefaId: string) {
 
   const { data: tarefa } = await supabase
     .from('tasks')
-    .select('id, responsavel_id')
+    .select('id, responsavel_id, lead_id, contato_id, deal_id')
     .eq('id', tarefaId)
     .eq('organization_id', perfil.organization_id)
     .single()
 
   if (!tarefa) throw new Error('Tarefa não encontrada.')
 
-  if (perfil.cargo === 'vendedor' && tarefa.responsavel_id !== perfil.id) {
+  if (['vendedor', 'atendimento'].includes(perfil.cargo) && tarefa.responsavel_id !== perfil.id) {
     throw new Error('Você não tem permissão para reabrir esta tarefa.')
   }
 
@@ -146,6 +147,9 @@ export async function reabrirTarefa(tarefaId: string) {
   if (error) throw new Error(`Erro ao reabrir tarefa: ${error.message}`)
 
   revalidatePath('/tarefas')
+  if (tarefa.lead_id) revalidatePath(`/leads/${tarefa.lead_id}`)
+  if (tarefa.contato_id) revalidatePath(`/contatos/${tarefa.contato_id}`)
+  if (tarefa.deal_id) revalidatePath('/pipeline')
 }
 
 export async function excluirTarefa(tarefaId: string) {
@@ -176,4 +180,5 @@ export async function excluirTarefa(tarefaId: string) {
   revalidatePath('/tarefas')
   if (tarefa.lead_id) revalidatePath(`/leads/${tarefa.lead_id}`)
   if (tarefa.contato_id) revalidatePath(`/contatos/${tarefa.contato_id}`)
+  if (tarefa.deal_id) revalidatePath('/pipeline')
 }

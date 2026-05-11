@@ -37,6 +37,8 @@ export default async function LeadDetalhePage({ params }: { params: Promise<{ id
     .eq('id', user.id)
     .single()
 
+  if (!perfilAtual) redirect('/login')
+
   let tarefasQuery = supabase
     .from('tasks')
     .select(`
@@ -49,7 +51,7 @@ export default async function LeadDetalhePage({ params }: { params: Promise<{ id
     .order('concluida', { ascending: true })
     .order('data_vencimento', { ascending: true, nullsFirst: false })
 
-  if (perfilAtual?.cargo === 'vendedor' || perfilAtual?.cargo === 'atendimento') {
+  if (perfilAtual.cargo === 'vendedor' || perfilAtual.cargo === 'atendimento') {
     tarefasQuery = tarefasQuery.eq('responsavel_id', perfilAtual.id)
   }
 
@@ -68,7 +70,7 @@ export default async function LeadDetalhePage({ params }: { params: Promise<{ id
   }))
 
   let vendedores: { id: string; nome: string }[] = []
-  if (perfilAtual?.cargo === 'admin' || perfilAtual?.cargo === 'gestor') {
+  if (perfilAtual.cargo === 'admin' || perfilAtual.cargo === 'gestor') {
     const { data } = await supabase
       .from('profiles')
       .select('id, nome')
@@ -167,15 +169,13 @@ export default async function LeadDetalhePage({ params }: { params: Promise<{ id
               <CardTitle className="text-base">Tarefas</CardTitle>
             </CardHeader>
             <CardContent>
-              {perfilAtual && (
-                <ListaTarefas
-                  tarefas={tarefas}
-                  cargo={perfilAtual.cargo as import('@/types/database').UserRole}
-                  vendedores={vendedores}
-                  perfilId={perfilAtual.id}
-                  leadId={id}
-                />
-              )}
+              <ListaTarefas
+                tarefas={tarefas}
+                cargo={perfilAtual.cargo as import('@/types/database').UserRole}
+                vendedores={vendedores}
+                perfilId={perfilAtual.id}
+                leadId={id}
+              />
             </CardContent>
           </Card>
 
