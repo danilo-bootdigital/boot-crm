@@ -26,11 +26,17 @@ export async function adicionarInstancia(formData: FormData) {
   const vendedor_id = (formData.get('vendedor_id') as string) || null
 
   if (!nome) throw new Error('Nome é obrigatório.')
+  if (!compartilhado && !vendedor_id) throw new Error('Selecione um vendedor para instância individual.')
 
   // Gerar nome único para Evolution API (sem espaços, letras e números)
   const instanceName = `org${perfil.organization_id.slice(0, 8)}-${Date.now()}`
 
-  const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/webhook/evolution?secret=${process.env.EVOLUTION_WEBHOOK_SECRET}`
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
+  const webhookSecret = process.env.EVOLUTION_WEBHOOK_SECRET
+  if (!appUrl) throw new Error('NEXT_PUBLIC_APP_URL não está configurada.')
+  if (!webhookSecret) throw new Error('EVOLUTION_WEBHOOK_SECRET não está configurada.')
+
+  const webhookUrl = `${appUrl}/api/webhook/evolution?secret=${webhookSecret}`
 
   await criarInstancia(instanceName, webhookUrl)
 

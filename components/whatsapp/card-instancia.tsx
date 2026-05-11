@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { QrCode, Trash2, Wifi, WifiOff, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -26,6 +27,7 @@ const STATUS_CONFIG: Record<WhatsappStatus, { label: string; cor: string; icone:
 }
 
 export function CardInstancia({ instancia }: Props) {
+  const router = useRouter()
   const [qrAberto, setQrAberto] = useState(false)
   const [excluindo, setExcluindo] = useState(false)
   const status = STATUS_CONFIG[instancia.status_conexao]
@@ -35,6 +37,7 @@ export function CardInstancia({ instancia }: Props) {
     setExcluindo(true)
     try {
       await excluirInstancia(instancia.id)
+      router.refresh()
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : 'Erro ao excluir instância.')
       setExcluindo(false)

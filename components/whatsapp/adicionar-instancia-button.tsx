@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import { ModalNovaInstancia } from './modal-nova-instancia'
@@ -8,6 +9,7 @@ import { ModalNovaInstancia } from './modal-nova-instancia'
 type Props = { vendedores: { id: string; nome: string }[] }
 
 export function AdicionarInstanciaButton({ vendedores }: Props) {
+  const router = useRouter()
   const [aberto, setAberto] = useState(false)
   return (
     <>
@@ -17,7 +19,7 @@ export function AdicionarInstanciaButton({ vendedores }: Props) {
       </Button>
       <ModalNovaInstancia
         aberto={aberto}
-        onFechar={() => { setAberto(false); window.location.reload() }}
+        onFechar={() => { setAberto(false); router.refresh() }}
         vendedores={vendedores}
       />
     </>

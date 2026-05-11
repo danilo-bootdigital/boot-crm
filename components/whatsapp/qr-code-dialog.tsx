@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import Image from 'next/image'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -17,16 +17,21 @@ export function QrCodeDialog({ instanceId, aberto, onConectado, onFechar }: Prop
   const [qrBase64, setQrBase64] = useState<string | null>(null)
   const [estado, setEstado] = useState<'carregando' | 'qr' | 'conectado'>('carregando')
 
+  const onConectadoRef = useRef(onConectado)
+  useEffect(() => {
+    onConectadoRef.current = onConectado
+  })
+
   const poll = useCallback(async () => {
     const resultado = await verificarQRCode(instanceId)
     if (resultado.estado === 'conectado') {
       setEstado('conectado')
-      onConectado()
+      onConectadoRef.current()
     } else if (resultado.estado === 'qr') {
       setQrBase64(resultado.base64)
       setEstado('qr')
     }
-  }, [instanceId, onConectado])
+  }, [instanceId])
 
   useEffect(() => {
     if (!aberto) return
@@ -55,7 +60,7 @@ export function QrCodeDialog({ instanceId, aberto, onConectado, onFechar }: Prop
             <p className="text-center text-sm text-slate-500">
               Abra o WhatsApp → toque nos três pontos → <strong>Dispositivos Conectados</strong> → <strong>Conectar Dispositivo</strong>
             </p>
-            <Image src={qrBase64} alt="QR Code WhatsApp" width={240} height={240} unoptimized />
+            <Image src={qrBase64.startsWith('data:') ? qrBase64 : `data:image/png;base64,${qrBase64}`} alt="QR Code WhatsApp" width={240} height={240} unoptimized />
             <p className="text-xs text-slate-400">Atualizando automaticamente a cada 4 segundos...</p>
           </div>
         ) : (

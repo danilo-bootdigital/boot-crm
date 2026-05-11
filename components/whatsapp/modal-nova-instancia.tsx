@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,6 +21,14 @@ export function ModalNovaInstancia({ aberto, onFechar, vendedores }: Props) {
   const [vendedorId, setVendedorId] = useState('')
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (aberto) {
+      setCompartilhado('true')
+      setVendedorId('')
+      setErro(null)
+    }
+  }, [aberto])
 
   async function handleSubmit(formData: FormData) {
     formData.set('compartilhado', compartilhado)
