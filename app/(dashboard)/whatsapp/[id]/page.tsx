@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import { ThreadMensagens } from '@/components/whatsapp/thread-mensagens'
 import { FormEnvioMensagem } from '@/components/whatsapp/form-envio-mensagem'
+import { ModalExportarConversaButton } from '@/components/whatsapp/modal-exportar-conversa-button'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -15,7 +16,7 @@ export default async function ConversaPage({ params }: { params: Promise<{ id: s
 
   const { data: perfil } = await supabase
     .from('profiles')
-    .select('id, organization_id')
+    .select('id, organization_id, nome')
     .eq('id', user.id)
     .single()
 
@@ -73,6 +74,18 @@ export default async function ConversaPage({ params }: { params: Promise<{ id: s
             {instancia && ` · ${instancia.nome}`}
             {instancia?.status_conexao !== 'conectado' && ' · ⚠ Desconectado'}
           </p>
+        </div>
+        <div className="ml-auto">
+          <ModalExportarConversaButton
+            conversaId={id}
+            telefone={conversa.telefone_externo as string}
+            nomeContato={titulo}
+            mensagens={mensagens}
+            organizationId={perfil.organization_id}
+            perfilId={perfil.id}
+            perfilNome={perfil.nome as string}
+            leadId={lead?.id ?? null}
+          />
         </div>
       </div>
 
