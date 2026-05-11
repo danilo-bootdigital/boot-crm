@@ -10,7 +10,7 @@ async function getPerfil() {
   if (!user) redirect('/login')
   const { data: perfil } = await supabase
     .from('profiles')
-    .select('id, organization_id, cargo')
+    .select('id, organization_id')
     .eq('id', user.id)
     .single()
   if (!perfil) redirect('/login')

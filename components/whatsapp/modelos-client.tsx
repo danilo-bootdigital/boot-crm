@@ -65,6 +65,7 @@ export function ModelosClient({ modelos }: Props) {
       )}
 
       <ModalModelo
+        key={modeloEditando?.id ?? 'novo'}
         aberto={modalAberto}
         onFechar={() => { setModalAberto(false); router.refresh() }}
         modelo={modeloEditando}
