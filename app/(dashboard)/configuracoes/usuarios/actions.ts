@@ -1,0 +1,68 @@
+'use server'
+
+import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { revalidatePath } from 'next/cache'
+
+export async function criarUsuario(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user: usuarioAtual } } = await supabase.auth.getUser()
+  const { data: perfilAtual } = await supabase
+    .from('profiles')
+    .select('cargo')
+    .eq('id', usuarioAtual?.id ?? '')
+    .single()
+
+  if (perfilAtual?.cargo !== 'admin') {
+    throw new Error('Apenas administradores podem criar usuários.')
+  }
+
+  const nome = formData.get('nome') as string
+  const email = formData.get('email') as string
+  const senha = formData.get('senha') as string
+  const cargo = formData.get('cargo') as string
+  const telefone = formData.get('telefone') as string
+
+  const adminClient = createAdminClient()
+  const { data, error } = await adminClient.auth.admin.createUser({
+    email,
+    password: senha,
+    email_confirm: true,
+    user_metadata: { nome, cargo },
+  })
+
+  if (error) {
+    throw new Error(`Erro ao criar usuário: ${error.message}`)
+  }
+
+  if (data.user && telefone) {
+    await adminClient
+      .from('profiles')
+      .update({ telefone, atualizado_em: new Date().toISOString() })
+      .eq('id', data.user.id)
+  }
+
+  revalidatePath('/configuracoes/usuarios')
+}
+
+export async function alternarStatusUsuario(usuarioId: string, ativo: boolean) {
+  const supabase = await createClient()
+
+  const { data: { user: usuarioAtual } } = await supabase.auth.getUser()
+  const { data: perfilAtual } = await supabase
+    .from('profiles')
+    .select('cargo')
+    .eq('id', usuarioAtual?.id ?? '')
+    .single()
+
+  if (perfilAtual?.cargo !== 'admin') {
+    throw new Error('Apenas administradores podem alterar status de usuários.')
+  }
+
+  await supabase
+    .from('profiles')
+    .update({ ativo, atualizado_em: new Date().toISOString() })
+    .eq('id', usuarioId)
+
+  revalidatePath('/configuracoes/usuarios')
+}
