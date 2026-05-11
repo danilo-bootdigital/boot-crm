@@ -137,11 +137,13 @@ export async function moverEtapa(estagioId: string, direcao: 'cima' | 'baixo') {
     .from('pipeline_stages')
     .update({ ordem: ordemAlvo, atualizado_em: new Date().toISOString() })
     .eq('id', estagioId)
+    .eq('organization_id', perfil.organization_id)
 
   await supabase
     .from('pipeline_stages')
     .update({ ordem: etapa.ordem, atualizado_em: new Date().toISOString() })
     .eq('id', vizinha.id)
+    .eq('organization_id', perfil.organization_id)
 
   revalidatePath('/pipeline')
   revalidatePath('/pipeline/configurar')
