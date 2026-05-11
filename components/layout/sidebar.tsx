@@ -2,32 +2,13 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import {
-  LayoutDashboard, Users, TrendingUp, UserCheck,
-  Briefcase, MessageCircle, Inbox, CheckSquare, FileText,
-  BarChart2, Settings
-} from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-const navegacao = [
-  { label: 'Painel Principal', href: '/painel', icone: LayoutDashboard },
-  { label: 'Caixa de Entrada', href: '/caixa-de-entrada', icone: Inbox },
-  { label: 'Leads', href: '/leads', icone: Users },
-  { label: 'Pipeline de Vendas', href: '/pipeline', icone: TrendingUp },
-  { label: 'Contatos', href: '/contatos', icone: UserCheck },
-  { label: 'Negociações', href: '/negociacoes', icone: Briefcase },
-  { label: 'WhatsApp', href: '/whatsapp', icone: MessageCircle },
-  { label: 'Tarefas', href: '/tarefas', icone: CheckSquare },
-  { label: 'Orçamentos', href: '/orcamentos', icone: FileText },
-  { label: 'Relatórios', href: '/relatorios', icone: BarChart2 },
-  { label: 'Configurações', href: '/configuracoes', icone: Settings },
-]
+import { navegacao } from '@/lib/navegacao'
 
 export function Sidebar() {
   const pathname = usePathname()
 
   return (
-    // hidden em mobile, flex em telas md+ (≥768px)
     <aside className="hidden md:flex h-screen w-64 flex-col border-r bg-white">
       <div className="flex h-16 items-center border-b px-6">
         <span className="text-xl font-bold text-slate-900">BOOT CRM</span>

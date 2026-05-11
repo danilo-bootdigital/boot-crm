@@ -5,26 +5,9 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
-import {
-  LayoutDashboard, Users, TrendingUp, UserCheck,
-  Briefcase, MessageCircle, Inbox, CheckSquare, FileText,
-  BarChart2, Settings, Menu
-} from 'lucide-react'
+import { Menu } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-const navegacao = [
-  { label: 'Painel Principal', href: '/painel', icone: LayoutDashboard },
-  { label: 'Caixa de Entrada', href: '/caixa-de-entrada', icone: Inbox },
-  { label: 'Leads', href: '/leads', icone: Users },
-  { label: 'Pipeline de Vendas', href: '/pipeline', icone: TrendingUp },
-  { label: 'Contatos', href: '/contatos', icone: UserCheck },
-  { label: 'Negociações', href: '/negociacoes', icone: Briefcase },
-  { label: 'WhatsApp', href: '/whatsapp', icone: MessageCircle },
-  { label: 'Tarefas', href: '/tarefas', icone: CheckSquare },
-  { label: 'Orçamentos', href: '/orcamentos', icone: FileText },
-  { label: 'Relatórios', href: '/relatorios', icone: BarChart2 },
-  { label: 'Configurações', href: '/configuracoes', icone: Settings },
-]
+import { navegacao } from '@/lib/navegacao'
 
 export function SidebarMobile() {
   const [aberto, setAberto] = useState(false)
