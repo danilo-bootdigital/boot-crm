@@ -11,17 +11,26 @@ const ICONES_TIPO: Record<string, string> = {
   lead_descartado: '✕',
   lead_convertido: '→',
   responsavel_alterado: '⇄',
+  responsavel_atribuido_automaticamente: '⇄',
+  lead_sem_responsavel: '⚠',
   observacao: '✉',
   status_alterado: '◉',
   contato_criado: '✦',
+  deal_criado: '✦',
+  deal_movido: '→',
+  deal_ganho: '★',
+  deal_perdido: '✕',
+  tarefa_criada: '☐',
+  tarefa_concluida: '☑',
 }
 
 type Props = {
   leadId?: string
   contatoId?: string
+  dealId?: string
 }
 
-export async function TimelineAtividades({ leadId, contatoId }: Props) {
+export async function TimelineAtividades({ leadId, contatoId, dealId }: Props) {
   const supabase = await createClient()
 
   let query = supabase
@@ -32,8 +41,9 @@ export async function TimelineAtividades({ leadId, contatoId }: Props) {
 
   if (leadId) query = query.eq('lead_id', leadId)
   if (contatoId) query = query.eq('contato_id', contatoId)
+  if (dealId) query = query.eq('deal_id', dealId)
 
-  if (!leadId && !contatoId) return (
+  if (!leadId && !contatoId && !dealId) return (
     <p className="text-sm text-slate-400">Nenhuma atividade disponível.</p>
   )
 

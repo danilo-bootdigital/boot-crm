@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -8,6 +8,7 @@ import { BadgeStatusLead } from '@/components/leads/badge-status-lead'
 import { ModalConverterLead } from '@/components/leads/modal-converter-lead'
 import { FormObservacao } from '@/components/leads/form-observacao'
 import { TimelineAtividades } from '@/components/shared/timeline-atividades'
+import { ListaTarefas } from '@/components/tarefas/lista-tarefas'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { descartarLead } from '@/app/(dashboard)/leads/actions'
@@ -27,6 +28,56 @@ export default async function LeadDetalhePage({ params }: { params: Promise<{ id
     .single() as { data: LeadComResponsavel | null }
 
   if (!lead) notFound()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+  const { data: perfilAtual } = await supabase
+    .from('profiles')
+    .select('id, cargo, organization_id')
+    .eq('id', user.id)
+    .single()
+
+  let tarefasQuery = supabase
+    .from('tasks')
+    .select(`
+      id, titulo, descricao, tipo, data_vencimento, concluida,
+      lead_id, contato_id, deal_id, responsavel_id,
+      responsavel:profiles!responsavel_id(id, nome)
+    `)
+    .eq('lead_id', id)
+    .eq('organization_id', lead.organization_id)
+    .order('concluida', { ascending: true })
+    .order('data_vencimento', { ascending: true, nullsFirst: false })
+
+  if (perfilAtual?.cargo === 'vendedor' || perfilAtual?.cargo === 'atendimento') {
+    tarefasQuery = tarefasQuery.eq('responsavel_id', perfilAtual.id)
+  }
+
+  const { data: tarefasRaw } = await tarefasQuery
+  const tarefas = (tarefasRaw ?? []).map((t) => ({
+    id: t.id as string,
+    titulo: t.titulo as string,
+    descricao: t.descricao as string | null,
+    tipo: t.tipo as 'ligacao' | 'email' | 'reuniao' | 'whatsapp',
+    data_vencimento: t.data_vencimento as string | null,
+    concluida: t.concluida as boolean,
+    lead_id: t.lead_id as string | null,
+    contato_id: t.contato_id as string | null,
+    deal_id: t.deal_id as string | null,
+    responsavel: (Array.isArray(t.responsavel) ? t.responsavel[0] : t.responsavel) as { id: string; nome: string } | null,
+  }))
+
+  let vendedores: { id: string; nome: string }[] = []
+  if (perfilAtual?.cargo === 'admin' || perfilAtual?.cargo === 'gestor') {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, nome')
+      .eq('organization_id', lead.organization_id)
+      .eq('ativo', true)
+      .in('cargo', ['vendedor', 'atendimento', 'gestor', 'admin'])
+      .order('nome')
+    vendedores = data ?? []
+  }
 
   const podeConverter = lead.status !== 'qualificado' && lead.status !== 'descartado'
 
@@ -108,6 +159,23 @@ export default async function LeadDetalhePage({ params }: { params: Promise<{ id
             </CardHeader>
             <CardContent>
               <FormObservacao leadId={lead.id} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Tarefas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {perfilAtual && (
+                <ListaTarefas
+                  tarefas={tarefas}
+                  cargo={perfilAtual.cargo as import('@/types/database').UserRole}
+                  vendedores={vendedores}
+                  perfilId={perfilAtual.id}
+                  leadId={id}
+                />
+              )}
             </CardContent>
           </Card>
 
