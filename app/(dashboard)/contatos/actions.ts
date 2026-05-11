@@ -10,7 +10,7 @@ async function getUsuarioEOrg() {
   if (!user) redirect('/login')
   const { data: perfil } = await supabase
     .from('profiles')
-    .select('id, organization_id, cargo')
+    .select('id, organization_id')
     .eq('id', user.id)
     .single()
   if (!perfil) redirect('/login')
@@ -47,6 +47,7 @@ export async function criarContato(formData: FormData) {
   const { supabase, perfil } = await getUsuarioEOrg()
 
   const nome = formData.get('nome') as string
+  if (!nome?.trim()) throw new Error('O nome do contato é obrigatório.')
   const email = formData.get('email') as string | null
   const telefone = formData.get('telefone') as string | null
   const cargo = formData.get('cargo') as string | null
@@ -107,7 +108,7 @@ export async function editarContato(contatoId: string, formData: FormData) {
       observacoes: observacoes || null,
       atualizado_em: new Date().toISOString(),
     })
-    .eq('id', contatoId)
+    .eq('id', contatoId).eq('organization_id', perfil.organization_id)
 
   if (error) throw new Error(`Erro ao editar contato: ${error.message}`)
 
@@ -118,13 +119,14 @@ export async function editarContato(contatoId: string, formData: FormData) {
 export async function adicionarObservacaoContato(contatoId: string, texto: string) {
   const { supabase, perfil } = await getUsuarioEOrg()
 
-  await supabase.from('activities').insert({
+  const { error: errAtividade } = await supabase.from('activities').insert({
     organization_id: perfil.organization_id,
     autor_id: perfil.id,
     tipo: 'observacao',
     descricao: texto,
     contato_id: contatoId,
   })
+  if (errAtividade) throw new Error(`Erro ao registrar observação: ${errAtividade.message}`)
 
   revalidatePath(`/contatos/${contatoId}`)
 }
