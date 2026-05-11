@@ -3,6 +3,7 @@ import { BadgePerfil } from '@/components/usuarios/badge-perfil'
 import { SidebarMobile } from '@/components/layout/sidebar-mobile'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { BotaoSair } from '@/components/layout/botao-sair'
+import { BotaoDisponibilidade } from '@/components/distribuicao/botao-disponibilidade'
 import type { UserRole } from '@/types/database'
 
 export async function Header() {
@@ -11,7 +12,7 @@ export async function Header() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('nome, cargo')
+    .select('nome, cargo, disponivel')
     .eq('id', user?.id ?? '')
     .single()
 
@@ -24,10 +25,15 @@ export async function Header() {
 
   return (
     <header className="flex h-16 items-center justify-between border-b bg-white px-4 md:px-6">
-      {/* Botão hambúrguer — só renderiza em mobile via SidebarMobile */}
       <SidebarMobile />
 
       <div className="flex items-center gap-3 md:gap-4">
+        {profile?.cargo && (
+          <BotaoDisponibilidade
+            disponivel={profile.disponivel ?? true}
+            cargo={profile.cargo as UserRole}
+          />
+        )}
         {profile?.cargo && (
           <span className="hidden sm:block">
             <BadgePerfil perfil={profile.cargo as UserRole} />
