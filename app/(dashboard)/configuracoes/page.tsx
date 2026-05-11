@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Users, GitBranch } from 'lucide-react'
+import { Users, GitBranch, MessageCircle } from 'lucide-react'
 
 export default async function ConfiguracoesPage() {
   const supabase = await createClient()
@@ -63,6 +63,23 @@ export default async function ConfiguracoesPage() {
             </div>
           </div>
         </Link>
+
+        {isAdmin && (
+          <Link
+            href="/configuracoes/whatsapp"
+            className="flex items-start gap-4 rounded-lg border bg-white p-5 transition-colors hover:bg-slate-50"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-100">
+              <MessageCircle className="h-5 w-5 text-green-600" />
+            </div>
+            <div>
+              <div className="font-medium text-slate-900">Conexões WhatsApp</div>
+              <div className="mt-0.5 text-sm text-slate-500">
+                Gerenciar instâncias e QR Code.
+              </div>
+            </div>
+          </Link>
+        )}
       </div>
     </div>
   )

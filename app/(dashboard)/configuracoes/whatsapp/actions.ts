@@ -1,0 +1,97 @@
+'use server'
+
+import { createClient } from '@/lib/supabase/server'
+import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
+import { criarInstancia, deletarInstancia, obterQRCode } from '@/lib/evolution'
+
+async function getSoAdmin() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+  const { data: perfil } = await supabase
+    .from('profiles')
+    .select('id, organization_id, cargo')
+    .eq('id', user.id)
+    .single()
+  if (!perfil || perfil.cargo !== 'admin') redirect('/painel')
+  return { supabase, perfil }
+}
+
+export async function adicionarInstancia(formData: FormData) {
+  const { supabase, perfil } = await getSoAdmin()
+
+  const nome = (formData.get('nome') as string)?.trim()
+  const compartilhado = formData.get('compartilhado') === 'true'
+  const vendedor_id = (formData.get('vendedor_id') as string) || null
+
+  if (!nome) throw new Error('Nome é obrigatório.')
+
+  // Gerar nome único para Evolution API (sem espaços, letras e números)
+  const instanceName = `org${perfil.organization_id.slice(0, 8)}-${Date.now()}`
+
+  const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/webhook/evolution?secret=${process.env.EVOLUTION_WEBHOOK_SECRET}`
+
+  await criarInstancia(instanceName, webhookUrl)
+
+  const { error } = await supabase.from('whatsapp_instances').insert({
+    organization_id: perfil.organization_id,
+    nome,
+    evolution_instance_name: instanceName,
+    compartilhado,
+    vendedor_id: compartilhado ? null : vendedor_id,
+    status_conexao: 'desconectado',
+  })
+
+  if (error) throw new Error(`Erro ao salvar instância: ${error.message}`)
+
+  revalidatePath('/configuracoes/whatsapp')
+}
+
+export async function excluirInstancia(instanceId: string) {
+  const { supabase, perfil } = await getSoAdmin()
+
+  const { data: instancia } = await supabase
+    .from('whatsapp_instances')
+    .select('id, evolution_instance_name')
+    .eq('id', instanceId)
+    .eq('organization_id', perfil.organization_id)
+    .single()
+
+  if (!instancia) throw new Error('Instância não encontrada.')
+
+  if (instancia.evolution_instance_name) {
+    try { await deletarInstancia(instancia.evolution_instance_name) } catch { /* ignorar se não existir na API */ }
+  }
+
+  const { error } = await supabase
+    .from('whatsapp_instances')
+    .delete()
+    .eq('id', instanceId)
+    .eq('organization_id', perfil.organization_id)
+
+  if (error) throw new Error(`Erro ao excluir instância: ${error.message}`)
+
+  revalidatePath('/configuracoes/whatsapp')
+}
+
+export async function verificarQRCode(instanceId: string): Promise<
+  { estado: 'conectado' } | { estado: 'qr'; base64: string } | { estado: 'aguardando' }
+> {
+  const { supabase, perfil } = await getSoAdmin()
+
+  const { data: instancia } = await supabase
+    .from('whatsapp_instances')
+    .select('evolution_instance_name, status_conexao')
+    .eq('id', instanceId)
+    .eq('organization_id', perfil.organization_id)
+    .single()
+
+  if (!instancia?.evolution_instance_name) return { estado: 'aguardando' }
+
+  if (instancia.status_conexao === 'conectado') return { estado: 'conectado' }
+
+  const base64 = await obterQRCode(instancia.evolution_instance_name)
+  if (base64) return { estado: 'qr', base64 }
+  return { estado: 'aguardando' }
+}
