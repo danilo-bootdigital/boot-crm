@@ -35,16 +35,19 @@ export function ThreadMensagens({ mensagensIniciais, conversaId }: Props) {
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversaId}` },
         (payload) => {
           const nova = payload.new as Record<string, unknown>
-          setMensagens((prev) => [
-            ...prev,
-            {
-              id: nova.id as string,
-              direcao: nova.direcao as 'enviada' | 'recebida',
-              conteudo: nova.conteudo as string | null,
-              enviado_em: nova.enviado_em as string,
-              responsavel: null,
-            },
-          ])
+          setMensagens((prev) => {
+            if (prev.some((m) => m.id === (nova.id as string))) return prev
+            return [
+              ...prev,
+              {
+                id: nova.id as string,
+                direcao: nova.direcao as 'enviada' | 'recebida',
+                conteudo: nova.conteudo as string | null,
+                enviado_em: nova.enviado_em as string,
+                responsavel: null,
+              },
+            ]
+          })
         }
       )
       .subscribe()

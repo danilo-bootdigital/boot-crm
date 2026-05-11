@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Send } from 'lucide-react'
 import { enviarMensagem } from '@/app/(dashboard)/whatsapp/actions'
+import { isRedirectError } from 'next/dist/client/components/redirect-error'
 
 type Props = { conversaId: string }
 
@@ -28,6 +29,7 @@ export function FormEnvioMensagem({ conversaId }: Props) {
         await enviarMensagem(conversaId, texto)
         setTexto('')
       } catch (e: unknown) {
+        if (isRedirectError(e)) throw e
         setErro(e instanceof Error ? e.message : 'Erro ao enviar mensagem.')
       }
     })

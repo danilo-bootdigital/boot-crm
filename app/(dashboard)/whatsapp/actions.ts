@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 import { enviarTexto } from '@/lib/evolution'
 
 export async function enviarMensagem(conversaId: string, texto: string) {
@@ -63,4 +64,6 @@ export async function enviarMensagem(conversaId: string, texto: string) {
     .update({ ultima_mensagem_em: agora, atualizado_em: agora })
     .eq('id', conversaId)
     .eq('organization_id', perfil.organization_id)
+
+  revalidatePath('/whatsapp')
 }
