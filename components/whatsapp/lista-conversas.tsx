@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
+import { createClient } from '@/lib/supabase/client'
 import { ItemConversa } from './item-conversa'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 
 type Conversa = {
   id: string
@@ -20,17 +20,15 @@ export function ListaConversas({ conversasIniciais }: Props) {
   const [conversas, setConversas] = useState(conversasIniciais)
   const params = useParams()
   const conversaAtivaId = params?.id as string | undefined
+  const router = useRouter()
 
   useEffect(() => {
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
+    const supabase = createClient()
 
     const channel = supabase
       .channel('conversations-updates')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => {
-        // Realtime notifies of changes; full refresh is handled by the parent route revalidation
+        router.refresh()
       })
       .subscribe()
 

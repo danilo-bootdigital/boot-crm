@@ -57,7 +57,9 @@ export default async function WhatsappPage() {
       .from('messages')
       .select('conversation_id, conteudo, enviado_em')
       .in('conversation_id', conversaIds)
+      .eq('organization_id', perfil.organization_id)
       .order('enviado_em', { ascending: false })
+      .limit(conversaIds.length * 5)
     // Pegar a primeira (mais recente) por conversa
     ;(msgs ?? []).forEach((m) => {
       const cid = m.conversation_id as string
