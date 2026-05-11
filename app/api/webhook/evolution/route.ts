@@ -8,11 +8,17 @@ function normalizarTelefone(jid: string): string {
 
 export async function POST(req: NextRequest) {
   const secret = req.nextUrl.searchParams.get('secret')
-  if (secret !== process.env.EVOLUTION_WEBHOOK_SECRET) {
+  const webhookSecret = process.env.EVOLUTION_WEBHOOK_SECRET
+  if (!webhookSecret || secret !== webhookSecret) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const body = await req.json()
+  let body: Record<string, unknown>
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  }
   const { event, instance: instanceName, data } = body as {
     event: string
     instance: string
@@ -41,6 +47,7 @@ export async function POST(req: NextRequest) {
       .from('whatsapp_instances')
       .update({ status_conexao: statusMap[state] ?? 'desconectado', atualizado_em: new Date().toISOString() })
       .eq('id', instancia.id)
+      .eq('organization_id', instancia.organization_id)
     return NextResponse.json({ ok: true })
   }
 
@@ -71,6 +78,7 @@ export async function POST(req: NextRequest) {
         .from('messages')
         .select('id', { count: 'exact', head: true })
         .eq('message_id_externo', messageIdExterno)
+        .eq('organization_id', instancia.organization_id)
       if ((count ?? 0) > 0) return NextResponse.json({ ok: true })
     }
 
@@ -168,7 +176,7 @@ export async function POST(req: NextRequest) {
       locationMessage: 'localizacao',
     }
 
-    await supabase.from('messages').insert({
+    const { error: errMsg } = await supabase.from('messages').insert({
       organization_id: instancia.organization_id,
       conversation_id: conversa.id,
       message_id_externo: messageIdExterno || null,
@@ -181,6 +189,7 @@ export async function POST(req: NextRequest) {
       status: fromMe ? 'enviada' : 'entregue',
       enviado_em: enviadoEm,
     })
+    if (errMsg) console.error('[webhook] Falha ao inserir mensagem:', errMsg.message)
   }
 
   return NextResponse.json({ ok: true })
