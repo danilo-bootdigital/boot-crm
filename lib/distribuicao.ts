@@ -42,7 +42,8 @@ async function buscarConfig(
     .select('id, modo, apenas_disponiveis, limite_por_vendedor, proximo_vendedor_idx')
     .single()
 
-  return nova!
+  if (!nova) throw new Error('Falha ao criar configuração de distribuição.')
+  return nova
 }
 
 async function buscarVendedoresElegiveis(
@@ -110,10 +111,12 @@ async function selecionarRotativo(
   const indice = indiceAtual % vendedores.length
   const vendedor = vendedores[indice]
 
-  await supabase
+  const { error: errIdx } = await supabase
     .from('lead_distribution_config')
     .update({ proximo_vendedor_idx: indiceAtual + 1 })
     .eq('id', configId)
+
+  if (errIdx) throw new Error(`Falha ao atualizar índice rotativo: ${errIdx.message}`)
 
   return vendedor
 }
