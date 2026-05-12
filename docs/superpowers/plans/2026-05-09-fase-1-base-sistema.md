@@ -28,7 +28,8 @@ boot-crm/
 │   └── database.ts                              # Tipos TypeScript espelhando o banco
 ├── components/
 │   ├── layout/
-│   │   ├── sidebar.tsx                          # Menu lateral de navegação
+│   │   ├── sidebar.tsx                          # Menu lateral (visível em telas md+)
+│   │   ├── sidebar-mobile.tsx                   # Menu lateral para mobile via Sheet
 │   │   ├── header.tsx                           # Barra superior com usuário e badge
 │   │   └── botao-sair.tsx                       # Botão de logout (Client Component)
 │   └── usuarios/
@@ -580,19 +581,23 @@ alter table system_config enable row level security;
 alter table audit_logs enable row level security;
 
 -- Função auxiliar: retorna organization_id do usuário autenticado
+-- SECURITY DEFINER necessário para evitar recursão infinita no RLS de profiles
 create or replace function get_organization_id()
 returns uuid
 language sql
 stable
+security definer set search_path = public
 as $$
   select organization_id from profiles where id = auth.uid()
 $$;
 
 -- Função auxiliar: retorna cargo do usuário autenticado
+-- SECURITY DEFINER necessário para evitar recursão infinita no RLS de profiles
 create or replace function get_user_role()
 returns user_role
 language sql
 stable
+security definer set search_path = public
 as $$
   select cargo from profiles where id = auth.uid()
 $$;
@@ -794,11 +799,321 @@ git commit -m "feat: cria schema completo do banco de dados com RLS"
 
 ---
 
-## Tarefa 4: Configurar os clientes Supabase
+## Tarefa 4: Configurar os clientes Supabase e tipos TypeScript
 
-**Arquivos:** `lib/supabase/client.ts`, `lib/supabase/server.ts`
+**Arquivos:** `types/database.ts`, `lib/supabase/client.ts`, `lib/supabase/server.ts`, `lib/supabase/admin.ts`
 
-- [ ] **Passo 1: Criar a pasta e o cliente para o browser**
+- [ ] **Passo 1: Criar os tipos TypeScript do banco de dados**
+
+Criar `types/database.ts`:
+
+```typescript
+// Tipos que espelham o schema do Supabase (001_schema_completo.sql)
+// Para regenerar via CLI: npx supabase gen types typescript --project-id SEU-ID > types/database.ts
+
+export type UserRole = 'admin' | 'gestor' | 'vendedor' | 'atendimento' | 'financeiro' | 'suporte'
+export type LeadOrigem = 'whatsapp' | 'instagram_lead_ad' | 'facebook_lead_ad' | 'site' | 'indicacao' | 'evento' | 'manual'
+export type LeadStatus = 'novo' | 'em_atendimento' | 'qualificado' | 'descartado'
+export type TaskTipo = 'ligacao' | 'email' | 'reuniao' | 'whatsapp'
+export type WhatsappStatus = 'conectado' | 'desconectado' | 'aguardando_qr'
+export type MessageDirecao = 'enviada' | 'recebida'
+export type MessageTipoMidia = 'texto' | 'audio' | 'imagem' | 'documento' | 'sticker' | 'localizacao'
+export type MessageStatus = 'enviada' | 'entregue' | 'lida' | 'falhou'
+export type DistribuicaoModo = 'manual' | 'rotativo' | 'por_carga'
+export type QuoteStatus =
+  | 'rascunho'
+  | 'aguardando_aprovacao_interna'
+  | 'aprovado_internamente'
+  | 'rejeitado_internamente'
+  | 'enviado_ao_cliente'
+  | 'aprovado_pelo_cliente'
+  | 'recusado_pelo_cliente'
+
+export type Organization = {
+  id: string
+  nome: string
+  slug: string
+  plano: string
+  ativo: boolean
+  criado_em: string
+  atualizado_em: string
+}
+
+export type Profile = {
+  id: string
+  organization_id: string
+  nome: string
+  email: string
+  telefone: string | null
+  cargo: UserRole
+  disponivel: boolean
+  ativo: boolean
+  ultimo_status_em: string | null
+  criado_em: string
+  atualizado_em: string
+}
+
+export type Lead = {
+  id: string
+  organization_id: string
+  nome: string | null
+  email: string | null
+  telefone: string | null
+  empresa: string | null
+  origem: LeadOrigem
+  status: LeadStatus
+  responsavel_id: string | null
+  foto_perfil_url: string | null
+  contato_anterior_id: string | null
+  whatsapp_instance_id: string | null
+  observacoes: string | null
+  ultima_interacao_em: string | null
+  criado_em: string
+  atualizado_em: string
+}
+
+export type Company = {
+  id: string
+  organization_id: string
+  nome: string
+  cnpj: string | null
+  site: string | null
+  telefone: string | null
+  endereco: string | null
+  criado_em: string
+  atualizado_em: string
+}
+
+export type Contact = {
+  id: string
+  organization_id: string
+  nome: string
+  email: string | null
+  telefone: string | null
+  cargo: string | null
+  empresa_id: string | null
+  responsavel_id: string | null
+  foto_perfil_url: string | null
+  observacoes: string | null
+  criado_em: string
+  atualizado_em: string
+}
+
+export type Pipeline = {
+  id: string
+  organization_id: string
+  nome: string
+  descricao: string | null
+  padrao: boolean
+  ativo: boolean
+  criado_em: string
+  atualizado_em: string
+}
+
+export type PipelineStage = {
+  id: string
+  organization_id: string
+  pipeline_id: string
+  nome: string
+  ordem: number
+  cor: string
+  oculto: boolean
+  criado_em: string
+  atualizado_em: string
+}
+
+export type Deal = {
+  id: string
+  organization_id: string
+  titulo: string
+  valor_estimado: number | null
+  contato_id: string | null
+  responsavel_id: string | null
+  pipeline_id: string
+  estagio_id: string
+  data_fechamento_prevista: string | null
+  origem_lead: LeadOrigem | null
+  motivo_perda: string | null
+  ganho: boolean | null
+  observacoes: string | null
+  criado_em: string
+  atualizado_em: string
+}
+
+export type Task = {
+  id: string
+  organization_id: string
+  titulo: string
+  descricao: string | null
+  tipo: TaskTipo
+  data_vencimento: string | null
+  concluida: boolean
+  responsavel_id: string
+  lead_id: string | null
+  contato_id: string | null
+  deal_id: string | null
+  criado_em: string
+  atualizado_em: string
+}
+
+export type Activity = {
+  id: string
+  organization_id: string
+  tipo: string
+  descricao: string
+  lead_id: string | null
+  deal_id: string | null
+  contato_id: string | null
+  autor_id: string
+  criado_em: string
+}
+
+export type WhatsappInstance = {
+  id: string
+  organization_id: string
+  nome: string
+  numero: string | null
+  evolution_instance_name: string | null
+  vendedor_id: string | null
+  compartilhado: boolean
+  status_conexao: WhatsappStatus
+  criado_em: string
+  atualizado_em: string
+}
+
+export type Conversation = {
+  id: string
+  organization_id: string
+  whatsapp_instance_id: string
+  lead_id: string | null
+  contato_id: string | null
+  telefone_externo: string
+  ultima_mensagem_em: string | null
+  criado_em: string
+  atualizado_em: string
+}
+
+export type Message = {
+  id: string
+  organization_id: string
+  conversation_id: string
+  message_id_externo: string | null
+  direcao: MessageDirecao
+  tipo_midia: MessageTipoMidia
+  conteudo: string | null
+  url_midia: string | null
+  telefone_remetente: string | null
+  telefone_destinatario: string | null
+  responsavel_id: string | null
+  status: MessageStatus
+  enviado_em: string
+  entregue_em: string | null
+  lida_em: string | null
+}
+
+export type MessageTemplate = {
+  id: string
+  organization_id: string
+  nome: string
+  conteudo: string
+  categoria: string | null
+  criado_por: string
+  criado_em: string
+  atualizado_em: string
+}
+
+export type ConversationExport = {
+  id: string
+  organization_id: string
+  conversation_id: string
+  lead_id: string | null
+  exportado_por: string
+  formato: 'png' | 'txt'
+  periodo_inicio: string | null
+  periodo_fim: string | null
+  total_mensagens: number | null
+  criado_em: string
+}
+
+export type Product = {
+  id: string
+  organization_id: string
+  nome: string
+  descricao: string | null
+  preco_unitario: number
+  unidade: string
+  ativo: boolean
+  criado_em: string
+  atualizado_em: string
+}
+
+export type Quote = {
+  id: string
+  organization_id: string
+  numero: number
+  lead_id: string | null
+  deal_id: string | null
+  responsavel_id: string
+  status: QuoteStatus
+  valor_subtotal: number
+  desconto_geral: number
+  valor_total: number
+  aprovacao_interna_por: string | null
+  aprovacao_interna_em: string | null
+  aprovacao_interna_comentario: string | null
+  observacoes: string | null
+  criado_em: string
+  atualizado_em: string
+}
+
+export type QuoteItem = {
+  id: string
+  quote_id: string
+  product_id: string | null
+  descricao: string
+  quantidade: number
+  preco_unitario: number
+  desconto_item: number
+  subtotal: number
+}
+
+export type LeadDistributionConfig = {
+  id: string
+  organization_id: string
+  modo: DistribuicaoModo
+  apenas_disponiveis: boolean
+  limite_por_vendedor: number | null
+  proximo_vendedor_idx: number
+  atualizado_por: string | null
+  atualizado_em: string
+}
+
+export type SystemConfig = {
+  id: string
+  organization_id: string
+  chave: string
+  valor: string
+  tipo_valor: 'texto' | 'numero' | 'booleano' | 'json'
+  descricao: string | null
+  atualizado_por: string | null
+  atualizado_em: string
+}
+
+export type AuditLog = {
+  id: string
+  organization_id: string
+  usuario_id: string | null
+  acao: string
+  tabela_afetada: string | null
+  registro_id: string | null
+  dados_anteriores: Record<string, unknown> | null
+  dados_novos: Record<string, unknown> | null
+  ip: string | null
+  criado_em: string
+}
+```
+
+- [ ] **Passo 2: Criar a pasta e o cliente para o browser**
 
 Criar `lib/supabase/client.ts`:
 
@@ -813,7 +1128,7 @@ export function createClient() {
 }
 ```
 
-- [ ] **Passo 2: Criar o cliente administrativo (usa Service Role Key — somente servidor)**
+- [ ] **Passo 3: Criar o cliente administrativo (usa Service Role Key — somente servidor)**
 
 Criar `lib/supabase/admin.ts`:
 
@@ -835,7 +1150,7 @@ export function createAdminClient() {
 }
 ```
 
-- [ ] **Passo 3: Criar o cliente para Server Actions**
+- [ ] **Passo 4: Criar o cliente para Server Actions**
 
 Criar `lib/supabase/server.ts`:
 
@@ -869,7 +1184,7 @@ export async function createClient() {
 }
 ```
 
-- [ ] **Passo 4: Verificar que não há erros de TypeScript**
+- [ ] **Passo 5: Verificar que não há erros de TypeScript**
 
 ```bash
 npx tsc --noEmit
@@ -877,11 +1192,11 @@ npx tsc --noEmit
 
 Saída esperada: nenhum erro.
 
-- [ ] **Passo 5: Commit**
+- [ ] **Passo 6: Commit**
 
 ```bash
-git add lib/
-git commit -m "feat: configura clientes Supabase para browser e servidor"
+git add lib/ types/
+git commit -m "feat: configura clientes Supabase e tipos TypeScript do banco"
 ```
 
 ---
@@ -988,15 +1303,15 @@ git commit -m "feat: configura middleware de protecao de rotas"
 npx shadcn@latest init
 ```
 
-Quando perguntar, responder:
+Com Tailwind v4 (instalado neste projeto), o CLI faz apenas **uma** pergunta:
 - Which style would you like to use? → **Default**
-- Which color would you like to use as base color? → **Slate**
-- Would you like to use CSS variables? → **Yes**
+
+As perguntas sobre cor base e CSS variables **não aparecem** no Tailwind v4 — o CLI detecta automaticamente e configura tudo sozinho.
 
 - [ ] **Passo 2: Instalar os componentes necessários para a Fase 1**
 
 ```bash
-npx shadcn@latest add button input label card badge dialog select toast avatar dropdown-menu separator
+npx shadcn@latest add button input label card badge dialog select toast avatar dropdown-menu separator sheet
 ```
 
 - [ ] **Passo 3: Verificar que os componentes foram criados**
@@ -1032,10 +1347,9 @@ Criar `components/usuarios/badge-perfil.tsx`:
 
 ```typescript
 import { Badge } from '@/components/ui/badge'
+import type { UserRole } from '@/types/database'
 
-type Perfil = 'admin' | 'gestor' | 'vendedor' | 'atendimento' | 'financeiro' | 'suporte'
-
-const configuracoes: Record<Perfil, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+const configuracoes: Record<UserRole, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   admin: { label: 'Administrador', variant: 'destructive' },
   gestor: { label: 'Gestor Comercial', variant: 'default' },
   vendedor: { label: 'Vendedor', variant: 'secondary' },
@@ -1044,13 +1358,13 @@ const configuracoes: Record<Perfil, { label: string; variant: 'default' | 'secon
   suporte: { label: 'Suporte', variant: 'outline' },
 }
 
-export function BadgePerfil({ perfil }: { perfil: Perfil }) {
+export function BadgePerfil({ perfil }: { perfil: UserRole }) {
   const config = configuracoes[perfil]
   return <Badge variant={config.variant}>{config.label}</Badge>
 }
 ```
 
-- [ ] **Passo 3: Criar a sidebar de navegação**
+- [ ] **Passo 3: Criar a sidebar de navegação (desktop)**
 
 Criar `components/layout/sidebar.tsx`:
 
@@ -1084,13 +1398,12 @@ export function Sidebar() {
   const pathname = usePathname()
 
   return (
-    <aside className="flex h-screen w-64 flex-col border-r bg-white">
-      {/* Logo */}
+    // hidden em mobile, flex em telas md+ (≥768px)
+    <aside className="hidden md:flex h-screen w-64 flex-col border-r bg-white">
       <div className="flex h-16 items-center border-b px-6">
         <span className="text-xl font-bold text-slate-900">BOOT CRM</span>
       </div>
 
-      {/* Navegação */}
       <nav className="flex-1 overflow-y-auto p-4">
         <ul className="space-y-1">
           {navegacao.map((item) => {
@@ -1120,15 +1433,98 @@ export function Sidebar() {
 }
 ```
 
-- [ ] **Passo 4: Criar o header superior**
+- [ ] **Passo 4: Criar a sidebar mobile (Sheet — gaveta lateral)**
+
+Criar `components/layout/sidebar-mobile.tsx`:
+
+```typescript
+'use client'
+
+import { useState } from 'react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { Button } from '@/components/ui/button'
+import {
+  LayoutDashboard, Users, TrendingUp, UserCheck,
+  Briefcase, MessageCircle, Inbox, CheckSquare, FileText,
+  BarChart2, Settings, Menu
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+const navegacao = [
+  { label: 'Painel Principal', href: '/painel', icone: LayoutDashboard },
+  { label: 'Caixa de Entrada', href: '/caixa-de-entrada', icone: Inbox },
+  { label: 'Leads', href: '/leads', icone: Users },
+  { label: 'Pipeline de Vendas', href: '/pipeline', icone: TrendingUp },
+  { label: 'Contatos', href: '/contatos', icone: UserCheck },
+  { label: 'Negociações', href: '/negociacoes', icone: Briefcase },
+  { label: 'WhatsApp', href: '/whatsapp', icone: MessageCircle },
+  { label: 'Tarefas', href: '/tarefas', icone: CheckSquare },
+  { label: 'Orçamentos', href: '/orcamentos', icone: FileText },
+  { label: 'Relatórios', href: '/relatorios', icone: BarChart2 },
+  { label: 'Configurações', href: '/configuracoes', icone: Settings },
+]
+
+export function SidebarMobile() {
+  const [aberto, setAberto] = useState(false)
+  const pathname = usePathname()
+
+  return (
+    <Sheet open={aberto} onOpenChange={setAberto}>
+      <SheetTrigger asChild>
+        {/* Botão hambúrguer: só aparece em mobile (oculto em md+) */}
+        <Button variant="ghost" size="icon" className="md:hidden">
+          <Menu className="h-5 w-5" />
+          <span className="sr-only">Abrir menu</span>
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left" className="w-64 p-0">
+        <SheetHeader className="flex h-16 justify-center border-b px-6">
+          <SheetTitle className="text-xl font-bold text-slate-900">BOOT CRM</SheetTitle>
+        </SheetHeader>
+        <nav className="overflow-y-auto p-4">
+          <ul className="space-y-1">
+            {navegacao.map((item) => {
+              const Icone = item.icone
+              const ativo = pathname === item.href || pathname.startsWith(item.href + '/')
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    onClick={() => setAberto(false)}
+                    className={cn(
+                      'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                      ativo
+                        ? 'bg-slate-100 text-slate-900'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    )}
+                  >
+                    <Icone className="h-4 w-4 shrink-0" />
+                    {item.label}
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </nav>
+      </SheetContent>
+    </Sheet>
+  )
+}
+```
+
+- [ ] **Passo 5: Criar o header superior**
 
 Criar `components/layout/header.tsx`:
 
 ```typescript
 import { createClient } from '@/lib/supabase/server'
 import { BadgePerfil } from '@/components/usuarios/badge-perfil'
+import { SidebarMobile } from '@/components/layout/sidebar-mobile'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { BotaoSair } from '@/components/layout/botao-sair'
+import type { UserRole } from '@/types/database'
 
 export async function Header() {
   const supabase = await createClient()
@@ -1148,19 +1544,23 @@ export async function Header() {
     .toUpperCase() ?? '?'
 
   return (
-    <header className="flex h-16 items-center justify-between border-b bg-white px-6">
-      <div />
-      <div className="flex items-center gap-4">
+    <header className="flex h-16 items-center justify-between border-b bg-white px-4 md:px-6">
+      {/* Botão hambúrguer — só renderiza em mobile via SidebarMobile */}
+      <SidebarMobile />
+
+      <div className="flex items-center gap-3 md:gap-4">
         {profile?.cargo && (
-          <BadgePerfil perfil={profile.cargo as any} />
+          <span className="hidden sm:block">
+            <BadgePerfil perfil={profile.cargo as UserRole} />
+          </span>
         )}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3">
           <Avatar className="h-8 w-8">
             <AvatarFallback className="bg-slate-200 text-slate-700 text-xs">
               {iniciais}
             </AvatarFallback>
           </Avatar>
-          <span className="text-sm font-medium text-slate-700">
+          <span className="hidden sm:block text-sm font-medium text-slate-700">
             {profile?.nome ?? user?.email}
           </span>
         </div>
@@ -1171,7 +1571,7 @@ export async function Header() {
 }
 ```
 
-- [ ] **Passo 5: Criar o botão de sair (Client Component separado)**
+- [ ] **Passo 6: Criar o botão de sair (Client Component separado)**
 
 Criar `components/layout/botao-sair.tsx`:
 
@@ -1202,7 +1602,7 @@ export function BotaoSair() {
 }
 ```
 
-- [ ] **Passo 6: Criar o layout do dashboard**
+- [ ] **Passo 7: Criar o layout do dashboard**
 
 Criar `app/(dashboard)/layout.tsx`:
 
@@ -1217,10 +1617,12 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="flex h-screen bg-slate-50">
+      {/* Sidebar desktop (hidden md:flex definido dentro do componente) */}
       <Sidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
+      {/* min-w-0 evita overflow em flex no mobile */}
+      <div className="flex flex-1 flex-col overflow-hidden min-w-0">
         <Header />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">
           {children}
         </main>
       </div>
@@ -1229,7 +1631,7 @@ export default function DashboardLayout({
 }
 ```
 
-- [ ] **Passo 7: Criar o layout de autenticação**
+- [ ] **Passo 8: Criar o layout de autenticação**
 
 Criar `app/(auth)/layout.tsx`:
 
@@ -1247,7 +1649,7 @@ export default function AuthLayout({
 }
 ```
 
-- [ ] **Passo 8: Criar página placeholder do painel**
+- [ ] **Passo 9: Criar página placeholder do painel**
 
 Criar `app/(dashboard)/painel/page.tsx`:
 
@@ -1264,17 +1666,17 @@ export default function PainelPage() {
 }
 ```
 
-- [ ] **Passo 9: Verificar que não há erros**
+- [ ] **Passo 10: Verificar que não há erros**
 
 ```bash
 npx tsc --noEmit
 ```
 
-- [ ] **Passo 10: Commit**
+- [ ] **Passo 11: Commit**
 
 ```bash
 git add .
-git commit -m "feat: cria layout base com sidebar e header em portugues"
+git commit -m "feat: cria layout responsivo com sidebar desktop e mobile"
 ```
 
 ---
@@ -1489,7 +1891,7 @@ export async function criarUsuario(formData: FormData) {
     throw new Error(`Erro ao criar usuário: ${error.message}`)
   }
 
-  // Atualizar telefone no perfil (o trigger already creates nome e cargo)
+  // Atualizar telefone no perfil (trigger já criou nome e cargo via handle_new_user)
   if (data.user && telefone) {
     await adminClient
       .from('profiles')
@@ -1649,13 +2051,14 @@ import { Button } from '@/components/ui/button'
 import { alternarStatusUsuario } from '@/app/(dashboard)/configuracoes/usuarios/actions'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import type { UserRole } from '@/types/database'
 
 type Usuario = {
   id: string
   nome: string
   email: string
   telefone: string | null
-  cargo: string
+  cargo: UserRole
   disponivel: boolean
   ativo: boolean
   criado_em: string
@@ -1690,7 +2093,7 @@ export function ListaUsuarios({ usuarios }: { usuarios: Usuario[] }) {
               <td className="px-4 py-3 text-slate-600">{usuario.email}</td>
               <td className="px-4 py-3 text-slate-600">{usuario.telefone ?? '—'}</td>
               <td className="px-4 py-3">
-                <BadgePerfil perfil={usuario.cargo as any} />
+                <BadgePerfil perfil={usuario.cargo} />
               </td>
               <td className="px-4 py-3 text-slate-600">
                 {format(new Date(usuario.criado_em), "dd/MM/yyyy", { locale: ptBR })}
@@ -1752,7 +2155,7 @@ export default async function UsuariosPage() {
   const { data: usuarios } = await supabase
     .from('profiles')
     .select('id, nome, email, telefone, cargo, disponivel, ativo, criado_em')
-    .order('nome')
+    .order('nome') as { data: import('@/types/database').Profile[] | null }
 
   return (
     <div className="space-y-6">
