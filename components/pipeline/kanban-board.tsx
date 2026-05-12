@@ -172,25 +172,39 @@ export function KanbanBoard({ pipelineId, etapas, dealsIniciais, cargo }: Props)
     estagioAtualId: string,
     extras: { valor_estimado?: number; motivo_perda?: string } = {}
   ) {
-    // Atualização otimista
-    setDeals((prev) =>
-      prev.map((d) =>
-        d.id === dealId
-          ? {
-              ...d,
-              estagio_id: estagioDestinoId,
-              ...(extras.valor_estimado !== undefined ? { valor_estimado: extras.valor_estimado } : {}),
-              ...(extras.motivo_perda !== undefined ? { motivo_perda: extras.motivo_perda } : {}),
-            }
-          : d
+    const etapaDestino = etapas.find((e) => e.id === estagioDestinoId)
+    const isTerminal = etapaDestino?.tipo_especial === 'fechado' || etapaDestino?.tipo_especial === 'perdido'
+
+    if (isTerminal) {
+      setDeals((prev) => prev.filter((d) => d.id !== dealId))
+    } else {
+      setDeals((prev) =>
+        prev.map((d) =>
+          d.id === dealId
+            ? {
+                ...d,
+                estagio_id: estagioDestinoId,
+                ...(extras.valor_estimado !== undefined ? { valor_estimado: extras.valor_estimado } : {}),
+                ...(extras.motivo_perda !== undefined ? { motivo_perda: extras.motivo_perda } : {}),
+              }
+            : d
+        )
       )
-    )
+    }
 
     moverDeal(dealId, estagioDestinoId, extras).catch(() => {
-      // Reverter em caso de erro
-      setDeals((prev) =>
-        prev.map((d) => (d.id === dealId ? { ...d, estagio_id: estagioAtualId } : d))
-      )
+      if (isTerminal) {
+        // Reverter: re-adicionar o deal na coluna original
+        setDeals((prev) => {
+          const deal = dealsIniciais.find((d) => d.id === dealId)
+          if (!deal) return prev
+          return [...prev, { ...deal, estagio_id: estagioAtualId }]
+        })
+      } else {
+        setDeals((prev) =>
+          prev.map((d) => (d.id === dealId ? { ...d, estagio_id: estagioAtualId } : d))
+        )
+      }
     })
   }
 

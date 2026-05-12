@@ -6,12 +6,12 @@ import { ptBR } from 'date-fns/locale'
 import { BadgeOrigem } from '@/components/leads/badge-origem'
 import { BadgeStatusLead } from '@/components/leads/badge-status-lead'
 import { ModalConverterLead } from '@/components/leads/modal-converter-lead'
+import { BotaoDescartarLead } from '@/components/leads/botao-descartar-lead'
 import { FormObservacao } from '@/components/leads/form-observacao'
 import { TimelineAtividades } from '@/components/shared/timeline-atividades'
 import { ListaTarefas } from '@/components/tarefas/lista-tarefas'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { descartarLead } from '@/app/(dashboard)/leads/actions'
 import { ChevronLeft } from 'lucide-react'
 import type { Lead, Profile } from '@/types/database'
 
@@ -20,14 +20,6 @@ type LeadComResponsavel = Lead & { responsavel: Pick<Profile, 'id' | 'nome'> | n
 export default async function LeadDetalhePage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient()
   const { id } = await params
-
-  const { data: lead } = await supabase
-    .from('leads')
-    .select('*, responsavel:profiles!responsavel_id(id, nome)')
-    .eq('id', id)
-    .single() as { data: LeadComResponsavel | null }
-
-  if (!lead) notFound()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -38,6 +30,15 @@ export default async function LeadDetalhePage({ params }: { params: Promise<{ id
     .single()
 
   if (!perfilAtual) redirect('/login')
+
+  const { data: lead } = await supabase
+    .from('leads')
+    .select('*, responsavel:profiles!responsavel_id(id, nome)')
+    .eq('id', id)
+    .eq('organization_id', perfilAtual.organization_id)
+    .single() as { data: LeadComResponsavel | null }
+
+  if (!lead) notFound()
 
   let tarefasQuery = supabase
     .from('tasks')
@@ -145,11 +146,7 @@ export default async function LeadDetalhePage({ params }: { params: Promise<{ id
           <div className="flex flex-col gap-2">
             {podeConverter && <ModalConverterLead lead={lead} />}
             {lead.status !== 'descartado' && (
-              <form action={descartarLead.bind(null, lead.id, 'Descartado manualmente.')}>
-                <Button type="submit" variant="outline" className="w-full text-red-600 hover:text-red-700">
-                  Descartar Lead
-                </Button>
-              </form>
+              <BotaoDescartarLead leadId={lead.id} />
             )}
           </div>
         </div>

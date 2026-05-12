@@ -8,10 +8,12 @@ export default async function UsuariosPage() {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
   const { data: perfil } = await supabase
     .from('profiles')
-    .select('cargo')
-    .eq('id', user?.id ?? '')
+    .select('cargo, organization_id')
+    .eq('id', user.id)
     .single()
 
   if (perfil?.cargo !== 'admin') {
@@ -21,6 +23,7 @@ export default async function UsuariosPage() {
   const { data: usuarios } = await supabase
     .from('profiles')
     .select('id, nome, email, telefone, cargo, disponivel, ativo, criado_em')
+    .eq('organization_id', perfil.organization_id)
     .order('nome') as { data: Profile[] | null }
 
   return (

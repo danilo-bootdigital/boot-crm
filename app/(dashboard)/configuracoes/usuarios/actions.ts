@@ -23,6 +23,11 @@ export async function criarUsuario(formData: FormData) {
   const cargo = formData.get('cargo') as string
   const telefone = formData.get('telefone') as string
 
+  if (!nome?.trim()) throw new Error('Nome é obrigatório.')
+  if (!email?.trim()) throw new Error('E-mail é obrigatório.')
+  if (!senha || senha.length < 6) throw new Error('Senha deve ter no mínimo 6 caracteres.')
+  if (!cargo?.trim()) throw new Error('Cargo é obrigatório.')
+
   const adminClient = createAdminClient()
   const { data, error } = await adminClient.auth.admin.createUser({
     email,
@@ -39,6 +44,7 @@ export async function criarUsuario(formData: FormData) {
     await adminClient
       .from('profiles')
       .update({
+        nome,
         organization_id: perfilAtual.organization_id,
         cargo,
         telefone: telefone || null,

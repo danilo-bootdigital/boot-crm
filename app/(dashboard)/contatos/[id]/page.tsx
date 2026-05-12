@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -19,10 +19,22 @@ export default async function ContatoDetalhePage({ params }: { params: Promise<{
   const supabase = await createClient()
   const { id } = await params
 
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: perfil } = await supabase
+    .from('profiles')
+    .select('id, organization_id, cargo')
+    .eq('id', user.id)
+    .single()
+
+  if (!perfil) redirect('/login')
+
   const { data: contato } = await supabase
     .from('contacts')
     .select('*, empresa:companies!empresa_id(id, nome), responsavel:profiles!responsavel_id(id, nome)')
     .eq('id', id)
+    .eq('organization_id', perfil.organization_id)
     .single() as { data: ContatoCompleto | null }
 
   if (!contato) notFound()

@@ -1,3 +1,5 @@
+import { formatarMoeda } from '@/lib/utils'
+
 type VendedorDesempenho = {
   nome: string
   deals_ganhos: number
@@ -5,10 +7,6 @@ type VendedorDesempenho = {
 }
 
 type Props = { dados: VendedorDesempenho[] }
-
-function formatarMoeda(valor: number) {
-  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
-}
 
 export function TabelaDesempenho({ dados }: Props) {
   if (dados.length === 0) {

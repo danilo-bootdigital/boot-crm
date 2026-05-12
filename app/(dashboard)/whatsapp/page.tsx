@@ -49,21 +49,16 @@ export default async function WhatsappPage() {
 
   const { data: conversasRaw } = await query
 
-  // Para cada conversa, buscar a última mensagem
+  // Buscar última mensagem por conversa via RPC
   const conversaIds = (conversasRaw ?? []).map((c) => c.id as string)
   const ultimasMensagens: Record<string, string> = {}
   if (conversaIds.length > 0) {
-    const { data: msgs } = await supabase
-      .from('messages')
-      .select('conversation_id, conteudo, enviado_em')
-      .in('conversation_id', conversaIds)
-      .eq('organization_id', perfil.organization_id)
-      .order('enviado_em', { ascending: false })
-      .limit(conversaIds.length * 5)
-    // Pegar a primeira (mais recente) por conversa
-    ;(msgs ?? []).forEach((m) => {
-      const cid = m.conversation_id as string
-      if (!ultimasMensagens[cid]) ultimasMensagens[cid] = (m.conteudo as string) ?? ''
+    const { data: msgs } = await supabase.rpc('ultimas_mensagens_por_conversa', {
+      p_conversation_ids: conversaIds,
+      p_org_id: perfil.organization_id,
+    })
+    ;(msgs ?? []).forEach((m: { conversation_id: string; conteudo: string | null }) => {
+      if (m.conteudo) ultimasMensagens[m.conversation_id] = m.conteudo
     })
   }
 
@@ -83,7 +78,7 @@ export default async function WhatsappPage() {
         <p className="text-xs text-slate-500">{conversas.length} conversa{conversas.length !== 1 ? 's' : ''}</p>
       </div>
       <div className="flex-1 overflow-y-auto">
-        <ListaConversas conversasIniciais={conversas} />
+        <ListaConversas conversasIniciais={conversas} organizationId={perfil.organization_id} />
       </div>
     </div>
   )

@@ -14,9 +14,9 @@ type Conversa = {
   ultima_mensagem: string | null
 }
 
-type Props = { conversasIniciais: Conversa[] }
+type Props = { conversasIniciais: Conversa[]; organizationId: string }
 
-export function ListaConversas({ conversasIniciais }: Props) {
+export function ListaConversas({ conversasIniciais, organizationId }: Props) {
   const [conversas, setConversas] = useState(conversasIniciais)
   const params = useParams()
   const conversaAtivaId = params?.id as string | undefined
@@ -31,13 +31,18 @@ export function ListaConversas({ conversasIniciais }: Props) {
 
     const channel = supabase
       .channel('conversations-updates')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => {
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'conversations',
+        filter: `organization_id=eq.${organizationId}`,
+      }, () => {
         router.refresh()
       })
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [])
+  }, [organizationId, router])
 
   return (
     <div className="flex flex-col">

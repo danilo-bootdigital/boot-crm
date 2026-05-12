@@ -10,15 +10,20 @@ async function getPerfil() {
   if (!user) redirect('/login')
   const { data: perfil } = await supabase
     .from('profiles')
-    .select('id, organization_id')
+    .select('id, organization_id, cargo')
     .eq('id', user.id)
     .single()
   if (!perfil) redirect('/login')
   return { supabase, perfil }
 }
 
+const CARGOS_GERENCIAM_MODELOS = ['admin', 'gestor']
+
 export async function criarModelo(formData: FormData) {
   const { supabase, perfil } = await getPerfil()
+  if (!CARGOS_GERENCIAM_MODELOS.includes(perfil.cargo)) {
+    throw new Error('Apenas administradores e gestores podem gerenciar modelos.')
+  }
 
   const nome = (formData.get('nome') as string)?.trim()
   const conteudo = (formData.get('conteudo') as string)?.trim()
@@ -41,6 +46,9 @@ export async function criarModelo(formData: FormData) {
 
 export async function editarModelo(modeloId: string, formData: FormData) {
   const { supabase, perfil } = await getPerfil()
+  if (!CARGOS_GERENCIAM_MODELOS.includes(perfil.cargo)) {
+    throw new Error('Apenas administradores e gestores podem gerenciar modelos.')
+  }
 
   const nome = (formData.get('nome') as string)?.trim()
   const conteudo = (formData.get('conteudo') as string)?.trim()
@@ -61,6 +69,9 @@ export async function editarModelo(modeloId: string, formData: FormData) {
 
 export async function excluirModelo(modeloId: string) {
   const { supabase, perfil } = await getPerfil()
+  if (!CARGOS_GERENCIAM_MODELOS.includes(perfil.cargo)) {
+    throw new Error('Apenas administradores e gestores podem gerenciar modelos.')
+  }
 
   const { error } = await supabase
     .from('message_templates')

@@ -105,12 +105,12 @@ export async function POST(req: NextRequest) {
       leadId = (leadExistente?.id as string) ?? null
 
       if (!leadId && !fromMe) {
-        // Criar novo lead
+        // Criar novo lead apenas para mensagens recebidas
         const { data: novoLead } = await supabase
           .from('leads')
           .insert({
             organization_id: instancia.organization_id,
-            nome: pushName || null,
+            nome: pushName || telefone,
             telefone,
             origem: 'whatsapp',
             status: 'novo',
@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Criar conversa
+      // Criar conversa (tanto para mensagens recebidas quanto enviadas)
       const { data: novaConversa } = await supabase
         .from('conversations')
         .insert({

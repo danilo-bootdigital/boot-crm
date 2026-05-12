@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { formatarMoeda } from '@/lib/utils'
 import { Users, TrendingUp, Trophy, DollarSign, CheckSquare, AlertTriangle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CardKPI } from '@/components/painel/card-kpi'
@@ -17,10 +18,6 @@ function seisMesesAtras() {
   const d = new Date()
   d.setMonth(d.getMonth() - 6)
   return new Date(d.getFullYear(), d.getMonth(), 1).toISOString()
-}
-
-function formatarMoeda(valor: number) {
-  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
 }
 
 const MESES_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']

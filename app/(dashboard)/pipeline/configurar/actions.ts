@@ -132,18 +132,13 @@ export async function moverEtapa(estagioId: string, direcao: 'cima' | 'baixo') {
 
   if (!vizinha) return // já é primeiro ou último
 
-  // Trocar ordens
-  await supabase
-    .from('pipeline_stages')
-    .update({ ordem: ordemAlvo, atualizado_em: new Date().toISOString() })
-    .eq('id', estagioId)
-    .eq('organization_id', perfil.organization_id)
+  const { error } = await supabase.rpc('trocar_ordem_etapas', {
+    p_etapa_a: estagioId,
+    p_etapa_b: vizinha.id,
+    p_org_id: perfil.organization_id,
+  })
 
-  await supabase
-    .from('pipeline_stages')
-    .update({ ordem: etapa.ordem, atualizado_em: new Date().toISOString() })
-    .eq('id', vizinha.id)
-    .eq('organization_id', perfil.organization_id)
+  if (error) throw new Error(`Erro ao reordenar etapas: ${error.message}`)
 
   revalidatePath('/pipeline')
   revalidatePath('/pipeline/configurar')

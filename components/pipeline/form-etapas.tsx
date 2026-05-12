@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -30,6 +32,7 @@ type Props = {
 }
 
 export function FormEtapas({ etapas: etapasIniciais, pipelineId }: Props) {
+  const router = useRouter()
   const [etapas, setEtapas] = useState<Etapa[]>(etapasIniciais)
   const [editandoNome, setEditandoNome] = useState<string | null>(null)
   const [novoNome, setNovoNome] = useState('')
@@ -58,11 +61,13 @@ export function FormEtapas({ etapas: etapasIniciais, pipelineId }: Props) {
   }
 
   async function handleAlterarCor(estagioId: string, cor: string) {
+    const corAnterior = etapas.find((e) => e.id === estagioId)?.cor
     setEtapas((prev) => prev.map((e) => (e.id === estagioId ? { ...e, cor } : e)))
     try {
       await alterarCorEtapa(estagioId, cor)
     } catch {
-      // silencioso — a cor visual já foi atualizada otimisticamente
+      setEtapas((prev) => prev.map((e) => (e.id === estagioId ? { ...e, cor: corAnterior ?? cor } : e)))
+      toast.error('Erro ao alterar cor da etapa.')
     }
   }
 
@@ -128,20 +133,9 @@ export function FormEtapas({ etapas: etapasIniciais, pipelineId }: Props) {
     setErro(null)
     try {
       await adicionarEtapa(formData)
-      const novaOrdem = Math.max(...etapas.map((e) => e.ordem), 0) + 1
-      setEtapas((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          nome: novaEtapaNome.trim(),
-          cor: novaEtapaCor,
-          ordem: novaOrdem,
-          oculto: false,
-          tipo_especial: null,
-        },
-      ])
       setNovaEtapaNome('')
       setNovaEtapaCor('#6366f1')
+      router.refresh()
     } catch (e: unknown) {
       setErro(e instanceof Error ? e.message : 'Erro ao adicionar etapa.')
     } finally {

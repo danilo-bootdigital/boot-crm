@@ -1,14 +1,11 @@
 'use client'
 
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts'
+import { formatarMoeda } from '@/lib/utils'
 
 type DadoMensal = { mes: string; valor: number }
 
 type Props = { dados: DadoMensal[] }
-
-function formatarMoeda(valor: number) {
-  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
-}
 
 export function GraficoVendasMensal({ dados }: Props) {
   if (dados.length === 0) {

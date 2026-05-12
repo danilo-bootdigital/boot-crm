@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { differenceInDays } from 'date-fns'
@@ -18,16 +18,16 @@ type Props = {
   responsaveis: Pick<Profile, 'id' | 'nome'>[]
 }
 
-const STATUS_OPTIONS: { valor: LeadStatus | ''; label: string }[] = [
-  { valor: '', label: 'Todos os status' },
+const STATUS_OPTIONS: { valor: LeadStatus | '__all__'; label: string }[] = [
+  { valor: '__all__', label: 'Todos os status' },
   { valor: 'novo', label: 'Novo' },
   { valor: 'em_atendimento', label: 'Em atendimento' },
   { valor: 'qualificado', label: 'Qualificado' },
   { valor: 'descartado', label: 'Descartado' },
 ]
 
-const ORIGEM_OPTIONS: { valor: LeadOrigem | ''; label: string }[] = [
-  { valor: '', label: 'Todas as origens' },
+const ORIGEM_OPTIONS: { valor: LeadOrigem | '__all__'; label: string }[] = [
+  { valor: '__all__', label: 'Todas as origens' },
   { valor: 'whatsapp', label: 'WhatsApp' },
   { valor: 'instagram_lead_ad', label: 'Instagram' },
   { valor: 'facebook_lead_ad', label: 'Facebook' },
@@ -52,50 +52,56 @@ export function TabelaLeads({ leads, responsaveis }: Props) {
     router.push(`${pathname}?${params.toString()}`)
   }, [router, pathname, searchParams])
 
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const atualizarBusca = useCallback((valor: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => atualizarFiltro('busca', valor), 400)
+  }, [atualizarFiltro])
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3">
         <Input
           placeholder="Buscar por nome, telefone ou e-mail..."
           defaultValue={searchParams.get('busca') ?? ''}
-          onChange={(e) => atualizarFiltro('busca', e.target.value)}
+          onChange={(e) => atualizarBusca(e.target.value)}
           className="max-w-xs"
         />
         <Select
-          value={searchParams.get('status') ?? ''}
-          onValueChange={(v: string | null) => atualizarFiltro('status', v ?? '')}
+          value={searchParams.get('status') ?? '__all__'}
+          onValueChange={(v: string | null) => atualizarFiltro('status', !v || v === '__all__' ? '' : v)}
         >
           <SelectTrigger className="w-48">
             <SelectValue placeholder="Todos os status" />
           </SelectTrigger>
           <SelectContent>
             {STATUS_OPTIONS.map((o) => (
-              <SelectItem key={o.valor || '__todos__'} value={o.valor}>{o.label}</SelectItem>
+              <SelectItem key={o.valor} value={o.valor}>{o.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
         <Select
-          value={searchParams.get('origem') ?? ''}
-          onValueChange={(v: string | null) => atualizarFiltro('origem', v ?? '')}
+          value={searchParams.get('origem') ?? '__all__'}
+          onValueChange={(v: string | null) => atualizarFiltro('origem', !v || v === '__all__' ? '' : v)}
         >
           <SelectTrigger className="w-48">
             <SelectValue placeholder="Todas as origens" />
           </SelectTrigger>
           <SelectContent>
             {ORIGEM_OPTIONS.map((o) => (
-              <SelectItem key={o.valor || '__todas__'} value={o.valor}>{o.label}</SelectItem>
+              <SelectItem key={o.valor} value={o.valor}>{o.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
         <Select
-          value={searchParams.get('responsavel') ?? ''}
-          onValueChange={(v: string | null) => atualizarFiltro('responsavel', v ?? '')}
+          value={searchParams.get('responsavel') ?? '__all__'}
+          onValueChange={(v: string | null) => atualizarFiltro('responsavel', !v || v === '__all__' ? '' : v)}
         >
           <SelectTrigger className="w-48">
             <SelectValue placeholder="Todos os responsáveis" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todos os responsáveis</SelectItem>
+            <SelectItem value="__all__">Todos os responsáveis</SelectItem>
             {responsaveis.map((r) => (
               <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>
             ))}
