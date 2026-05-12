@@ -1,10 +1,283 @@
-export default function PainelPage() {
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
+import { Users, TrendingUp, Trophy, DollarSign, CheckSquare, AlertTriangle } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { CardKPI } from '@/components/painel/card-kpi'
+import { GraficoLeadsPorOrigem } from '@/components/painel/grafico-leads-por-origem'
+import { GraficoDealsPorEtapa } from '@/components/painel/grafico-deals-por-etapa'
+import { GraficoVendasMensal } from '@/components/painel/grafico-vendas-mensal'
+import { TabelaDesempenho } from '@/components/painel/tabela-desempenho'
+
+function inicioMes() {
+  const d = new Date()
+  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString()
+}
+
+function seisMesesAtras() {
+  const d = new Date()
+  d.setMonth(d.getMonth() - 6)
+  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString()
+}
+
+function formatarMoeda(valor: number) {
+  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
+}
+
+const MESES_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+
+export default async function PainelPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: perfil } = await supabase
+    .from('profiles')
+    .select('id, organization_id, cargo')
+    .eq('id', user.id)
+    .single()
+
+  if (!perfil) redirect('/login')
+
+  const orgId = perfil.organization_id
+  const inicio = inicioMes()
+  const seisMeses = seisMesesAtras()
+  const isVendedor = perfil.cargo === 'vendedor'
+  const isAtendimento = perfil.cargo === 'atendimento'
+
+  // KPIs - Leads
+  let queryLeadsMes = supabase
+    .from('leads')
+    .select('id', { count: 'exact', head: true })
+    .eq('organization_id', orgId)
+    .gte('criado_em', inicio)
+  if (isVendedor) queryLeadsMes = queryLeadsMes.eq('responsavel_id', perfil.id)
+
+  const { count: leadsNovos } = await queryLeadsMes
+
+  let queryLeadsQualificados = supabase
+    .from('leads')
+    .select('id', { count: 'exact', head: true })
+    .eq('organization_id', orgId)
+    .eq('status', 'qualificado')
+    .gte('criado_em', inicio)
+  if (isVendedor) queryLeadsQualificados = queryLeadsQualificados.eq('responsavel_id', perfil.id)
+
+  const { count: leadsQualificados } = await queryLeadsQualificados
+
+  const taxaConversao = (leadsNovos ?? 0) > 0
+    ? Math.round(((leadsQualificados ?? 0) / (leadsNovos ?? 1)) * 100)
+    : 0
+
+  // KPIs - Deals
+  let queryDealsGanhos = supabase
+    .from('deals')
+    .select('valor_estimado')
+    .eq('organization_id', orgId)
+    .eq('ganho', true)
+    .gte('atualizado_em', inicio)
+  if (isVendedor) queryDealsGanhos = queryDealsGanhos.eq('responsavel_id', perfil.id)
+
+  const { data: dealsGanhos } = await queryDealsGanhos
+
+  const totalDealsGanhos = dealsGanhos?.length ?? 0
+  const receitaMes = dealsGanhos?.reduce((acc, d) => acc + (d.valor_estimado ?? 0), 0) ?? 0
+
+  // KPIs - Tarefas
+  const { count: tarefasPendentes } = await supabase
+    .from('tasks')
+    .select('id', { count: 'exact', head: true })
+    .eq('organization_id', orgId)
+    .eq('concluida', false)
+    .eq('responsavel_id', perfil.id)
+
+  const { count: tarefasAtrasadas } = await supabase
+    .from('tasks')
+    .select('id', { count: 'exact', head: true })
+    .eq('organization_id', orgId)
+    .eq('concluida', false)
+    .eq('responsavel_id', perfil.id)
+    .lt('data_vencimento', new Date().toISOString())
+
+  // Grafico - Leads por origem
+  let queryOrigem = supabase
+    .from('leads')
+    .select('origem')
+    .eq('organization_id', orgId)
+    .gte('criado_em', inicio)
+  if (isVendedor) queryOrigem = queryOrigem.eq('responsavel_id', perfil.id)
+
+  const { data: leadsOrigem } = await queryOrigem
+
+  const origemMap = new Map<string, number>()
+  leadsOrigem?.forEach((l) => {
+    origemMap.set(l.origem, (origemMap.get(l.origem) ?? 0) + 1)
+  })
+  const dadosOrigem = Array.from(origemMap.entries()).map(([origem, total]) => ({ origem, total }))
+
+  // Grafico - Deals por etapa (apenas se nao for atendimento)
+  let dadosEtapas: { nome: string; cor: string; total: number }[] = []
+  if (!isAtendimento) {
+    const { data: pipeline } = await supabase
+      .from('pipelines')
+      .select('id')
+      .eq('organization_id', orgId)
+      .eq('padrao', true)
+      .single()
+
+    if (pipeline) {
+      const { data: etapas } = await supabase
+        .from('pipeline_stages')
+        .select('id, nome, cor, ordem')
+        .eq('pipeline_id', pipeline.id)
+        .eq('oculto', false)
+        .order('ordem')
+
+      if (etapas) {
+        let queryDealsAtivos = supabase
+          .from('deals')
+          .select('estagio_id')
+          .eq('organization_id', orgId)
+          .eq('pipeline_id', pipeline.id)
+          .is('ganho', null)
+        if (isVendedor) queryDealsAtivos = queryDealsAtivos.eq('responsavel_id', perfil.id)
+
+        const { data: dealsAtivos } = await queryDealsAtivos
+
+        const contagemPorEtapa = new Map<string, number>()
+        dealsAtivos?.forEach((d) => {
+          contagemPorEtapa.set(d.estagio_id, (contagemPorEtapa.get(d.estagio_id) ?? 0) + 1)
+        })
+
+        dadosEtapas = etapas.map((e) => ({
+          nome: e.nome,
+          cor: e.cor,
+          total: contagemPorEtapa.get(e.id) ?? 0,
+        }))
+      }
+    }
+  }
+
+  // Grafico - Vendas mensais (6 meses)
+  let dadosMensais: { mes: string; valor: number }[] = []
+  if (!isAtendimento) {
+    let queryVendasMensais = supabase
+      .from('deals')
+      .select('atualizado_em, valor_estimado')
+      .eq('organization_id', orgId)
+      .eq('ganho', true)
+      .gte('atualizado_em', seisMeses)
+    if (isVendedor) queryVendasMensais = queryVendasMensais.eq('responsavel_id', perfil.id)
+
+    const { data: vendasMensais } = await queryVendasMensais
+
+    const mesMap = new Map<string, number>()
+    vendasMensais?.forEach((d) => {
+      const date = new Date(d.atualizado_em)
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+      mesMap.set(key, (mesMap.get(key) ?? 0) + (d.valor_estimado ?? 0))
+    })
+
+    const agora = new Date()
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(agora.getFullYear(), agora.getMonth() - i, 1)
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      dadosMensais.push({ mes: MESES_PT[d.getMonth()], valor: mesMap.get(key) ?? 0 })
+    }
+  }
+
+  // Tabela - Desempenho por vendedor (apenas admin/gestor)
+  let dadosDesempenho: { nome: string; deals_ganhos: number; valor_total: number }[] = []
+  if (!isVendedor && !isAtendimento) {
+    const { data: vendedores } = await supabase
+      .from('profiles')
+      .select('id, nome')
+      .eq('organization_id', orgId)
+      .eq('ativo', true)
+      .in('cargo', ['vendedor', 'gestor'])
+
+    if (vendedores && vendedores.length > 0) {
+      const { data: dealsVendedores } = await supabase
+        .from('deals')
+        .select('responsavel_id, valor_estimado')
+        .eq('organization_id', orgId)
+        .eq('ganho', true)
+        .gte('atualizado_em', inicio)
+
+      const mapVendedor = new Map<string, { ganhos: number; valor: number }>()
+      dealsVendedores?.forEach((d) => {
+        if (!d.responsavel_id) return
+        const atual = mapVendedor.get(d.responsavel_id) ?? { ganhos: 0, valor: 0 }
+        atual.ganhos++
+        atual.valor += d.valor_estimado ?? 0
+        mapVendedor.set(d.responsavel_id, atual)
+      })
+
+      dadosDesempenho = vendedores
+        .map((v) => ({
+          nome: v.nome,
+          deals_ganhos: mapVendedor.get(v.id)?.ganhos ?? 0,
+          valor_total: mapVendedor.get(v.id)?.valor ?? 0,
+        }))
+        .sort((a, b) => b.valor_total - a.valor_total)
+    }
+  }
+
   return (
-    <div>
+    <div className="space-y-6">
       <h1 className="text-2xl font-bold text-slate-900">Painel Principal</h1>
-      <p className="mt-2 text-slate-500">
-        Bem-vindo ao BOOT CRM. O dashboard completo será construído na Fase 9.
-      </p>
+
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+        <CardKPI label="Leads novos" valor={leadsNovos ?? 0} icone={Users} descricao="Este mês" />
+        <CardKPI label="Conversão" valor={`${taxaConversao}%`} icone={TrendingUp} descricao="Qualificados / total" />
+        <CardKPI label="Deals ganhos" valor={totalDealsGanhos} icone={Trophy} descricao="Este mês" />
+        <CardKPI label="Receita" valor={formatarMoeda(receitaMes)} icone={DollarSign} descricao="Este mês" />
+        <CardKPI label="Tarefas pendentes" valor={tarefasPendentes ?? 0} icone={CheckSquare} descricao="Suas tarefas" />
+        <CardKPI label="Atrasadas" valor={tarefasAtrasadas ?? 0} icone={AlertTriangle} descricao="Vencidas" />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Leads por origem</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <GraficoLeadsPorOrigem dados={dadosOrigem} />
+          </CardContent>
+        </Card>
+
+        {!isAtendimento && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Negociações por etapa</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <GraficoDealsPorEtapa dados={dadosEtapas} />
+            </CardContent>
+          </Card>
+        )}
+
+        {!isAtendimento && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Vendas mensais</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <GraficoVendasMensal dados={dadosMensais} />
+            </CardContent>
+          </Card>
+        )}
+
+        {!isVendedor && !isAtendimento && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Desempenho por vendedor</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <TabelaDesempenho dados={dadosDesempenho} />
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   )
 }

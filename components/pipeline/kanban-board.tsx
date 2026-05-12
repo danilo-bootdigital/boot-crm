@@ -80,6 +80,10 @@ export function KanbanBoard({ pipelineId, etapas, dealsIniciais, cargo }: Props)
         },
         (payload) => {
           const atualizado = payload.new as RealtimeDealPayload
+          if (atualizado.ganho !== null) {
+            setDeals((prev) => prev.filter((d) => d.id !== atualizado.id))
+            return
+          }
           setDeals((prev) =>
             prev.map((d) =>
               d.id === atualizado.id

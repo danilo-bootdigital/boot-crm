@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { isPast, isToday } from 'date-fns'
 import { Plus } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { CardTarefa, type TarefaCard } from './card-tarefa'
 import { ModalNovaTarefa } from './modal-nova-tarefa'
@@ -92,7 +93,7 @@ export function ListaTarefas({
         }
         router.refresh()
       } catch {
-        // erro silencioso — servidor não atualizou
+        toast.error('Erro ao concluir tarefa. Tente novamente.')
       }
     })
   }
@@ -103,7 +104,7 @@ export function ListaTarefas({
         await reabrirTarefa(tarefaId)
         router.refresh()
       } catch {
-        // erro silencioso
+        toast.error('Erro ao reabrir tarefa. Tente novamente.')
       }
     })
   }
@@ -114,7 +115,7 @@ export function ListaTarefas({
         await excluirTarefa(tarefaId)
         router.refresh()
       } catch {
-        // erro silencioso
+        toast.error('Erro ao excluir tarefa. Tente novamente.')
       }
     })
   }
