@@ -32,6 +32,7 @@ type Props = {
   etapas: Etapa[]
   dealsIniciais: DealCard[]
   cargo: UserRole
+  organizationId: string
 }
 
 type PendingFechado = { deal: DealCard; estagioDestinoId: string }
@@ -51,7 +52,7 @@ type RealtimeDealPayload = {
   pipeline_id: string
 }
 
-export function KanbanBoard({ pipelineId, etapas, dealsIniciais, cargo }: Props) {
+export function KanbanBoard({ pipelineId, etapas, dealsIniciais, cargo, organizationId }: Props) {
   const [deals, setDeals] = useState<DealCard[]>(dealsIniciais)
   const [dealArrastando, setDealArrastando] = useState<DealCard | null>(null)
   const [pendingFechado, setPendingFechado] = useState<PendingFechado | null>(null)
@@ -76,7 +77,7 @@ export function KanbanBoard({ pipelineId, etapas, dealsIniciais, cargo }: Props)
           event: 'UPDATE',
           schema: 'public',
           table: 'deals',
-          filter: `pipeline_id=eq.${pipelineId}`,
+          filter: `pipeline_id=eq.${pipelineId},organization_id=eq.${organizationId}`,
         },
         (payload) => {
           const atualizado = payload.new as RealtimeDealPayload

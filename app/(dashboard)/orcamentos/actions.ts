@@ -36,6 +36,20 @@ function calcularTotais(itens: ItemInput[], descontoGeral: number) {
   return { subtotais, valorSubtotal, valorTotal }
 }
 
+function validarItensEDesconto(itens: ItemInput[], descontoGeral: number) {
+  if (descontoGeral < 0 || descontoGeral > 100) {
+    throw new Error('Desconto geral deve estar entre 0 e 100%.')
+  }
+  for (const item of itens) {
+    if (item.quantidade <= 0) throw new Error('Quantidade deve ser maior que zero.')
+    if (item.preco_unitario < 0) throw new Error('Preço unitário não pode ser negativo.')
+    if (item.desconto_item < 0 || item.desconto_item > 100) {
+      throw new Error('Desconto do item deve estar entre 0 e 100%.')
+    }
+    if (!item.descricao?.trim()) throw new Error('Todos os itens precisam de uma descrição.')
+  }
+}
+
 export async function criarOrcamento(dados: {
   lead_id: string | null
   deal_id: string | null
@@ -46,6 +60,7 @@ export async function criarOrcamento(dados: {
   const { supabase, perfil } = await getUsuarioEOrg()
 
   if (dados.itens.length === 0) throw new Error('Adicione ao menos um item.')
+  validarItensEDesconto(dados.itens, dados.desconto_geral)
 
   const { subtotais, valorSubtotal, valorTotal } = calcularTotais(dados.itens, dados.desconto_geral)
 
@@ -92,6 +107,7 @@ export async function editarOrcamento(orcamentoId: string, dados: {
   const { supabase, perfil } = await getUsuarioEOrg()
 
   if (dados.itens.length === 0) throw new Error('Adicione ao menos um item.')
+  validarItensEDesconto(dados.itens, dados.desconto_geral)
 
   const { data: orcamento } = await supabase
     .from('quotes')
@@ -145,12 +161,29 @@ export async function editarOrcamento(orcamentoId: string, dados: {
 export async function excluirOrcamento(orcamentoId: string) {
   const { supabase, perfil } = await getUsuarioEOrg()
 
+  if (perfil.cargo === 'atendimento') {
+    throw new Error('Você não tem permissão para excluir orçamentos.')
+  }
+
+  // Vendedor só pode excluir os próprios
+  const { data: orcamento } = await supabase
+    .from('quotes')
+    .select('id, responsavel_id')
+    .eq('id', orcamentoId)
+    .eq('organization_id', perfil.organization_id)
+    .in('status', ['rascunho', 'rejeitado_internamente'])
+    .single()
+
+  if (!orcamento) throw new Error('Orçamento não encontrado ou não pode ser excluído.')
+  if (perfil.cargo === 'vendedor' && orcamento.responsavel_id !== perfil.id) {
+    throw new Error('Você só pode excluir seus próprios orçamentos.')
+  }
+
   const { error } = await supabase
     .from('quotes')
     .delete()
     .eq('id', orcamentoId)
     .eq('organization_id', perfil.organization_id)
-    .in('status', ['rascunho', 'rejeitado_internamente'])
 
   if (error) throw new Error(`Erro ao excluir: ${error.message}`)
   revalidatePath('/orcamentos')
@@ -188,7 +221,7 @@ export async function enviarParaAprovacao(orcamentoId: string) {
 }
 
 export async function aprovarInterno(orcamentoId: string, comentario?: string) {
-  const { supabase, perfil } = await getUsuarioEOrg()
+  const { perfil } = await getUsuarioEOrg()
   if (perfil.cargo !== 'admin' && perfil.cargo !== 'gestor') {
     throw new Error('Apenas administradores e gestores podem aprovar.')
   }
@@ -200,7 +233,7 @@ export async function aprovarInterno(orcamentoId: string, comentario?: string) {
 }
 
 export async function rejeitarInterno(orcamentoId: string, comentario: string) {
-  const { supabase, perfil } = await getUsuarioEOrg()
+  const { perfil } = await getUsuarioEOrg()
   if (perfil.cargo !== 'admin' && perfil.cargo !== 'gestor') {
     throw new Error('Apenas administradores e gestores podem rejeitar.')
   }

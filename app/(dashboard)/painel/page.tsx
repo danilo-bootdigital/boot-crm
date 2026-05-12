@@ -41,15 +41,13 @@ export default async function PainelPage() {
   const isVendedor = perfil.cargo === 'vendedor'
   const isAtendimento = perfil.cargo === 'atendimento'
 
-  // KPIs - Leads
+  // KPIs - Queries paralelas
   let queryLeadsMes = supabase
     .from('leads')
     .select('id', { count: 'exact', head: true })
     .eq('organization_id', orgId)
     .gte('criado_em', inicio)
   if (isVendedor) queryLeadsMes = queryLeadsMes.eq('responsavel_id', perfil.id)
-
-  const { count: leadsNovos } = await queryLeadsMes
 
   let queryLeadsQualificados = supabase
     .from('leads')
@@ -59,13 +57,6 @@ export default async function PainelPage() {
     .gte('criado_em', inicio)
   if (isVendedor) queryLeadsQualificados = queryLeadsQualificados.eq('responsavel_id', perfil.id)
 
-  const { count: leadsQualificados } = await queryLeadsQualificados
-
-  const taxaConversao = (leadsNovos ?? 0) > 0
-    ? Math.round(((leadsQualificados ?? 0) / (leadsNovos ?? 1)) * 100)
-    : 0
-
-  // KPIs - Deals
   let queryDealsGanhos = supabase
     .from('deals')
     .select('valor_estimado')
@@ -74,20 +65,14 @@ export default async function PainelPage() {
     .gte('atualizado_em', inicio)
   if (isVendedor) queryDealsGanhos = queryDealsGanhos.eq('responsavel_id', perfil.id)
 
-  const { data: dealsGanhos } = await queryDealsGanhos
-
-  const totalDealsGanhos = dealsGanhos?.length ?? 0
-  const receitaMes = dealsGanhos?.reduce((acc, d) => acc + (d.valor_estimado ?? 0), 0) ?? 0
-
-  // KPIs - Tarefas
-  const { count: tarefasPendentes } = await supabase
+  const queryTarefasPendentes = supabase
     .from('tasks')
     .select('id', { count: 'exact', head: true })
     .eq('organization_id', orgId)
     .eq('concluida', false)
     .eq('responsavel_id', perfil.id)
 
-  const { count: tarefasAtrasadas } = await supabase
+  const queryTarefasAtrasadas = supabase
     .from('tasks')
     .select('id', { count: 'exact', head: true })
     .eq('organization_id', orgId)
@@ -95,7 +80,6 @@ export default async function PainelPage() {
     .eq('responsavel_id', perfil.id)
     .lt('data_vencimento', new Date().toISOString())
 
-  // Grafico - Leads por origem
   let queryOrigem = supabase
     .from('leads')
     .select('origem')
@@ -103,7 +87,28 @@ export default async function PainelPage() {
     .gte('criado_em', inicio)
   if (isVendedor) queryOrigem = queryOrigem.eq('responsavel_id', perfil.id)
 
-  const { data: leadsOrigem } = await queryOrigem
+  const [
+    { count: leadsNovos },
+    { count: leadsQualificados },
+    { data: dealsGanhos },
+    { count: tarefasPendentes },
+    { count: tarefasAtrasadas },
+    { data: leadsOrigem },
+  ] = await Promise.all([
+    queryLeadsMes,
+    queryLeadsQualificados,
+    queryDealsGanhos,
+    queryTarefasPendentes,
+    queryTarefasAtrasadas,
+    queryOrigem,
+  ])
+
+  const taxaConversao = (leadsNovos ?? 0) > 0
+    ? Math.round(((leadsQualificados ?? 0) / (leadsNovos ?? 1)) * 100)
+    : 0
+
+  const totalDealsGanhos = dealsGanhos?.length ?? 0
+  const receitaMes = dealsGanhos?.reduce((acc, d) => acc + (d.valor_estimado ?? 0), 0) ?? 0
 
   const origemMap = new Map<string, number>()
   leadsOrigem?.forEach((l) => {

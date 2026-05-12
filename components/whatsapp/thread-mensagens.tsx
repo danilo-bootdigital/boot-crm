@@ -22,6 +22,10 @@ export function ThreadMensagens({ mensagensIniciais, conversaId }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    setMensagens(mensagensIniciais)
+  }, [mensagensIniciais])
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [mensagens])
 

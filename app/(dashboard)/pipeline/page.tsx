@@ -104,6 +104,7 @@ export default async function PipelinePage() {
           etapas={etapas ?? []}
           dealsIniciais={deals}
           cargo={perfil.cargo as UserRole}
+          organizationId={perfil.organization_id}
         />
       </div>
     </div>

@@ -52,6 +52,7 @@ export async function editarProduto(produtoId: string, formData: FormData) {
   const unidade = (formData.get('unidade') as string)?.trim() || 'un'
 
   if (!nome) throw new Error('Nome é obrigatório.')
+  if (preco_unitario < 0) throw new Error('Preço não pode ser negativo.')
 
   const { error } = await supabase
     .from('products')

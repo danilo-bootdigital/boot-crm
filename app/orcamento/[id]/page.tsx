@@ -13,7 +13,7 @@ export default async function OrcamentoPublicoPage({ params }: { params: Promise
     .from('quotes')
     .select(`
       id, numero, status, valor_subtotal, desconto_geral, valor_total, observacoes, criado_em,
-      responsavel:profiles!responsavel_id(nome, email, telefone),
+      responsavel:profiles!responsavel_id(nome),
       lead:leads!lead_id(nome),
       org:organizations!organization_id(nome)
     `)
@@ -108,8 +108,6 @@ export default async function OrcamentoPublicoPage({ params }: { params: Promise
         {responsavel && (
           <div className="text-center text-sm text-slate-500 space-y-0.5">
             <p>Responsável: {responsavel.nome}</p>
-            {responsavel.email && <p>{responsavel.email}</p>}
-            {responsavel.telefone && <p>{responsavel.telefone}</p>}
           </div>
         )}
       </div>

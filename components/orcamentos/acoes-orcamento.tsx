@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { isRedirectError } from 'next/dist/client/components/redirect-error'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -40,6 +41,7 @@ export function AcoesOrcamento({ orcamentoId, status, cargo, isResponsavel }: Pr
         toast.success(mensagem)
         router.refresh()
       } catch (e: unknown) {
+        if (isRedirectError(e)) throw e
         toast.error(e instanceof Error ? e.message : 'Erro ao executar ação.')
       }
     })
