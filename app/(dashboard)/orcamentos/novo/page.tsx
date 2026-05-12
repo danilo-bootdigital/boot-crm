@@ -1,0 +1,50 @@
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { FormOrcamento } from '@/components/orcamentos/form-orcamento'
+
+export default async function NovoOrcamentoPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: perfil } = await supabase
+    .from('profiles')
+    .select('id, organization_id, cargo')
+    .eq('id', user.id)
+    .single()
+
+  if (!perfil) redirect('/login')
+  if (perfil.cargo === 'atendimento') redirect('/orcamentos')
+
+  const { data: produtos } = await supabase
+    .from('products')
+    .select('*')
+    .eq('organization_id', perfil.organization_id)
+    .eq('ativo', true)
+    .order('nome')
+
+  const { data: leads } = await supabase
+    .from('leads')
+    .select('id, nome')
+    .eq('organization_id', perfil.organization_id)
+    .in('status', ['novo', 'em_atendimento', 'qualificado'])
+    .order('nome')
+
+  const { data: deals } = await supabase
+    .from('deals')
+    .select('id, titulo')
+    .eq('organization_id', perfil.organization_id)
+    .is('ganho', null)
+    .order('titulo')
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-slate-900">Novo Orçamento</h1>
+      <FormOrcamento
+        produtos={produtos ?? []}
+        leads={(leads ?? []) as { id: string; nome: string | null }[]}
+        deals={(deals ?? []) as { id: string; titulo: string }[]}
+      />
+    </div>
+  )
+}
