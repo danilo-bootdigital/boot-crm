@@ -139,6 +139,7 @@ export async function atribuirResponsavel(leadId: string, responsavelId: string)
     .from('leads')
     .update({ responsavel_id: responsavelId, atualizado_em: new Date().toISOString() })
     .eq('id', leadId)
+    .eq('organization_id', perfil.organization_id)
 
   if (error) throw new Error(`Erro ao atribuir responsável: ${error.message}`)
 
@@ -192,6 +193,7 @@ export async function adicionarObservacao(leadId: string, texto: string) {
     .from('leads')
     .update({ ultima_interacao_em: new Date().toISOString(), atualizado_em: new Date().toISOString() })
     .eq('id', leadId)
+    .eq('organization_id', perfil.organization_id)
 
   revalidatePath(`/leads/${leadId}`)
 }
@@ -248,6 +250,7 @@ export async function converterLeadEmContato(leadId: string, formData: FormData)
     .from('leads')
     .update({ status: 'qualificado', atualizado_em: new Date().toISOString() })
     .eq('id', leadId)
+    .eq('organization_id', perfil.organization_id)
 
   await registrarAtividade(supabase, {
     organization_id: perfil.organization_id,

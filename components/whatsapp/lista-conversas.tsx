@@ -23,6 +23,10 @@ export function ListaConversas({ conversasIniciais }: Props) {
   const router = useRouter()
 
   useEffect(() => {
+    setConversas(conversasIniciais)
+  }, [conversasIniciais])
+
+  useEffect(() => {
     const supabase = createClient()
 
     const channel = supabase

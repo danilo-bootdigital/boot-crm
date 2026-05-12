@@ -9,7 +9,7 @@ export async function criarUsuario(formData: FormData) {
   const { data: { user: usuarioAtual } } = await supabase.auth.getUser()
   const { data: perfilAtual } = await supabase
     .from('profiles')
-    .select('cargo')
+    .select('cargo, organization_id')
     .eq('id', usuarioAtual?.id ?? '')
     .single()
 
@@ -35,10 +35,15 @@ export async function criarUsuario(formData: FormData) {
     throw new Error(`Erro ao criar usuário: ${error.message}`)
   }
 
-  if (data.user && telefone) {
+  if (data.user) {
     await adminClient
       .from('profiles')
-      .update({ telefone, atualizado_em: new Date().toISOString() })
+      .update({
+        organization_id: perfilAtual.organization_id,
+        cargo,
+        telefone: telefone || null,
+        atualizado_em: new Date().toISOString(),
+      })
       .eq('id', data.user.id)
   }
 
@@ -51,7 +56,7 @@ export async function alternarStatusUsuario(usuarioId: string, ativo: boolean) {
   const { data: { user: usuarioAtual } } = await supabase.auth.getUser()
   const { data: perfilAtual } = await supabase
     .from('profiles')
-    .select('cargo')
+    .select('cargo, organization_id')
     .eq('id', usuarioAtual?.id ?? '')
     .single()
 
@@ -63,6 +68,7 @@ export async function alternarStatusUsuario(usuarioId: string, ativo: boolean) {
     .from('profiles')
     .update({ ativo, atualizado_em: new Date().toISOString() })
     .eq('id', usuarioId)
+    .eq('organization_id', perfilAtual.organization_id)
 
   if (error) {
     throw new Error(`Erro ao atualizar status: ${error.message}`)

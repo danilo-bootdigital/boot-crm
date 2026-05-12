@@ -110,25 +110,21 @@ async function filtrarPorLimite(
     .map(({ vendedor }) => vendedor)
 }
 
-// Tradeoff conhecido: leitura + atualização não são atômicas. Requests simultâneos podem
-// selecionar o mesmo vendedor. Para volume alto, substituir por RPC Postgres com UPDATE...RETURNING.
 async function selecionarRotativo(
   supabase: SupabaseClient,
   configId: string,
   vendedores: VendedorElegivel[],
-  indiceAtual: number
+  _indiceAtual: number
 ): Promise<VendedorElegivel> {
-  const indice = indiceAtual % vendedores.length
-  const vendedor = vendedores[indice]
+  const { data, error } = await supabase.rpc('selecionar_proximo_vendedor', {
+    p_config_id: configId,
+    p_total_vendedores: vendedores.length,
+  })
 
-  const { error: errIdx } = await supabase
-    .from('lead_distribution_config')
-    .update({ proximo_vendedor_idx: indiceAtual + 1 })
-    .eq('id', configId)
+  if (error) throw new Error(`Falha ao selecionar vendedor rotativo: ${error.message}`)
 
-  if (errIdx) throw new Error(`Falha ao atualizar índice rotativo: ${errIdx.message}`)
-
-  return vendedor
+  const indice = (data as number) % vendedores.length
+  return vendedores[indice]
 }
 
 async function selecionarPorCarga(

@@ -28,7 +28,8 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   const isLoginPage = request.nextUrl.pathname.startsWith('/login')
-  const isPublicRoute = isLoginPage
+  const isWebhookRoute = request.nextUrl.pathname.startsWith('/api/webhook')
+  const isPublicRoute = isLoginPage || isWebhookRoute
 
   // Usuário não autenticado tentando acessar rota protegida
   if (!user && !isPublicRoute) {

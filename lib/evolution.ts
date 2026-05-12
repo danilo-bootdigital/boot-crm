@@ -1,22 +1,19 @@
-const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL
-const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY
-
-if (!EVOLUTION_API_URL) {
-  throw new Error('EVOLUTION_API_URL não configurada')
+function getConfig() {
+  const url = process.env.EVOLUTION_API_URL
+  const key = process.env.EVOLUTION_API_KEY
+  if (!url) throw new Error('EVOLUTION_API_URL não configurada')
+  if (!key) throw new Error('EVOLUTION_API_KEY não configurada')
+  return { baseUrl: url.replace(/\/$/, ''), apiKey: key }
 }
-if (!EVOLUTION_API_KEY) {
-  throw new Error('EVOLUTION_API_KEY não configurada')
-}
-
-const BASE_URL = EVOLUTION_API_URL.replace(/\/$/, '')
-const API_KEY = EVOLUTION_API_KEY
 
 function apiHeaders() {
-  return { 'Content-Type': 'application/json', apikey: API_KEY }
+  const { apiKey } = getConfig()
+  return { 'Content-Type': 'application/json', apikey: apiKey }
 }
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const { baseUrl } = getConfig()
+  const res = await fetch(`${baseUrl}${path}`, {
     ...options,
     headers: { ...apiHeaders(), ...options?.headers },
   })
