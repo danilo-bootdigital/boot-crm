@@ -133,7 +133,10 @@ export async function atribuirResponsavel(leadId: string, responsavelId: string)
     .from('profiles')
     .select('nome')
     .eq('id', responsavelId)
+    .eq('organization_id', perfil.organization_id)
     .single()
+
+  if (!responsavel) throw new Error('Responsável não encontrado na organização.')
 
   const { error } = await supabase
     .from('leads')
