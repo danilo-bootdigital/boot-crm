@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { TimelineAtividades } from '@/components/shared/timeline-atividades'
 import { FormObservacaoContato } from '@/components/contatos/form-observacao-contato'
+import { AcoesContato } from '@/components/contatos/acoes-contato'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChevronLeft } from 'lucide-react'
@@ -95,6 +96,8 @@ export default async function ContatoDetalhePage({ params }: { params: Promise<{
                   <p className="text-slate-700">{contato.observacoes}</p>
                 </div>
               )}
+              <hr className="my-3" />
+              <AcoesContato contatoId={contato.id} contatoNome={contato.nome} />
             </CardContent>
           </Card>
         </div>

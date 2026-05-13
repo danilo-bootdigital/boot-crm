@@ -141,6 +141,70 @@ export async function adicionarObservacaoContato(contatoId: string, texto: strin
   revalidatePath(`/contatos/${contatoId}`)
 }
 
+export async function excluirContato(contatoId: string) {
+  const { supabase, perfil } = await getUsuarioEOrg()
+
+  const { error } = await supabase
+    .from('contacts')
+    .delete()
+    .eq('id', contatoId)
+    .eq('organization_id', perfil.organization_id)
+
+  if (error) throw new Error(`Erro ao excluir contato: ${error.message}`)
+  revalidatePath('/contatos')
+}
+
+export async function converterContatoEmLead(contatoId: string) {
+  const { supabase, perfil } = await getUsuarioEOrg()
+
+  const { data: contato } = await supabase
+    .from('contacts')
+    .select('id, nome, email, telefone, observacoes')
+    .eq('id', contatoId)
+    .eq('organization_id', perfil.organization_id)
+    .single()
+
+  if (!contato) throw new Error('Contato não encontrado.')
+
+  // Verificar se já existe lead com mesmo telefone ou email
+  if (contato.telefone) {
+    const { data: existente } = await supabase
+      .from('leads')
+      .select('id')
+      .eq('organization_id', perfil.organization_id)
+      .eq('telefone', contato.telefone)
+      .limit(1)
+      .single()
+
+    if (existente) throw new Error('Já existe um lead com este telefone.')
+  }
+
+  const { error } = await supabase.from('leads').insert({
+    organization_id: perfil.organization_id,
+    nome: contato.nome,
+    email: contato.email,
+    telefone: contato.telefone ?? '',
+    origem: 'importacao',
+    status: 'novo',
+    responsavel_id: perfil.id,
+    contato_id: contatoId,
+  })
+
+  if (error) throw new Error(`Erro ao criar lead: ${error.message}`)
+
+  await supabase.from('activities').insert({
+    organization_id: perfil.organization_id,
+    autor_id: perfil.id,
+    tipo: 'lead_criado',
+    descricao: `Lead criado a partir do contato "${contato.nome}".`,
+    contato_id: contatoId,
+  })
+
+  revalidatePath('/contatos')
+  revalidatePath('/leads')
+  redirect('/leads')
+}
+
 type ContatoImportado = {
   nome: string
   telefone: string | null
