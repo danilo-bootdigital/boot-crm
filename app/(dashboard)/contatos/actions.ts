@@ -140,3 +140,49 @@ export async function adicionarObservacaoContato(contatoId: string, texto: strin
 
   revalidatePath(`/contatos/${contatoId}`)
 }
+
+type ContatoImportado = {
+  nome: string
+  telefone: string | null
+  email: string | null
+  observacoes: string | null
+}
+
+export async function importarContatos(contatos: ContatoImportado[]) {
+  const { supabase, perfil } = await getUsuarioEOrg()
+
+  if (!contatos || contatos.length === 0) {
+    throw new Error('Nenhum contato para importar.')
+  }
+
+  if (contatos.length > 5000) {
+    throw new Error('Máximo de 5000 contatos por importação.')
+  }
+
+  // Validar que todos têm nome
+  const validos = contatos.filter((c) => c.nome?.trim())
+  if (validos.length === 0) {
+    throw new Error('Nenhum contato válido encontrado (nome é obrigatório).')
+  }
+
+  // Inserir em lotes de 500
+  const BATCH_SIZE = 500
+  let importados = 0
+
+  for (let i = 0; i < validos.length; i += BATCH_SIZE) {
+    const lote = validos.slice(i, i + BATCH_SIZE).map((c) => ({
+      organization_id: perfil.organization_id,
+      nome: c.nome.trim(),
+      telefone: c.telefone?.trim() || null,
+      email: c.email?.trim() || null,
+      observacoes: c.observacoes || null,
+    }))
+
+    const { error } = await supabase.from('contacts').insert(lote)
+    if (error) throw new Error(`Erro ao importar lote: ${error.message}`)
+    importados += lote.length
+  }
+
+  revalidatePath('/contatos')
+  return { importados }
+}

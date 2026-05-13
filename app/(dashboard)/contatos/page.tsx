@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { TabelaContatos } from '@/components/contatos/tabela-contatos'
 import { ModalNovoContato } from '@/components/contatos/modal-novo-contato'
+import { BotaoImportarExportar } from '@/components/contatos/botao-importar-exportar'
 import type { Contact, Company } from '@/types/database'
 
 type ContatoComEmpresa = Contact & { empresa: Pick<Company, 'id' | 'nome'> | null }
@@ -35,7 +36,10 @@ export default async function ContatosPage() {
             Contatos qualificados vinculados a negociações.
           </p>
         </div>
-        <ModalNovoContato />
+        <div className="flex items-center gap-3">
+          <BotaoImportarExportar />
+          <ModalNovoContato />
+        </div>
       </div>
 
       <TabelaContatos contatos={contatos ?? []} />
