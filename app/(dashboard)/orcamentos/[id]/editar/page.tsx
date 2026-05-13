@@ -95,6 +95,7 @@ export default async function EditarOrcamentoPage({ params }: { params: Promise<
           itens: (itens ?? []).map((item) => ({
             product_id: item.product_id,
             descricao: item.descricao,
+            unidade: item.unidade ?? 'un',
             quantidade: item.quantidade,
             preco_unitario: item.preco_unitario,
             desconto_item: item.desconto_item,

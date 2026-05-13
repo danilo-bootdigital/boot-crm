@@ -18,6 +18,7 @@ type ItemForm = {
   key: string
   product_id: string | null
   descricao: string
+  unidade: string
   quantidade: number
   preco_unitario: number
   desconto_item: number
@@ -63,8 +64,8 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
   const [descontoGeral, setDescontoGeral] = useState(defaultValues?.desconto_geral ?? 0)
   const [frete, setFrete] = useState(defaultValues?.frete ?? 0)
   const [itens, setItens] = useState<ItemForm[]>(
-    defaultValues?.itens.map((item, i) => ({ ...item, key: `item-${i}` })) ?? [
-      { key: 'item-0', product_id: null, descricao: '', quantidade: 1, preco_unitario: 0, desconto_item: 0 },
+    defaultValues?.itens.map((item, i) => ({ ...item, unidade: item.unidade ?? 'un', key: `item-${i}` })) ?? [
+      { key: 'item-0', product_id: null, descricao: '', unidade: 'un', quantidade: 1, preco_unitario: 0, desconto_item: 0 },
     ]
   )
 
@@ -102,7 +103,7 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
   function adicionarItem() {
     setItens((prev) => [
       ...prev,
-      { key: `item-${Date.now()}`, product_id: null, descricao: '', quantidade: 1, preco_unitario: 0, desconto_item: 0 },
+      { key: `item-${Date.now()}`, product_id: null, descricao: '', unidade: 'un', quantidade: 1, preco_unitario: 0, desconto_item: 0 },
     ])
   }
 
@@ -122,7 +123,7 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
     setItens((prev) =>
       prev.map((i) =>
         i.key === key
-          ? { ...i, product_id: produtoId, descricao: produto.nome, preco_unitario: produto.preco_unitario }
+          ? { ...i, product_id: produtoId, descricao: produto.nome, preco_unitario: produto.preco_unitario, unidade: produto.unidade ?? 'un' }
           : i
       )
     )
@@ -256,8 +257,9 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
 
         {itens.map((item) => (
           <Card key={item.key}>
-            <CardContent className="grid gap-3 p-4 md:grid-cols-12">
-              <div className="md:col-span-3 space-y-1">
+            <CardContent className="space-y-3 p-4">
+              {/* Linha 1: Produto (largura total) */}
+              <div className="space-y-1">
                 <Label className="text-xs">Produto</Label>
                 <Select
                   value={item.product_id || '__livre__'}
@@ -266,8 +268,8 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
                     else atualizarItem(item.key, 'product_id', null)
                   }}
                 >
-                  <SelectTrigger className="h-8 text-xs">
-                    <span className="flex flex-1 text-left truncate">
+                  <SelectTrigger className="h-9">
+                    <span className="flex flex-1 text-left truncate text-sm">
                       {item.product_id ? produtosFiltrados.find(p => p.id === item.product_id)?.nome ?? 'Produto' : 'Descrição livre'}
                     </span>
                   </SelectTrigger>
@@ -279,63 +281,87 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
                   </SelectContent>
                 </Select>
               </div>
-              <div className="md:col-span-3 space-y-1">
-                <Label className="text-xs">Descrição</Label>
-                <Input
-                  className="h-8 text-xs"
-                  value={item.descricao}
-                  onChange={(e) => atualizarItem(item.key, 'descricao', e.target.value)}
-                  placeholder="Descrição do item"
-                />
+
+              {/* Linha 2: Descrição (50%) + Unidade + Qtd */}
+              <div className="grid gap-3 md:grid-cols-12">
+                <div className="md:col-span-6 space-y-1">
+                  <Label className="text-xs">Descrição</Label>
+                  <Input
+                    className="h-9 text-sm"
+                    value={item.descricao}
+                    onChange={(e) => atualizarItem(item.key, 'descricao', e.target.value)}
+                    placeholder="Descrição do item"
+                  />
+                </div>
+                <div className="md:col-span-2 space-y-1">
+                  <Label className="text-xs">Unidade</Label>
+                  <Input
+                    className="h-9 text-sm w-20"
+                    value={item.unidade ?? 'un'}
+                    onChange={(e) => atualizarItem(item.key, 'unidade', e.target.value)}
+                    placeholder="un"
+                  />
+                </div>
+                <div className="md:col-span-2 space-y-1">
+                  <Label className="text-xs">Qtd</Label>
+                  <Input
+                    className="h-9 text-sm w-20"
+                    type="number"
+                    min="0.001"
+                    step="0.001"
+                    value={item.quantidade}
+                    onChange={(e) => atualizarItem(item.key, 'quantidade', parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+                <div className="md:col-span-2 space-y-1">
+                  <Label className="text-xs">Desc %</Label>
+                  <Input
+                    className="h-9 text-sm w-20"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={item.desconto_item}
+                    onChange={(e) => atualizarItem(item.key, 'desconto_item', parseFloat(e.target.value) || 0)}
+                  />
+                </div>
               </div>
-              <div className="md:col-span-1 space-y-1">
-                <Label className="text-xs">Qtd</Label>
-                <Input
-                  className="h-8 text-xs"
-                  type="number"
-                  min="0.001"
-                  step="0.001"
-                  value={item.quantidade}
-                  onChange={(e) => atualizarItem(item.key, 'quantidade', parseFloat(e.target.value) || 0)}
-                />
-              </div>
-              <div className="md:col-span-2 space-y-1">
-                <Label className="text-xs">Preço unit.</Label>
-                <Input
-                  className="h-8 text-xs"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={item.preco_unitario}
-                  onChange={(e) => atualizarItem(item.key, 'preco_unitario', parseFloat(e.target.value) || 0)}
-                />
-              </div>
-              <div className="md:col-span-1 space-y-1">
-                <Label className="text-xs">Desc %</Label>
-                <Input
-                  className="h-8 text-xs"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={item.desconto_item}
-                  onChange={(e) => atualizarItem(item.key, 'desconto_item', parseFloat(e.target.value) || 0)}
-                />
-              </div>
-              <div className="md:col-span-1 flex items-end justify-between">
-                <span className="text-xs font-medium text-slate-700">{formatarMoeda(calcularSubtotal(item))}</span>
-              </div>
-              <div className="md:col-span-1 flex items-end">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-red-400 hover:text-red-600"
-                  onClick={() => removerItem(item.key)}
-                  disabled={itens.length === 1}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+
+              {/* Linha 3: Preço unitário + Valor total + Botão excluir */}
+              <div className="grid gap-3 md:grid-cols-12 items-end">
+                <div className="md:col-span-3 space-y-1">
+                  <Label className="text-xs">Preço unitário</Label>
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-500">R$</span>
+                    <Input
+                      className="h-9 text-sm pl-8"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.preco_unitario}
+                      onChange={(e) => atualizarItem(item.key, 'preco_unitario', parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
+                </div>
+                <div className="md:col-span-3 space-y-1">
+                  <Label className="text-xs">Valor total</Label>
+                  <div className="h-9 flex items-center rounded-lg border bg-slate-50 px-3">
+                    <span className="text-sm font-medium text-slate-900">{formatarMoeda(calcularSubtotal(item))}</span>
+                  </div>
+                </div>
+                <div className="md:col-span-5"></div>
+                <div className="md:col-span-1 flex items-end justify-end">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 text-red-400 hover:text-red-600"
+                    onClick={() => removerItem(item.key)}
+                    disabled={itens.length === 1}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -371,19 +397,25 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
                 min="0"
                 max="100"
                 step="0.01"
+                className="w-24"
                 value={descontoGeral}
                 onChange={(e) => setDescontoGeral(parseFloat(e.target.value) || 0)}
               />
             </div>
             <div className="space-y-1">
-              <Label>Frete (R$)</Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={frete}
-                onChange={(e) => setFrete(parseFloat(e.target.value) || 0)}
-              />
+              <Label>Frete</Label>
+              <div className="relative">
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-500">R$</span>
+                <Input
+                  type="number"
+                  min="0"
+                  max="1000"
+                  step="0.01"
+                  className="pl-8 w-32"
+                  value={frete}
+                  onChange={(e) => setFrete(parseFloat(e.target.value) || 0)}
+                />
+              </div>
             </div>
           </div>
           <div className="rounded-lg bg-slate-50 p-3 space-y-1">

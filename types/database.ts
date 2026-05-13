@@ -289,6 +289,7 @@ export type QuoteItem = {
   quote_id: string
   product_id: string | null
   descricao: string
+  unidade: string | null
   quantidade: number
   preco_unitario: number
   desconto_item: number
