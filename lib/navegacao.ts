@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Users, TrendingUp, UserCheck,
   MessageCircle, CheckSquare, FileText, Inbox,
-  Settings, type LucideIcon
+  BarChart3, Settings, type LucideIcon
 } from 'lucide-react'
 
 export type ItemNavegacao = {
@@ -19,5 +19,6 @@ export const navegacao: ItemNavegacao[] = [
   { label: 'WhatsApp', href: '/whatsapp', icone: MessageCircle },
   { label: 'Tarefas', href: '/tarefas', icone: CheckSquare },
   { label: 'Orçamentos', href: '/orcamentos', icone: FileText },
+  { label: 'Relatórios', href: '/relatorios', icone: BarChart3 },
   { label: 'Configurações', href: '/configuracoes', icone: Settings },
 ]
