@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Users, TrendingUp, UserCheck,
-  MessageCircle, CheckSquare, FileText,
+  MessageCircle, CheckSquare, FileText, Inbox,
   Settings, type LucideIcon
 } from 'lucide-react'
 
@@ -11,6 +11,7 @@ export type ItemNavegacao = {
 }
 
 export const navegacao: ItemNavegacao[] = [
+  { label: 'Caixa de Entrada', href: '/caixa-de-entrada', icone: Inbox },
   { label: 'Painel Principal', href: '/painel', icone: LayoutDashboard },
   { label: 'Leads', href: '/leads', icone: Users },
   { label: 'Pipeline de Vendas', href: '/pipeline', icone: TrendingUp },
