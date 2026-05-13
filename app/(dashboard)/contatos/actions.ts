@@ -144,6 +144,16 @@ export async function adicionarObservacaoContato(contatoId: string, texto: strin
 export async function excluirContato(contatoId: string) {
   const { supabase, perfil } = await getUsuarioEOrg()
 
+  const { data: perfilCompleto } = await supabase
+    .from('profiles')
+    .select('cargo')
+    .eq('id', perfil.id)
+    .single()
+
+  if (perfilCompleto?.cargo !== 'admin') {
+    throw new Error('Apenas administradores podem excluir contatos.')
+  }
+
   const { error } = await supabase
     .from('contacts')
     .delete()
@@ -151,6 +161,32 @@ export async function excluirContato(contatoId: string) {
     .eq('organization_id', perfil.organization_id)
 
   if (error) throw new Error(`Erro ao excluir contato: ${error.message}`)
+  revalidatePath('/contatos')
+}
+
+export async function excluirContatosEmLote(ids: string[]) {
+  const { supabase, perfil } = await getUsuarioEOrg()
+
+  const { data: perfilCompleto } = await supabase
+    .from('profiles')
+    .select('cargo')
+    .eq('id', perfil.id)
+    .single()
+
+  if (perfilCompleto?.cargo !== 'admin') {
+    throw new Error('Apenas administradores podem excluir contatos.')
+  }
+
+  if (!ids || ids.length === 0) throw new Error('Nenhum contato selecionado.')
+  if (ids.length > 5000) throw new Error('Máximo de 5000 contatos por exclusão.')
+
+  const { error } = await supabase
+    .from('contacts')
+    .delete()
+    .in('id', ids)
+    .eq('organization_id', perfil.organization_id)
+
+  if (error) throw new Error(`Erro ao excluir contatos: ${error.message}`)
   revalidatePath('/contatos')
 }
 

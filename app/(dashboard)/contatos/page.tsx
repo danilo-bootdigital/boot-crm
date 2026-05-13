@@ -42,7 +42,7 @@ export default async function ContatosPage() {
         </div>
       </div>
 
-      <TabelaContatos contatos={contatos ?? []} />
+      <TabelaContatos contatos={contatos ?? []} isAdmin={perfil.cargo === 'admin'} />
     </div>
   )
 }
