@@ -253,6 +253,8 @@ export type Product = {
   category_id: string | null
   nome: string
   descricao: string | null
+  composicao: string | null
+  apresentacao: string | null
   preco_unitario: number
   unidade: string
   ativo: boolean

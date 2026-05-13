@@ -9,9 +9,13 @@ import { alternarAtivoProduto } from '@/app/(dashboard)/configuracoes/produtos/a
 import { formatarMoeda } from '@/lib/utils'
 import type { Product } from '@/types/database'
 
-type Props = { produtos: Product[] }
+type Props = {
+  produtos: Product[]
+  fornecedores: { id: string; nome: string }[]
+  categorias: { id: string; nome: string; supplier_id: string }[]
+}
 
-export function TabelaProdutos({ produtos }: Props) {
+export function TabelaProdutos({ produtos, fornecedores, categorias }: Props) {
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
 
@@ -60,7 +64,7 @@ export function TabelaProdutos({ produtos }: Props) {
               </td>
               <td className="px-4 py-3">
                 <div className="flex items-center gap-1">
-                  <ModalNovoProduto produto={p} />
+                  <ModalNovoProduto produto={p} fornecedores={fornecedores} categorias={categorias} />
                   <Button
                     variant="ghost"
                     size="sm"

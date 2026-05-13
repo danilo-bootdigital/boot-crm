@@ -27,6 +27,10 @@ export async function criarProduto(formData: FormData) {
   const descricao = (formData.get('descricao') as string)?.trim() || null
   const preco_unitario = parseFloat(formData.get('preco_unitario') as string) || 0
   const unidade = (formData.get('unidade') as string)?.trim() || 'un'
+  const supplier_id = (formData.get('supplier_id') as string)?.trim() || null
+  const category_id = (formData.get('category_id') as string)?.trim() || null
+  const mg = (formData.get('mg') as string)?.trim() || null
+  const ml = (formData.get('ml') as string)?.trim() || null
 
   if (!nome) throw new Error('Nome é obrigatório.')
   if (preco_unitario < 0) throw new Error('Preço não pode ser negativo.')
@@ -37,6 +41,10 @@ export async function criarProduto(formData: FormData) {
     descricao,
     preco_unitario,
     unidade,
+    supplier_id: supplier_id || null,
+    category_id: category_id === '__none__' ? null : category_id,
+    composicao: mg,
+    apresentacao: ml,
   })
 
   if (error) throw new Error(`Erro ao criar produto: ${error.message}`)
@@ -50,13 +58,27 @@ export async function editarProduto(produtoId: string, formData: FormData) {
   const descricao = (formData.get('descricao') as string)?.trim() || null
   const preco_unitario = parseFloat(formData.get('preco_unitario') as string) || 0
   const unidade = (formData.get('unidade') as string)?.trim() || 'un'
+  const supplier_id = (formData.get('supplier_id') as string)?.trim() || null
+  const category_id = (formData.get('category_id') as string)?.trim() || null
+  const mg = (formData.get('mg') as string)?.trim() || null
+  const ml = (formData.get('ml') as string)?.trim() || null
 
   if (!nome) throw new Error('Nome é obrigatório.')
   if (preco_unitario < 0) throw new Error('Preço não pode ser negativo.')
 
   const { error } = await supabase
     .from('products')
-    .update({ nome, descricao, preco_unitario, unidade, atualizado_em: new Date().toISOString() })
+    .update({
+      nome,
+      descricao,
+      preco_unitario,
+      unidade,
+      supplier_id: supplier_id || null,
+      category_id: category_id === '__none__' ? null : category_id,
+      composicao: mg,
+      apresentacao: ml,
+      atualizado_em: new Date().toISOString(),
+    })
     .eq('id', produtoId)
     .eq('organization_id', perfil.organization_id)
 

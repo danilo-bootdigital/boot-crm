@@ -22,7 +22,20 @@ export default async function ProdutosPage() {
     .from('products')
     .select('*')
     .eq('organization_id', perfil.organization_id)
-    .order('nome') as { data: Product[] | null }
+    .order('nome') as unknown as { data: Product[] | null }
+
+  const { data: fornecedores } = await supabase
+    .from('suppliers')
+    .select('id, nome')
+    .eq('organization_id', perfil.organization_id)
+    .eq('ativo', true)
+    .order('nome')
+
+  const { data: categorias } = await supabase
+    .from('supplier_categories')
+    .select('id, nome, supplier_id')
+    .eq('organization_id', perfil.organization_id)
+    .order('nome')
 
   return (
     <div className="space-y-6">
@@ -33,9 +46,16 @@ export default async function ProdutosPage() {
             Catálogo de produtos para uso nos orçamentos.
           </p>
         </div>
-        <ModalNovoProduto />
+        <ModalNovoProduto
+          fornecedores={(fornecedores ?? []) as { id: string; nome: string }[]}
+          categorias={(categorias ?? []) as { id: string; nome: string; supplier_id: string }[]}
+        />
       </div>
-      <TabelaProdutos produtos={produtos ?? []} />
+      <TabelaProdutos
+        produtos={produtos ?? []}
+        fornecedores={(fornecedores ?? []) as { id: string; nome: string }[]}
+        categorias={(categorias ?? []) as { id: string; nome: string; supplier_id: string }[]}
+      />
     </div>
   )
 }
