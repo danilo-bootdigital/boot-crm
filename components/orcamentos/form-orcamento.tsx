@@ -12,7 +12,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { criarOrcamento, editarOrcamento } from '@/app/(dashboard)/orcamentos/actions'
 import { formatarMoeda } from '@/lib/utils'
 import { Plus, Trash2 } from 'lucide-react'
-import type { Product, Supplier } from '@/types/database'
+import type { Product, Supplier, SupplierCategory } from '@/types/database'
 
 type ItemForm = {
   key: string
@@ -29,6 +29,7 @@ type Deal = { id: string; titulo: string }
 type Props = {
   produtos: Product[]
   fornecedores: Supplier[]
+  categorias: SupplierCategory[]
   leads: Lead[]
   deals: Deal[]
   orcamentoId?: string
@@ -46,7 +47,7 @@ function calcularSubtotal(item: ItemForm) {
   return item.quantidade * item.preco_unitario * (1 - item.desconto_item / 100)
 }
 
-export function FormOrcamento({ produtos, fornecedores, leads, deals, orcamentoId, defaultValues }: Props) {
+export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals, orcamentoId, defaultValues }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const editando = !!orcamentoId
@@ -54,6 +55,7 @@ export function FormOrcamento({ produtos, fornecedores, leads, deals, orcamentoI
   const [leadId, setLeadId] = useState(defaultValues?.lead_id ?? '')
   const [dealId, setDealId] = useState(defaultValues?.deal_id ?? '')
   const [supplierId, setSupplierId] = useState(defaultValues?.supplier_id ?? '')
+  const [categoryId, setCategoryId] = useState('')
   const [observacoes, setObservacoes] = useState(defaultValues?.observacoes ?? '')
   const [descontoGeral, setDescontoGeral] = useState(defaultValues?.desconto_geral ?? 0)
   const [itens, setItens] = useState<ItemForm[]>(
@@ -62,10 +64,18 @@ export function FormOrcamento({ produtos, fornecedores, leads, deals, orcamentoI
     ]
   )
 
-  // Filtrar produtos pelo fornecedor selecionado
-  const produtosFiltrados = supplierId
-    ? produtos.filter((p) => p.supplier_id === supplierId && p.ativo)
-    : produtos.filter((p) => p.ativo)
+  // Filtrar categorias pelo fornecedor selecionado
+  const categoriasFiltradas = supplierId
+    ? categorias.filter((c) => c.supplier_id === supplierId)
+    : []
+
+  // Filtrar produtos pelo fornecedor e categoria selecionados
+  const produtosFiltrados = produtos.filter((p) => {
+    if (!p.ativo) return false
+    if (supplierId && p.supplier_id !== supplierId) return false
+    if (categoryId && p.category_id !== categoryId) return false
+    return true
+  })
 
   function handleFornecedorChange(novoId: string | null) {
     const id = (!novoId || novoId === '__none__') ? '' : novoId
@@ -82,6 +92,7 @@ export function FormOrcamento({ produtos, fornecedores, leads, deals, orcamentoI
       )
     }
     setSupplierId(id)
+    setCategoryId('')
   }
 
   function adicionarItem() {
@@ -157,7 +168,7 @@ export function FormOrcamento({ produtos, fornecedores, leads, deals, orcamentoI
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <div className="space-y-1">
           <Label>Fornecedor *</Label>
           <Select value={supplierId || '__none__'} onValueChange={handleFornecedorChange}>
@@ -173,6 +184,20 @@ export function FormOrcamento({ produtos, fornecedores, leads, deals, orcamentoI
             <p className="text-xs text-slate-500">Apenas produtos deste fornecedor serão exibidos.</p>
           )}
         </div>
+        {supplierId && categoriasFiltradas.length > 0 && (
+          <div className="space-y-1">
+            <Label>Categoria</Label>
+            <Select value={categoryId || '__all__'} onValueChange={(v) => setCategoryId(v === '__all__' ? '' : (v ?? ''))}>
+              <SelectTrigger><SelectValue placeholder="Todas as categorias" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Todas as categorias</SelectItem>
+                {categoriasFiltradas.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div className="space-y-1">
           <Label>Lead (opcional)</Label>
           <Select value={leadId || '__none__'} onValueChange={(v) => setLeadId(v === '__none__' ? '' : (v ?? ''))}>

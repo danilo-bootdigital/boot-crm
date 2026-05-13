@@ -125,3 +125,86 @@ export async function importarProdutosComFornecedor(produtos: ProdutoImportado[]
   revalidatePath('/configuracoes/fornecedores')
   return { importados, fornecedoresCriados: fornecedoresUnicos.length }
 }
+
+// --- Categorias ---
+
+export async function criarCategoria(fornecedorId: string, nome: string) {
+  const { supabase, perfil } = await getAdminOuGestor()
+
+  if (!nome?.trim()) throw new Error('Nome da categoria é obrigatório.')
+
+  const { error } = await supabase.from('supplier_categories').insert({
+    organization_id: perfil.organization_id,
+    supplier_id: fornecedorId,
+    nome: nome.trim(),
+  })
+
+  if (error) throw new Error(`Erro ao criar categoria: ${error.message}`)
+  revalidatePath(`/configuracoes/fornecedores/${fornecedorId}`)
+}
+
+export async function excluirCategoria(categoriaId: string, fornecedorId: string) {
+  const { supabase, perfil } = await getAdminOuGestor()
+
+  // Verificar se há produtos vinculados
+  const { count } = await supabase
+    .from('products')
+    .select('id', { count: 'exact', head: true })
+    .eq('category_id', categoriaId)
+
+  if (count && count > 0) {
+    throw new Error(`Não é possível excluir: ${count} produto(s) vinculado(s) a esta categoria.`)
+  }
+
+  const { error } = await supabase
+    .from('supplier_categories')
+    .delete()
+    .eq('id', categoriaId)
+    .eq('organization_id', perfil.organization_id)
+
+  if (error) throw new Error(`Erro ao excluir: ${error.message}`)
+  revalidatePath(`/configuracoes/fornecedores/${fornecedorId}`)
+}
+
+// Importar produtos para um fornecedor + categoria específica
+type ProdutoImportadoCategoria = {
+  nome: string
+  descricao: string | null
+  preco_unitario: number
+  unidade: string
+}
+
+export async function importarProdutosParaCategoria(
+  fornecedorId: string,
+  categoriaId: string,
+  produtos: ProdutoImportadoCategoria[]
+) {
+  const { supabase, perfil } = await getAdminOuGestor()
+
+  if (!produtos || produtos.length === 0) throw new Error('Nenhum produto para importar.')
+  if (produtos.length > 5000) throw new Error('Máximo de 5000 produtos por importação.')
+
+  const BATCH_SIZE = 500
+  let importados = 0
+
+  for (let i = 0; i < produtos.length; i += BATCH_SIZE) {
+    const lote = produtos.slice(i, i + BATCH_SIZE).map((p) => ({
+      organization_id: perfil.organization_id,
+      supplier_id: fornecedorId,
+      category_id: categoriaId,
+      nome: p.nome.trim(),
+      descricao: p.descricao || null,
+      preco_unitario: p.preco_unitario,
+      unidade: p.unidade || 'un',
+      ativo: true,
+    }))
+
+    const { error } = await supabase.from('products').insert(lote)
+    if (error) throw new Error(`Erro ao importar lote: ${error.message}`)
+    importados += lote.length
+  }
+
+  revalidatePath(`/configuracoes/fornecedores/${fornecedorId}`)
+  revalidatePath('/configuracoes/produtos')
+  return { importados }
+}

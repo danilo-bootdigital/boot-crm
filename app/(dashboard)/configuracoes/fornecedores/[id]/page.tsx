@@ -1,0 +1,71 @@
+import { createClient } from '@/lib/supabase/server'
+import { notFound, redirect } from 'next/navigation'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { ArrowLeft } from 'lucide-react'
+import { GerenciarCategorias } from '@/components/fornecedores/gerenciar-categorias'
+import type { SupplierCategory, Product } from '@/types/database'
+
+export default async function FornecedorDetalhePage({ params }: { params: Promise<{ id: string }> }) {
+  const supabase = await createClient()
+  const { id } = await params
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: perfil } = await supabase
+    .from('profiles')
+    .select('id, organization_id, cargo')
+    .eq('id', user.id)
+    .single()
+
+  if (!perfil) redirect('/login')
+  if (perfil.cargo !== 'admin' && perfil.cargo !== 'gestor') redirect('/painel')
+
+  const { data: fornecedor } = await supabase
+    .from('suppliers')
+    .select('*')
+    .eq('id', id)
+    .eq('organization_id', perfil.organization_id)
+    .single()
+
+  if (!fornecedor) notFound()
+
+  const { data: categorias } = await supabase
+    .from('supplier_categories')
+    .select('*')
+    .eq('supplier_id', id)
+    .eq('organization_id', perfil.organization_id)
+    .order('nome') as { data: SupplierCategory[] | null }
+
+  const { data: produtos } = await supabase
+    .from('products')
+    .select('*')
+    .eq('supplier_id', id)
+    .eq('organization_id', perfil.organization_id)
+    .order('nome') as { data: Product[] | null }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Link href="/configuracoes/fornecedores">
+          <Button variant="ghost" size="icon">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+        </Link>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">{fornecedor.nome}</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            {produtos?.length ?? 0} produtos · {categorias?.length ?? 0} categorias
+          </p>
+        </div>
+      </div>
+
+      <GerenciarCategorias
+        fornecedorId={id}
+        categorias={categorias ?? []}
+        produtos={produtos ?? []}
+      />
+    </div>
+  )
+}

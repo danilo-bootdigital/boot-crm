@@ -12,7 +12,8 @@ export function TabelaFornecedores({ fornecedores }: { fornecedores: Supplier[] 
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
 
-  function handleExcluir(id: string) {
+  function handleExcluir(id: string, e: React.MouseEvent) {
+    e.stopPropagation()
     startTransition(async () => {
       try {
         await excluirFornecedor(id)
@@ -45,7 +46,11 @@ export function TabelaFornecedores({ fornecedores }: { fornecedores: Supplier[] 
             </tr>
           )}
           {fornecedores.map((f) => (
-            <tr key={f.id} className="border-b last:border-0 hover:bg-slate-50">
+            <tr
+              key={f.id}
+              className="border-b last:border-0 hover:bg-slate-50 cursor-pointer"
+              onClick={() => router.push(`/configuracoes/fornecedores/${f.id}`)}
+            >
               <td className="px-4 py-3 font-medium text-slate-900">{f.nome}</td>
               <td className="px-4 py-3 text-slate-600">{f.cnpj ?? '—'}</td>
               <td className="px-4 py-3 text-slate-600">{f.telefone ?? '—'}</td>
@@ -55,7 +60,7 @@ export function TabelaFornecedores({ fornecedores }: { fornecedores: Supplier[] 
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 text-red-500 hover:text-red-700"
-                  onClick={() => handleExcluir(f.id)}
+                  onClick={(e) => handleExcluir(f.id, e)}
                   disabled={isPending}
                 >
                   <Trash2 className="h-4 w-4" />

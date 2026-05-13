@@ -238,10 +238,19 @@ export type Supplier = {
   criado_em: string
 }
 
+export type SupplierCategory = {
+  id: string
+  organization_id: string
+  supplier_id: string
+  nome: string
+  criado_em: string
+}
+
 export type Product = {
   id: string
   organization_id: string
   supplier_id: string | null
+  category_id: string | null
   nome: string
   descricao: string | null
   preco_unitario: number
