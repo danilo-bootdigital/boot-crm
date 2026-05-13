@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { Card, CardContent } from '@/components/ui/card'
 import { criarOrcamento, editarOrcamento } from '@/app/(dashboard)/orcamentos/actions'
 import { formatarMoeda } from '@/lib/utils'
@@ -409,7 +409,7 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
                 <Input
                   type="number"
                   min="0"
-                  max="1000"
+                  max="99999"
                   step="0.01"
                   className="pl-8 w-32"
                   value={frete}
