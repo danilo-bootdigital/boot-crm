@@ -28,7 +28,6 @@ export default async function ProdutosPage() {
     .from('suppliers')
     .select('id, nome')
     .eq('organization_id', perfil.organization_id)
-    .eq('ativo', true)
     .order('nome')
 
   const { data: categorias } = await supabase
