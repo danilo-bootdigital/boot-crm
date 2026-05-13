@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Users, GitBranch, MessageCircle } from 'lucide-react'
+import { Users, GitBranch, MessageCircle, Package } from 'lucide-react'
 
 export default async function ConfiguracoesPage() {
   const supabase = await createClient()
@@ -60,6 +60,21 @@ export default async function ConfiguracoesPage() {
             <div className="font-medium text-slate-900">Distribuição de Leads</div>
             <div className="mt-0.5 text-sm text-slate-500">
               Configure o modo de atribuição automática de leads.
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/configuracoes/produtos"
+          className="flex items-start gap-4 rounded-lg border bg-white p-5 transition-colors hover:bg-slate-50"
+        >
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100">
+            <Package className="h-5 w-5 text-slate-600" />
+          </div>
+          <div>
+            <div className="font-medium text-slate-900">Produtos e Serviços</div>
+            <div className="mt-0.5 text-sm text-slate-500">
+              Catálogo de produtos para uso nos orçamentos.
             </div>
           </div>
         </Link>

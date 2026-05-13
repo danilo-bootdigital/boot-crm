@@ -107,7 +107,7 @@ export function KanbanBoard({ pipelineId, etapas, dealsIniciais, cargo, organiza
           event: 'INSERT',
           schema: 'public',
           table: 'deals',
-          filter: `pipeline_id=eq.${pipelineId}`,
+          filter: `pipeline_id=eq.${pipelineId},organization_id=eq.${organizationId}`,
         },
         (payload) => {
           const novo = payload.new as RealtimeDealPayload
@@ -133,7 +133,7 @@ export function KanbanBoard({ pipelineId, etapas, dealsIniciais, cargo, organiza
       .subscribe()
 
     return () => { supabase.removeChannel(canal) }
-  }, [pipelineId])
+  }, [pipelineId, organizationId])
 
   function onDragStart(event: DragStartEvent) {
     const deal = event.active.data.current?.deal as DealCard | undefined
