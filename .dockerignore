@@ -1,12 +1,6 @@
 node_modules
 .next
 .git
-.gitignore
 .env*
-.claude
-.serena
-.superpowers
-supabase/.temp
-docs
 *.md
-!README.md
+.claude
