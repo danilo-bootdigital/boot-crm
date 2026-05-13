@@ -20,7 +20,7 @@ export default async function EditarOrcamentoPage({ params }: { params: Promise<
 
   const { data: orcamento } = await supabase
     .from('quotes')
-    .select('id, lead_id, deal_id, supplier_id, observacoes, desconto_geral, status, responsavel_id')
+    .select('id, lead_id, deal_id, supplier_id, frete, endereco_entrega, observacoes, desconto_geral, status, responsavel_id')
     .eq('id', id)
     .eq('organization_id', perfil.organization_id)
     .single()
@@ -89,7 +89,9 @@ export default async function EditarOrcamentoPage({ params }: { params: Promise<
           deal_id: orcamento.deal_id,
           supplier_id: orcamento.supplier_id,
           observacoes: orcamento.observacoes,
+          endereco_entrega: orcamento.endereco_entrega ?? null,
           desconto_geral: orcamento.desconto_geral,
+          frete: orcamento.frete ?? 0,
           itens: (itens ?? []).map((item) => ({
             product_id: item.product_id,
             descricao: item.descricao,

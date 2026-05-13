@@ -38,7 +38,9 @@ type Props = {
     deal_id: string | null
     supplier_id: string | null
     observacoes: string | null
+    endereco_entrega: string | null
     desconto_geral: number
+    frete: number
     itens: Omit<ItemForm, 'key'>[]
   }
 }
@@ -57,7 +59,9 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
   const [supplierId, setSupplierId] = useState(defaultValues?.supplier_id ?? '')
   const [categoryId, setCategoryId] = useState('')
   const [observacoes, setObservacoes] = useState(defaultValues?.observacoes ?? '')
+  const [enderecoEntrega, setEnderecoEntrega] = useState(defaultValues?.endereco_entrega ?? '')
   const [descontoGeral, setDescontoGeral] = useState(defaultValues?.desconto_geral ?? 0)
+  const [frete, setFrete] = useState(defaultValues?.frete ?? 0)
   const [itens, setItens] = useState<ItemForm[]>(
     defaultValues?.itens.map((item, i) => ({ ...item, key: `item-${i}` })) ?? [
       { key: 'item-0', product_id: null, descricao: '', quantidade: 1, preco_unitario: 0, desconto_item: 0 },
@@ -125,7 +129,7 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
   }
 
   const valorSubtotal = itens.reduce((acc, item) => acc + calcularSubtotal(item), 0)
-  const valorTotal = valorSubtotal * (1 - descontoGeral / 100)
+  const valorTotal = valorSubtotal * (1 - descontoGeral / 100) + frete
 
   function handleSubmit() {
     if (itens.length === 0) {
@@ -145,7 +149,9 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
           deal_id: dealId || null,
           supplier_id: supplierId || null,
           observacoes: observacoes || null,
+          endereco_entrega: enderecoEntrega || null,
           desconto_geral: descontoGeral,
+          frete,
           itens: itens.map(({ product_id, descricao, quantidade, preco_unitario, desconto_item }) => ({
             product_id,
             descricao,
@@ -172,7 +178,9 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
         <div className="space-y-1">
           <Label>Fornecedor *</Label>
           <Select value={supplierId || '__none__'} onValueChange={handleFornecedorChange}>
-            <SelectTrigger><SelectValue placeholder="Selecionar fornecedor..." /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue placeholder={supplierId ? fornecedores.find(f => f.id === supplierId)?.nome ?? 'Selecionar...' : 'Todos (sem filtro)'} />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="__none__">Todos (sem filtro)</SelectItem>
               {fornecedores.map((f) => (
@@ -188,7 +196,9 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
           <div className="space-y-1">
             <Label>Categoria</Label>
             <Select value={categoryId || '__all__'} onValueChange={(v) => setCategoryId(v === '__all__' ? '' : (v ?? ''))}>
-              <SelectTrigger><SelectValue placeholder="Todas as categorias" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder={categoryId ? categoriasFiltradas.find(c => c.id === categoryId)?.nome ?? 'Todas' : 'Todas as categorias'} />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">Todas as categorias</SelectItem>
                 {categoriasFiltradas.map((c) => (
@@ -201,7 +211,9 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
         <div className="space-y-1">
           <Label>Lead (opcional)</Label>
           <Select value={leadId || '__none__'} onValueChange={(v) => setLeadId(v === '__none__' ? '' : (v ?? ''))}>
-            <SelectTrigger><SelectValue placeholder="Selecionar lead..." /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue placeholder={leadId ? leads.find(l => l.id === leadId)?.nome ?? 'Selecionar...' : 'Nenhum'} />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="__none__">Nenhum</SelectItem>
               {leads.map((l) => (
@@ -213,7 +225,9 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
         <div className="space-y-1">
           <Label>Negociação (opcional)</Label>
           <Select value={dealId || '__none__'} onValueChange={(v) => setDealId(v === '__none__' ? '' : (v ?? ''))}>
-            <SelectTrigger><SelectValue placeholder="Selecionar negociação..." /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue placeholder={dealId ? deals.find(d => d.id === dealId)?.titulo ?? 'Selecionar...' : 'Nenhuma'} />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="__none__">Nenhuma</SelectItem>
               {deals.map((d) => (
@@ -317,26 +331,48 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-1">
-          <Label>Observações</Label>
-          <Textarea
-            value={observacoes}
-            onChange={(e) => setObservacoes(e.target.value)}
-            placeholder="Condições de pagamento, prazo de entrega..."
-            rows={3}
-          />
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label>Endereço de entrega</Label>
+            <Input
+              value={enderecoEntrega}
+              onChange={(e) => setEnderecoEntrega(e.target.value)}
+              placeholder="Rua, número, bairro, cidade - UF"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>Observações</Label>
+            <Textarea
+              value={observacoes}
+              onChange={(e) => setObservacoes(e.target.value)}
+              placeholder="Condições de pagamento, prazo de entrega..."
+              rows={3}
+            />
+          </div>
         </div>
         <div className="space-y-4">
-          <div className="space-y-1">
-            <Label>Desconto geral (%)</Label>
-            <Input
-              type="number"
-              min="0"
-              max="100"
-              step="0.01"
-              value={descontoGeral}
-              onChange={(e) => setDescontoGeral(parseFloat(e.target.value) || 0)}
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Desconto geral (%)</Label>
+              <Input
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                value={descontoGeral}
+                onChange={(e) => setDescontoGeral(parseFloat(e.target.value) || 0)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Frete (R$)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={frete}
+                onChange={(e) => setFrete(parseFloat(e.target.value) || 0)}
+              />
+            </div>
           </div>
           <div className="rounded-lg bg-slate-50 p-3 space-y-1">
             <div className="flex justify-between text-sm text-slate-600">
@@ -346,7 +382,13 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
             {descontoGeral > 0 && (
               <div className="flex justify-between text-sm text-red-600">
                 <span>Desconto ({descontoGeral}%)</span>
-                <span>-{formatarMoeda(valorSubtotal - valorTotal)}</span>
+                <span>-{formatarMoeda(valorSubtotal * descontoGeral / 100)}</span>
+              </div>
+            )}
+            {frete > 0 && (
+              <div className="flex justify-between text-sm text-slate-600">
+                <span>Frete</span>
+                <span>+{formatarMoeda(frete)}</span>
               </div>
             )}
             <div className="flex justify-between text-base font-bold text-slate-900 border-t pt-1">

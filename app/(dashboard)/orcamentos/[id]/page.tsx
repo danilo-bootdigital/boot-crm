@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { BadgeStatusOrcamento } from '@/components/orcamentos/badge-status-orcamento'
 import { AcoesOrcamento } from '@/components/orcamentos/acoes-orcamento'
+import { BotaoExportarPdf } from '@/components/orcamentos/botao-exportar-pdf'
 import { formatarMoeda } from '@/lib/utils'
 import { ChevronLeft } from 'lucide-react'
 import type { QuoteStatus, QuoteItem } from '@/types/database'
@@ -31,15 +32,29 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
     .select(`
       *,
       responsavel:profiles!responsavel_id(nome),
-      lead:leads!lead_id(id, nome),
-      deal:deals!deal_id(id, titulo),
-      aprovador:profiles!aprovacao_interna_por(nome)
+      lead:leads!lead_id(id, nome, telefone, email),
+      deal:deals!deal_id(id, titulo, contato_id),
+      aprovador:profiles!aprovacao_interna_por(nome),
+      fornecedor:suppliers!supplier_id(nome)
     `)
     .eq('id', id)
     .eq('organization_id', perfil.organization_id)
     .single()
 
   if (!orcamento) notFound()
+
+  // Buscar dados completos do contato (via deal ou lead)
+  const dealData = Array.isArray(orcamento.deal) ? orcamento.deal[0] : orcamento.deal
+  let contato: { nome: string; telefone: string | null; email: string | null; endereco: string | null } | null = null
+
+  if (dealData?.contato_id) {
+    const { data: c } = await supabase
+      .from('contacts')
+      .select('nome, telefone, email, endereco')
+      .eq('id', dealData.contato_id)
+      .single()
+    contato = c
+  }
 
   const { data: itens } = await supabase
     .from('quote_items')
@@ -51,6 +66,7 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
   const lead = Array.isArray(orcamento.lead) ? orcamento.lead[0] : orcamento.lead
   const deal = Array.isArray(orcamento.deal) ? orcamento.deal[0] : orcamento.deal
   const aprovador = Array.isArray(orcamento.aprovador) ? orcamento.aprovador[0] : orcamento.aprovador
+  const fornecedor = Array.isArray(orcamento.fornecedor) ? orcamento.fornecedor[0] : orcamento.fornecedor
 
   const podeEditar = (orcamento.status === 'rascunho' || orcamento.status === 'rejeitado_internamente') &&
     (perfil.cargo === 'admin' || perfil.cargo === 'gestor' || orcamento.responsavel_id === perfil.id)
@@ -72,6 +88,32 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
           <BadgeStatusOrcamento status={orcamento.status as QuoteStatus} />
         </div>
         <div className="flex gap-2">
+          <BotaoExportarPdf
+            numero={orcamento.numero}
+            responsavel={responsavel?.nome ?? '—'}
+            lead={lead?.nome ?? null}
+            fornecedor={fornecedor?.nome ?? null}
+            cliente={(() => {
+              const nome = contato?.nome ?? lead?.nome ?? ''
+              const telefone = contato?.telefone ?? lead?.telefone ?? null
+              const email = contato?.email ?? lead?.email ?? null
+              const endereco = orcamento.endereco_entrega ?? contato?.endereco ?? null
+              return nome ? { nome, telefone, email, endereco } : null
+            })()}
+            itens={(itens ?? []).map((item) => ({
+              descricao: item.descricao,
+              quantidade: item.quantidade,
+              preco_unitario: item.preco_unitario,
+              desconto_item: item.desconto_item,
+              subtotal: item.subtotal,
+            }))}
+            valorSubtotal={orcamento.valor_subtotal}
+            descontoGeral={orcamento.desconto_geral}
+            frete={orcamento.frete ?? 0}
+            valorTotal={orcamento.valor_total}
+            observacoes={orcamento.observacoes}
+            criadoEm={format(new Date(orcamento.criado_em), "dd/MM/yyyy", { locale: ptBR })}
+          />
           {podeEditar && (
             <Link href={`/orcamentos/${id}/editar`}>
               <Button variant="outline" size="sm">Editar</Button>
@@ -119,7 +161,13 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
                 {orcamento.desconto_geral > 0 && (
                   <div className="flex justify-between text-sm text-red-600">
                     <span>Desconto geral ({orcamento.desconto_geral}%)</span>
-                    <span>-{formatarMoeda(orcamento.valor_subtotal - orcamento.valor_total)}</span>
+                    <span>-{formatarMoeda(orcamento.valor_subtotal * orcamento.desconto_geral / 100)}</span>
+                  </div>
+                )}
+                {orcamento.frete > 0 && (
+                  <div className="flex justify-between text-sm text-slate-600">
+                    <span>Frete</span>
+                    <span>+{formatarMoeda(orcamento.frete)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-lg font-bold text-slate-900 border-t pt-2">

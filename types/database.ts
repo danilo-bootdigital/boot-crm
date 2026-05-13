@@ -271,6 +271,8 @@ export type Quote = {
   status: QuoteStatus
   valor_subtotal: number
   desconto_geral: number
+  frete: number
+  endereco_entrega: string | null
   valor_total: number
   aprovacao_interna_por: string | null
   aprovacao_interna_em: string | null

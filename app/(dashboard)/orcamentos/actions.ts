@@ -26,13 +26,13 @@ type ItemInput = {
   desconto_item: number
 }
 
-function calcularTotais(itens: ItemInput[], descontoGeral: number) {
+function calcularTotais(itens: ItemInput[], descontoGeral: number, frete: number = 0) {
   const subtotais = itens.map((item) => {
     const sub = item.quantidade * item.preco_unitario * (1 - item.desconto_item / 100)
     return Math.round(sub * 100) / 100
   })
   const valorSubtotal = subtotais.reduce((acc, s) => acc + s, 0)
-  const valorTotal = Math.round(valorSubtotal * (1 - descontoGeral / 100) * 100) / 100
+  const valorTotal = Math.round((valorSubtotal * (1 - descontoGeral / 100) + frete) * 100) / 100
   return { subtotais, valorSubtotal, valorTotal }
 }
 
@@ -55,7 +55,9 @@ export async function criarOrcamento(dados: {
   deal_id: string | null
   supplier_id: string | null
   observacoes: string | null
+  endereco_entrega: string | null
   desconto_geral: number
+  frete: number
   itens: ItemInput[]
 }) {
   const { supabase, perfil } = await getUsuarioEOrg()
@@ -63,7 +65,7 @@ export async function criarOrcamento(dados: {
   if (dados.itens.length === 0) throw new Error('Adicione ao menos um item.')
   validarItensEDesconto(dados.itens, dados.desconto_geral)
 
-  const { subtotais, valorSubtotal, valorTotal } = calcularTotais(dados.itens, dados.desconto_geral)
+  const { subtotais, valorSubtotal, valorTotal } = calcularTotais(dados.itens, dados.desconto_geral, dados.frete)
 
   const { data: orcamento, error } = await supabase
     .from('quotes')
@@ -74,7 +76,9 @@ export async function criarOrcamento(dados: {
       deal_id: dados.deal_id || null,
       supplier_id: dados.supplier_id || null,
       observacoes: dados.observacoes || null,
+      endereco_entrega: dados.endereco_entrega || null,
       desconto_geral: dados.desconto_geral,
+      frete: dados.frete || 0,
       valor_subtotal: valorSubtotal,
       valor_total: valorTotal,
       status: 'rascunho' as QuoteStatus,
@@ -106,7 +110,9 @@ export async function editarOrcamento(orcamentoId: string, dados: {
   deal_id?: string | null
   supplier_id?: string | null
   observacoes: string | null
+  endereco_entrega?: string | null
   desconto_geral: number
+  frete?: number
   itens: ItemInput[]
 }) {
   const { supabase, perfil } = await getUsuarioEOrg()
@@ -129,7 +135,7 @@ export async function editarOrcamento(orcamentoId: string, dados: {
     throw new Error('Você só pode editar seus próprios orçamentos.')
   }
 
-  const { subtotais, valorSubtotal, valorTotal } = calcularTotais(dados.itens, dados.desconto_geral)
+  const { subtotais, valorSubtotal, valorTotal } = calcularTotais(dados.itens, dados.desconto_geral, dados.frete ?? 0)
 
   await supabase
     .from('quotes')
@@ -138,7 +144,9 @@ export async function editarOrcamento(orcamentoId: string, dados: {
       deal_id: dados.deal_id ?? null,
       supplier_id: dados.supplier_id ?? null,
       observacoes: dados.observacoes || null,
+      endereco_entrega: dados.endereco_entrega ?? null,
       desconto_geral: dados.desconto_geral,
+      frete: dados.frete ?? 0,
       valor_subtotal: valorSubtotal,
       valor_total: valorTotal,
       status: 'rascunho' as QuoteStatus,
