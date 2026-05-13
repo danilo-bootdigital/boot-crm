@@ -24,11 +24,11 @@ export async function GET() {
 
   const { data: contatos } = await supabase
     .from('contacts')
-    .select('nome, email, telefone, cargo, observacoes, criado_em, empresa:companies!empresa_id(nome)')
+    .select('nome, email, telefone, cargo, endereco, observacoes, criado_em, empresa:companies!empresa_id(nome)')
     .eq('organization_id', perfil.organization_id)
     .order('nome')
 
-  let csv = 'Nome,Email,Telefone,Cargo,Empresa,Observacoes,Criado Em\n'
+  let csv = 'Nome,Email,Telefone,Cargo,Empresa,Endereco,Observacoes,Criado Em\n'
   ;(contatos ?? []).forEach((c) => {
     const empresa = Array.isArray(c.empresa) ? c.empresa[0] : c.empresa
     csv += [
@@ -37,6 +37,7 @@ export async function GET() {
       escapeCsv(c.telefone ?? ''),
       escapeCsv(c.cargo ?? ''),
       escapeCsv(empresa?.nome ?? ''),
+      escapeCsv(c.endereco ?? ''),
       escapeCsv(c.observacoes ?? ''),
       c.criado_em,
     ].join(',') + '\n'

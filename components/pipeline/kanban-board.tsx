@@ -17,6 +17,7 @@ import { KanbanCard, type DealCard } from './kanban-card'
 import { ModalNovaNegociacao } from './modal-nova-negociacao'
 import { ModalFechado } from './modal-fechado'
 import { ModalPerdido } from './modal-perdido'
+import { ModalDetalheDeal } from './modal-detalhe-deal'
 import type { UserRole } from '@/types/database'
 
 type Etapa = {
@@ -58,6 +59,7 @@ export function KanbanBoard({ pipelineId, etapas, dealsIniciais, cargo, organiza
   const [pendingFechado, setPendingFechado] = useState<PendingFechado | null>(null)
   const [pendingPerdido, setPendingPerdido] = useState<PendingPerdido | null>(null)
   const [novaNegoEstagio, setNovaNegoEstagio] = useState<PendingEstagio | null>(null)
+  const [dealDetalhe, setDealDetalhe] = useState<DealCard | null>(null)
 
   const podeArrastar = CARGOS_QUE_MOVEM.includes(cargo)
   const podeCriar = CARGOS_QUE_CRIAM.includes(cargo)
@@ -243,6 +245,7 @@ export function KanbanBoard({ pipelineId, etapas, dealsIniciais, cargo, organiza
                 const etapa = etapas.find((e) => e.id === estagioId)
                 if (etapa) setNovaNegoEstagio({ id: estagioId, nome: etapa.nome })
               }}
+              onDealDoubleClick={(deal) => setDealDetalhe(deal)}
             />
           ))}
         </div>
@@ -283,6 +286,12 @@ export function KanbanBoard({ pipelineId, etapas, dealsIniciais, cargo, organiza
           onCancelar={() => setPendingPerdido(null)}
         />
       )}
+
+      <ModalDetalheDeal
+        deal={dealDetalhe}
+        aberto={dealDetalhe !== null}
+        onFechar={() => setDealDetalhe(null)}
+      />
     </>
   )
 }

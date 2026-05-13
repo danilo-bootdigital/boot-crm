@@ -19,9 +19,10 @@ type Props = {
   podeArrastar: boolean
   podeCriar: boolean
   onNovaNegociacao: (estagioId: string) => void
+  onDealDoubleClick: (deal: DealCard) => void
 }
 
-export function KanbanColuna({ etapa, deals, podeArrastar, podeCriar, onNovaNegociacao }: Props) {
+export function KanbanColuna({ etapa, deals, podeArrastar, podeCriar, onNovaNegociacao, onDealDoubleClick }: Props) {
   const { setNodeRef, isOver } = useDroppable({
     id: etapa.id,
     data: { etapa },
@@ -72,7 +73,7 @@ export function KanbanColuna({ etapa, deals, podeArrastar, podeCriar, onNovaNego
         )}
       >
         {deals.map((deal) => (
-          <KanbanCard key={deal.id} deal={deal} podeArrastar={podeArrastar} />
+          <KanbanCard key={deal.id} deal={deal} podeArrastar={podeArrastar} onDoubleClick={() => onDealDoubleClick(deal)} />
         ))}
 
         {deals.length === 0 && (

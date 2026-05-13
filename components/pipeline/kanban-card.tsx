@@ -21,9 +21,10 @@ export type DealCard = {
 type Props = {
   deal: DealCard
   podeArrastar: boolean
+  onDoubleClick?: () => void
 }
 
-export function KanbanCard({ deal, podeArrastar }: Props) {
+export function KanbanCard({ deal, podeArrastar, onDoubleClick }: Props) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: deal.id,
     data: { deal },
@@ -40,6 +41,7 @@ export function KanbanCard({ deal, podeArrastar }: Props) {
       style={style}
       {...listeners}
       {...attributes}
+      onDoubleClick={onDoubleClick}
       className={cn(
         'rounded-lg border bg-white p-3 shadow-sm transition-shadow select-none',
         podeArrastar && 'cursor-grab active:cursor-grabbing hover:shadow-md',

@@ -7,12 +7,13 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { importarContatos } from '@/app/(dashboard)/contatos/actions'
-import { Upload, FileSpreadsheet, Check } from 'lucide-react'
+import { Upload, FileSpreadsheet, Check, AlertTriangle } from 'lucide-react'
 
 type ContatoImportado = {
   nome: string
   telefone: string | null
   email: string | null
+  endereco: string | null
   observacoes: string | null
 }
 
@@ -72,23 +73,28 @@ function mapearContatos(headers: string[], rows: string[][]): ContatoImportado[]
       const telefone = indices.telefone !== undefined ? row[indices.telefone]?.trim() || null : null
       const email = indices.email !== undefined ? row[indices.email]?.trim() || null : null
 
-      const partes: string[] = []
-      if (indices.endereco !== undefined && row[indices.endereco]?.trim()) partes.push(row[indices.endereco].trim())
-      if (indices.municipio !== undefined && row[indices.municipio]?.trim()) partes.push(row[indices.municipio].trim())
-      if (indices.estado !== undefined && row[indices.estado]?.trim()) partes.push(row[indices.estado].trim())
-      if (indices.cpf !== undefined && row[indices.cpf]?.trim()) partes.push(`Doc: ${row[indices.cpf].trim()}`)
+      // Endereço: concatenar endereço + município + estado
+      const partesEndereco: string[] = []
+      if (indices.endereco !== undefined && row[indices.endereco]?.trim()) partesEndereco.push(row[indices.endereco].trim())
+      if (indices.municipio !== undefined && row[indices.municipio]?.trim()) partesEndereco.push(row[indices.municipio].trim())
+      if (indices.estado !== undefined && row[indices.estado]?.trim()) partesEndereco.push(row[indices.estado].trim())
+      const endereco = partesEndereco.length > 0 ? partesEndereco.join(' — ') : null
 
-      const observacoes = partes.length > 0 ? partes.join(' — ') : null
+      // Observações: CPF/CNPJ
+      const observacoes = (indices.cpf !== undefined && row[indices.cpf]?.trim()) ? `Doc: ${row[indices.cpf].trim()}` : null
 
-      return { nome, telefone, email, observacoes } as ContatoImportado
+      return { nome, telefone, email, endereco, observacoes } as ContatoImportado
     })
     .filter((c): c is ContatoImportado => c !== null)
 }
+
+type ModoImportacao = 'pular' | 'atualizar'
 
 export function FormImportacao() {
   const [arquivo, setArquivo] = useState<File | null>(null)
   const [contatos, setContatos] = useState<ContatoImportado[]>([])
   const [totalLinhas, setTotalLinhas] = useState(0)
+  const [modoDuplicados, setModoDuplicados] = useState<ModoImportacao | null>(null)
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
 
@@ -97,6 +103,7 @@ export function FormImportacao() {
     if (!file) return
 
     setArquivo(file)
+    setModoDuplicados(null)
     const buffer = await file.arrayBuffer()
     const { headers, rows } = parsearPlanilha(buffer)
     const mapeados = mapearContatos(headers, rows)
@@ -104,13 +111,17 @@ export function FormImportacao() {
     setTotalLinhas(rows.length)
   }
 
-  function handleConfirmar() {
+  function handleConfirmar(modo: ModoImportacao) {
     if (contatos.length === 0) return
+    setModoDuplicados(modo)
 
     startTransition(async () => {
       try {
-        const resultado = await importarContatos(contatos)
-        toast.success(`${resultado.importados} contatos importados com sucesso.`)
+        const resultado = await importarContatos(contatos, modo)
+        const msg = modo === 'atualizar'
+          ? `${resultado.importados} novos, ${resultado.atualizados} atualizados.`
+          : `${resultado.importados} importados, ${resultado.pulados} duplicados ignorados.`
+        toast.success(msg)
         router.push('/contatos')
       } catch (e: unknown) {
         toast.error(e instanceof Error ? e.message : 'Erro ao importar.')
@@ -162,6 +173,7 @@ export function FormImportacao() {
                       <th className="pb-2 pr-4">Nome</th>
                       <th className="pb-2 pr-4">Telefone</th>
                       <th className="pb-2 pr-4">Email</th>
+                      <th className="pb-2 pr-4">Endereço</th>
                       <th className="pb-2">Observações</th>
                     </tr>
                   </thead>
@@ -171,6 +183,7 @@ export function FormImportacao() {
                         <td className="py-2 pr-4 font-medium text-slate-900">{c.nome}</td>
                         <td className="py-2 pr-4 text-slate-600">{c.telefone ?? '—'}</td>
                         <td className="py-2 pr-4 text-slate-600">{c.email ?? '—'}</td>
+                        <td className="py-2 pr-4 text-slate-500 text-xs max-w-xs truncate">{c.endereco ?? '—'}</td>
                         <td className="py-2 text-slate-500 text-xs max-w-xs truncate">{c.observacoes ?? '—'}</td>
                       </tr>
                     ))}
@@ -180,12 +193,38 @@ export function FormImportacao() {
             </CardContent>
           </Card>
 
-          <div className="flex justify-end">
-            <Button onClick={handleConfirmar} disabled={isPending} className="gap-1.5">
-              <Check className="h-4 w-4" />
-              {isPending ? 'Importando...' : `Importar ${contatos.length} contatos`}
-            </Button>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                Contatos duplicados
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-slate-600">
+                Se algum contato da planilha já existir no CRM (mesmo telefone ou email), o que deseja fazer?
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  onClick={() => handleConfirmar('pular')}
+                  disabled={isPending}
+                  variant="outline"
+                  className="gap-1.5"
+                >
+                  <Check className="h-4 w-4" />
+                  {isPending && modoDuplicados === 'pular' ? 'Importando...' : 'Importar apenas novos (pular duplicados)'}
+                </Button>
+                <Button
+                  onClick={() => handleConfirmar('atualizar')}
+                  disabled={isPending}
+                  className="gap-1.5"
+                >
+                  <Check className="h-4 w-4" />
+                  {isPending && modoDuplicados === 'atualizar' ? 'Importando...' : 'Importar e atualizar duplicados'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </>
       )}
     </div>

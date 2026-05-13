@@ -23,6 +23,12 @@ export default async function NovoOrcamentoPage() {
     .eq('ativo', true)
     .order('nome')
 
+  const { data: fornecedores } = await supabase
+    .from('suppliers')
+    .select('*')
+    .eq('organization_id', perfil.organization_id)
+    .order('nome')
+
   const { data: leads } = await supabase
     .from('leads')
     .select('id, nome')
@@ -42,6 +48,7 @@ export default async function NovoOrcamentoPage() {
       <h1 className="text-2xl font-bold text-slate-900">Novo Orçamento</h1>
       <FormOrcamento
         produtos={produtos ?? []}
+        fornecedores={fornecedores ?? []}
         leads={(leads ?? []) as { id: string; nome: string | null }[]}
         deals={(deals ?? []) as { id: string; titulo: string }[]}
       />

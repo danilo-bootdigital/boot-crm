@@ -84,6 +84,7 @@ export type Contact = {
   empresa_id: string | null
   responsavel_id: string | null
   foto_perfil_url: string | null
+  endereco: string | null
   observacoes: string | null
   criado_em: string
   atualizado_em: string
@@ -226,9 +227,21 @@ export type ConversationExport = {
   criado_em: string
 }
 
+export type Supplier = {
+  id: string
+  organization_id: string
+  nome: string
+  cnpj: string | null
+  telefone: string | null
+  email: string | null
+  observacoes: string | null
+  criado_em: string
+}
+
 export type Product = {
   id: string
   organization_id: string
+  supplier_id: string | null
   nome: string
   descricao: string | null
   preco_unitario: number
@@ -241,6 +254,7 @@ export type Product = {
 export type Quote = {
   id: string
   organization_id: string
+  supplier_id: string | null
   numero: number
   lead_id: string | null
   deal_id: string | null

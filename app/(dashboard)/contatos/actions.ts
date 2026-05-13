@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
@@ -154,6 +155,13 @@ export async function excluirContato(contatoId: string) {
     throw new Error('Apenas administradores podem excluir contatos.')
   }
 
+  // Usar admin client para limpar FKs (RLS pode bloquear registros de outros autores)
+  const admin = createAdminClient()
+  await admin.from('deals').update({ contato_id: null }).eq('contato_id', contatoId)
+  await admin.from('tasks').update({ contato_id: null }).eq('contato_id', contatoId)
+  await admin.from('activities').update({ contato_id: null }).eq('contato_id', contatoId)
+  await admin.from('conversations').update({ contato_id: null }).eq('contato_id', contatoId)
+
   const { error } = await supabase
     .from('contacts')
     .delete()
@@ -180,13 +188,26 @@ export async function excluirContatosEmLote(ids: string[]) {
   if (!ids || ids.length === 0) throw new Error('Nenhum contato selecionado.')
   if (ids.length > 5000) throw new Error('Máximo de 5000 contatos por exclusão.')
 
-  const { error } = await supabase
-    .from('contacts')
-    .delete()
-    .in('id', ids)
-    .eq('organization_id', perfil.organization_id)
+  // Usar admin client para limpar FKs (RLS pode bloquear registros de outros autores)
+  const admin = createAdminClient()
+  const BATCH_SIZE = 100
+  for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+    const lote = ids.slice(i, i + BATCH_SIZE)
 
-  if (error) throw new Error(`Erro ao excluir contatos: ${error.message}`)
+    // Remover referências (setar contato_id = null)
+    await admin.from('deals').update({ contato_id: null }).in('contato_id', lote)
+    await admin.from('tasks').update({ contato_id: null }).in('contato_id', lote)
+    await admin.from('activities').update({ contato_id: null }).in('contato_id', lote)
+    await admin.from('conversations').update({ contato_id: null }).in('contato_id', lote)
+
+    const { error } = await admin
+      .from('contacts')
+      .delete()
+      .in('id', lote)
+      .eq('organization_id', perfil.organization_id)
+
+    if (error) throw new Error(`Erro ao excluir contatos: ${error.message}`)
+  }
   revalidatePath('/contatos')
 }
 
@@ -215,18 +236,47 @@ export async function converterContatoEmLead(contatoId: string) {
     if (existente) throw new Error('Já existe um lead com este telefone.')
   }
 
-  const { error } = await supabase.from('leads').insert({
+  const { data: lead, error } = await supabase.from('leads').insert({
     organization_id: perfil.organization_id,
     nome: contato.nome,
     email: contato.email,
     telefone: contato.telefone ?? '',
-    origem: 'importacao',
+    origem: 'manual',
     status: 'novo',
     responsavel_id: perfil.id,
-    contato_id: contatoId,
-  })
+  }).select('id').single()
 
   if (error) throw new Error(`Erro ao criar lead: ${error.message}`)
+
+  // Criar deal no pipeline (primeira etapa)
+  const { data: pipeline } = await supabase
+    .from('pipelines')
+    .select('id')
+    .eq('organization_id', perfil.organization_id)
+    .limit(1)
+    .single()
+
+  if (pipeline) {
+    const { data: primeiraEtapa } = await supabase
+      .from('pipeline_stages')
+      .select('id')
+      .eq('pipeline_id', pipeline.id)
+      .eq('organization_id', perfil.organization_id)
+      .order('ordem')
+      .limit(1)
+      .single()
+
+    if (primeiraEtapa) {
+      await supabase.from('deals').insert({
+        organization_id: perfil.organization_id,
+        titulo: contato.nome,
+        pipeline_id: pipeline.id,
+        estagio_id: primeiraEtapa.id,
+        contato_id: contatoId,
+        responsavel_id: perfil.id,
+      })
+    }
+  }
 
   await supabase.from('activities').insert({
     organization_id: perfil.organization_id,
@@ -238,6 +288,7 @@ export async function converterContatoEmLead(contatoId: string) {
 
   revalidatePath('/contatos')
   revalidatePath('/leads')
+  revalidatePath('/pipeline')
   redirect('/leads')
 }
 
@@ -245,10 +296,11 @@ type ContatoImportado = {
   nome: string
   telefone: string | null
   email: string | null
+  endereco: string | null
   observacoes: string | null
 }
 
-export async function importarContatos(contatos: ContatoImportado[]) {
+export async function importarContatos(contatos: ContatoImportado[], modo: 'pular' | 'atualizar' = 'pular') {
   const { supabase, perfil } = await getUsuarioEOrg()
 
   if (!contatos || contatos.length === 0) {
@@ -259,22 +311,52 @@ export async function importarContatos(contatos: ContatoImportado[]) {
     throw new Error('Máximo de 5000 contatos por importação.')
   }
 
-  // Validar que todos têm nome
   const validos = contatos.filter((c) => c.nome?.trim())
   if (validos.length === 0) {
     throw new Error('Nenhum contato válido encontrado (nome é obrigatório).')
   }
 
-  // Inserir em lotes de 500
-  const BATCH_SIZE = 500
-  let importados = 0
+  // Buscar contatos existentes para detectar duplicados (por telefone ou email)
+  const { data: existentes } = await supabase
+    .from('contacts')
+    .select('id, telefone, email')
+    .eq('organization_id', perfil.organization_id)
 
-  for (let i = 0; i < validos.length; i += BATCH_SIZE) {
-    const lote = validos.slice(i, i + BATCH_SIZE).map((c) => ({
+  const telefoneMap = new Map<string, string>()
+  const emailMap = new Map<string, string>()
+  ;(existentes ?? []).forEach((c) => {
+    if (c.telefone) telefoneMap.set(c.telefone.trim().toLowerCase(), c.id)
+    if (c.email) emailMap.set(c.email.trim().toLowerCase(), c.id)
+  })
+
+  const novos: typeof validos = []
+  const duplicados: { id: string; dados: ContatoImportado }[] = []
+
+  for (const c of validos) {
+    const tel = c.telefone?.trim().toLowerCase()
+    const em = c.email?.trim().toLowerCase()
+    const existenteId = (tel && telefoneMap.get(tel)) || (em && emailMap.get(em))
+
+    if (existenteId) {
+      duplicados.push({ id: existenteId, dados: c })
+    } else {
+      novos.push(c)
+    }
+  }
+
+  let importados = 0
+  let atualizados = 0
+  let pulados = 0
+
+  // Inserir novos em lotes
+  const BATCH_SIZE = 500
+  for (let i = 0; i < novos.length; i += BATCH_SIZE) {
+    const lote = novos.slice(i, i + BATCH_SIZE).map((c) => ({
       organization_id: perfil.organization_id,
       nome: c.nome.trim(),
       telefone: c.telefone?.trim() || null,
       email: c.email?.trim() || null,
+      endereco: c.endereco || null,
       observacoes: c.observacoes || null,
     }))
 
@@ -283,6 +365,27 @@ export async function importarContatos(contatos: ContatoImportado[]) {
     importados += lote.length
   }
 
+  // Lidar com duplicados
+  if (modo === 'atualizar') {
+    for (const dup of duplicados) {
+      await supabase
+        .from('contacts')
+        .update({
+          nome: dup.dados.nome.trim(),
+          telefone: dup.dados.telefone?.trim() || null,
+          email: dup.dados.email?.trim() || null,
+          endereco: dup.dados.endereco || null,
+          observacoes: dup.dados.observacoes || null,
+          atualizado_em: new Date().toISOString(),
+        })
+        .eq('id', dup.id)
+        .eq('organization_id', perfil.organization_id)
+      atualizados++
+    }
+  } else {
+    pulados = duplicados.length
+  }
+
   revalidatePath('/contatos')
-  return { importados }
+  return { importados, atualizados, pulados }
 }

@@ -20,7 +20,7 @@ export default async function EditarOrcamentoPage({ params }: { params: Promise<
 
   const { data: orcamento } = await supabase
     .from('quotes')
-    .select('id, lead_id, deal_id, observacoes, desconto_geral, status, responsavel_id')
+    .select('id, lead_id, deal_id, supplier_id, observacoes, desconto_geral, status, responsavel_id')
     .eq('id', id)
     .eq('organization_id', perfil.organization_id)
     .single()
@@ -48,6 +48,12 @@ export default async function EditarOrcamentoPage({ params }: { params: Promise<
     .eq('ativo', true)
     .order('nome')
 
+  const { data: fornecedores } = await supabase
+    .from('suppliers')
+    .select('*')
+    .eq('organization_id', perfil.organization_id)
+    .order('nome')
+
   const { data: leads } = await supabase
     .from('leads')
     .select('id, nome')
@@ -67,12 +73,14 @@ export default async function EditarOrcamentoPage({ params }: { params: Promise<
       <h1 className="text-2xl font-bold text-slate-900">Editar Orçamento #{orcamento.id.slice(0, 8)}</h1>
       <FormOrcamento
         produtos={produtos ?? []}
+        fornecedores={fornecedores ?? []}
         leads={(leads ?? []) as { id: string; nome: string | null }[]}
         deals={(deals ?? []) as { id: string; titulo: string }[]}
         orcamentoId={id}
         defaultValues={{
           lead_id: orcamento.lead_id,
           deal_id: orcamento.deal_id,
+          supplier_id: orcamento.supplier_id,
           observacoes: orcamento.observacoes,
           desconto_geral: orcamento.desconto_geral,
           itens: (itens ?? []).map((item) => ({

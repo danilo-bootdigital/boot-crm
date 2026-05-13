@@ -82,6 +82,12 @@ export default async function ContatoDetalhePage({ params }: { params: Promise<{
                   <p className="font-medium">{contato.email}</p>
                 </div>
               )}
+              {contato.endereco && (
+                <div>
+                  <p className="text-xs text-slate-500">Endereço</p>
+                  <p className="font-medium">{contato.endereco}</p>
+                </div>
+              )}
               <div>
                 <p className="text-xs text-slate-500">Responsável</p>
                 <p className="font-medium">{contato.responsavel?.nome ?? '—'}</p>

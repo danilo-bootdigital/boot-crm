@@ -152,3 +152,28 @@ export async function moverDeal(
 
   revalidatePath('/pipeline')
 }
+
+export async function adicionarObservacaoDeal(dealId: string, texto: string) {
+  const { supabase, perfil } = await getVendedorOuSuperior()
+
+  if (!texto?.trim()) throw new Error('Texto da observação é obrigatório.')
+
+  const { data: deal } = await supabase
+    .from('deals')
+    .select('id')
+    .eq('id', dealId)
+    .eq('organization_id', perfil.organization_id)
+    .single()
+
+  if (!deal) throw new Error('Negociação não encontrada.')
+
+  const { error } = await supabase.from('activities').insert({
+    organization_id: perfil.organization_id,
+    autor_id: perfil.id,
+    tipo: 'observacao',
+    descricao: texto.trim(),
+    deal_id: dealId,
+  })
+
+  if (error) throw new Error(`Erro ao adicionar observação: ${error.message}`)
+}

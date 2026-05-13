@@ -53,6 +53,7 @@ function validarItensEDesconto(itens: ItemInput[], descontoGeral: number) {
 export async function criarOrcamento(dados: {
   lead_id: string | null
   deal_id: string | null
+  supplier_id: string | null
   observacoes: string | null
   desconto_geral: number
   itens: ItemInput[]
@@ -71,6 +72,7 @@ export async function criarOrcamento(dados: {
       responsavel_id: perfil.id,
       lead_id: dados.lead_id || null,
       deal_id: dados.deal_id || null,
+      supplier_id: dados.supplier_id || null,
       observacoes: dados.observacoes || null,
       desconto_geral: dados.desconto_geral,
       valor_subtotal: valorSubtotal,
@@ -100,6 +102,9 @@ export async function criarOrcamento(dados: {
 }
 
 export async function editarOrcamento(orcamentoId: string, dados: {
+  lead_id?: string | null
+  deal_id?: string | null
+  supplier_id?: string | null
   observacoes: string | null
   desconto_geral: number
   itens: ItemInput[]
@@ -129,6 +134,9 @@ export async function editarOrcamento(orcamentoId: string, dados: {
   await supabase
     .from('quotes')
     .update({
+      lead_id: dados.lead_id ?? null,
+      deal_id: dados.deal_id ?? null,
+      supplier_id: dados.supplier_id ?? null,
       observacoes: dados.observacoes || null,
       desconto_geral: dados.desconto_geral,
       valor_subtotal: valorSubtotal,

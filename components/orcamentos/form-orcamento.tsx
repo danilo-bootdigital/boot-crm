@@ -12,7 +12,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { criarOrcamento, editarOrcamento } from '@/app/(dashboard)/orcamentos/actions'
 import { formatarMoeda } from '@/lib/utils'
 import { Plus, Trash2 } from 'lucide-react'
-import type { Product } from '@/types/database'
+import type { Product, Supplier } from '@/types/database'
 
 type ItemForm = {
   key: string
@@ -28,12 +28,14 @@ type Deal = { id: string; titulo: string }
 
 type Props = {
   produtos: Product[]
+  fornecedores: Supplier[]
   leads: Lead[]
   deals: Deal[]
   orcamentoId?: string
   defaultValues?: {
     lead_id: string | null
     deal_id: string | null
+    supplier_id: string | null
     observacoes: string | null
     desconto_geral: number
     itens: Omit<ItemForm, 'key'>[]
@@ -44,13 +46,14 @@ function calcularSubtotal(item: ItemForm) {
   return item.quantidade * item.preco_unitario * (1 - item.desconto_item / 100)
 }
 
-export function FormOrcamento({ produtos, leads, deals, orcamentoId, defaultValues }: Props) {
+export function FormOrcamento({ produtos, fornecedores, leads, deals, orcamentoId, defaultValues }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const editando = !!orcamentoId
 
   const [leadId, setLeadId] = useState(defaultValues?.lead_id ?? '')
   const [dealId, setDealId] = useState(defaultValues?.deal_id ?? '')
+  const [supplierId, setSupplierId] = useState(defaultValues?.supplier_id ?? '')
   const [observacoes, setObservacoes] = useState(defaultValues?.observacoes ?? '')
   const [descontoGeral, setDescontoGeral] = useState(defaultValues?.desconto_geral ?? 0)
   const [itens, setItens] = useState<ItemForm[]>(
@@ -58,6 +61,28 @@ export function FormOrcamento({ produtos, leads, deals, orcamentoId, defaultValu
       { key: 'item-0', product_id: null, descricao: '', quantidade: 1, preco_unitario: 0, desconto_item: 0 },
     ]
   )
+
+  // Filtrar produtos pelo fornecedor selecionado
+  const produtosFiltrados = supplierId
+    ? produtos.filter((p) => p.supplier_id === supplierId && p.ativo)
+    : produtos.filter((p) => p.ativo)
+
+  function handleFornecedorChange(novoId: string | null) {
+    const id = (!novoId || novoId === '__none__') ? '' : novoId
+    // Se já tem itens com produto selecionado de outro fornecedor, avisar
+    const temProdutoSelecionado = itens.some((i) => i.product_id)
+    if (temProdutoSelecionado && id !== supplierId) {
+      const confirmar = window.confirm(
+        'Trocar de fornecedor vai limpar os produtos selecionados nos itens. Continuar?'
+      )
+      if (!confirmar) return
+      // Limpar produtos dos itens
+      setItens((prev) =>
+        prev.map((i) => ({ ...i, product_id: null, descricao: '', preco_unitario: 0 }))
+      )
+    }
+    setSupplierId(id)
+  }
 
   function adicionarItem() {
     setItens((prev) => [
@@ -77,7 +102,7 @@ export function FormOrcamento({ produtos, leads, deals, orcamentoId, defaultValu
   }
 
   function selecionarProduto(key: string, produtoId: string) {
-    const produto = produtos.find((p) => p.id === produtoId)
+    const produto = produtosFiltrados.find((p) => p.id === produtoId)
     if (!produto) return
     setItens((prev) =>
       prev.map((i) =>
@@ -107,6 +132,7 @@ export function FormOrcamento({ produtos, leads, deals, orcamentoId, defaultValu
         const dados = {
           lead_id: leadId || null,
           deal_id: dealId || null,
+          supplier_id: supplierId || null,
           observacoes: observacoes || null,
           desconto_geral: descontoGeral,
           itens: itens.map(({ product_id, descricao, quantidade, preco_unitario, desconto_item }) => ({
@@ -131,7 +157,22 @@ export function FormOrcamento({ produtos, leads, deals, orcamentoId, defaultValu
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="space-y-1">
+          <Label>Fornecedor *</Label>
+          <Select value={supplierId || '__none__'} onValueChange={handleFornecedorChange}>
+            <SelectTrigger><SelectValue placeholder="Selecionar fornecedor..." /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">Todos (sem filtro)</SelectItem>
+              {fornecedores.map((f) => (
+                <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {supplierId && (
+            <p className="text-xs text-slate-500">Apenas produtos deste fornecedor serão exibidos.</p>
+          )}
+        </div>
         <div className="space-y-1">
           <Label>Lead (opcional)</Label>
           <Select value={leadId || '__none__'} onValueChange={(v) => setLeadId(v === '__none__' ? '' : (v ?? ''))}>
@@ -181,7 +222,7 @@ export function FormOrcamento({ produtos, leads, deals, orcamentoId, defaultValu
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Livre" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__livre__">Descrição livre</SelectItem>
-                    {produtos.filter((p) => p.ativo).map((p) => (
+                    {produtosFiltrados.map((p) => (
                       <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
                     ))}
                   </SelectContent>
