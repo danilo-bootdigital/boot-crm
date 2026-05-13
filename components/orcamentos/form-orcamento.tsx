@@ -266,7 +266,11 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
                     else atualizarItem(item.key, 'product_id', null)
                   }}
                 >
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Livre" /></SelectTrigger>
+                  <SelectTrigger className="h-8 text-xs">
+                    <span className="flex flex-1 text-left truncate">
+                      {item.product_id ? produtosFiltrados.find(p => p.id === item.product_id)?.nome ?? 'Produto' : 'Descrição livre'}
+                    </span>
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__livre__">Descrição livre</SelectItem>
                     {produtosFiltrados.map((p) => (
