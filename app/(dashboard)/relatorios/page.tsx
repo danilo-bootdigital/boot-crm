@@ -232,21 +232,19 @@ export default async function RelatoriosPage({
   })
   const dadosVendas = Array.from(vendasMap.values()).sort((a, b) => b.valor - a.valor)
 
-  // Produtos mais vendidos (via quote_items)
-  let queryProdutosVendidos = supabase
+  // Produtos mais vendidos (via quote_items → quotes)
+  const { data: itensVendidos } = await supabase
     .from('quote_items')
     .select('descricao, quantidade, preco_unitario, subtotal, product_id, quote:quotes!quote_id(organization_id, status, supplier_id, criado_em)')
-    .gte('criado_em', inicio)
-    .lte('criado_em', fim)
-
-  const { data: itensVendidos } = await queryProdutosVendidos
 
   // Agrupar por produto
   const produtosMap = new Map<string, { nome: string; fornecedor: string; quantidade: number; receita: number }>()
   ;(itensVendidos ?? []).forEach((item) => {
     const quote = Array.isArray(item.quote) ? item.quote[0] : item.quote
     if (!quote || quote.organization_id !== orgId) return
-    if (quote.status !== 'aprovado' && quote.status !== 'enviado') return
+    if (quote.status !== 'aprovado_pelo_cliente' && quote.status !== 'enviado_ao_cliente') return
+    // Filtrar por período usando criado_em do quote
+    if (quote.criado_em < inicio || quote.criado_em > fim) return
 
     const key = item.product_id || item.descricao
     const atual = produtosMap.get(key) ?? { nome: item.descricao, fornecedor: '', quantidade: 0, receita: 0 }

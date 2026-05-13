@@ -137,7 +137,7 @@ export async function editarOrcamento(orcamentoId: string, dados: {
 
   const { subtotais, valorSubtotal, valorTotal } = calcularTotais(dados.itens, dados.desconto_geral, dados.frete ?? 0)
 
-  await supabase
+  const { error: updateError } = await supabase
     .from('quotes')
     .update({
       lead_id: dados.lead_id ?? null,
@@ -154,6 +154,8 @@ export async function editarOrcamento(orcamentoId: string, dados: {
     })
     .eq('id', orcamentoId)
     .eq('organization_id', perfil.organization_id)
+
+  if (updateError) throw new Error(`Erro ao atualizar orçamento: ${updateError.message}`)
 
   await supabase.from('quote_items').delete().eq('quote_id', orcamentoId)
 
