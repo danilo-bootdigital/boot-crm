@@ -179,7 +179,9 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
           <Label>Fornecedor *</Label>
           <Select value={supplierId || '__none__'} onValueChange={handleFornecedorChange}>
             <SelectTrigger>
-              <SelectValue placeholder={supplierId ? fornecedores.find(f => f.id === supplierId)?.nome ?? 'Selecionar...' : 'Todos (sem filtro)'} />
+              <span className="flex flex-1 text-left truncate">
+                {supplierId ? fornecedores.find(f => f.id === supplierId)?.nome ?? 'Selecionar...' : 'Todos (sem filtro)'}
+              </span>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__none__">Todos (sem filtro)</SelectItem>
@@ -197,7 +199,9 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
             <Label>Categoria</Label>
             <Select value={categoryId || '__all__'} onValueChange={(v) => setCategoryId(v === '__all__' ? '' : (v ?? ''))}>
               <SelectTrigger>
-                <SelectValue placeholder={categoryId ? categoriasFiltradas.find(c => c.id === categoryId)?.nome ?? 'Todas' : 'Todas as categorias'} />
+                <span className="flex flex-1 text-left truncate">
+                  {categoryId ? categoriasFiltradas.find(c => c.id === categoryId)?.nome ?? 'Todas' : 'Todas as categorias'}
+                </span>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">Todas as categorias</SelectItem>
@@ -212,7 +216,9 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
           <Label>Lead (opcional)</Label>
           <Select value={leadId || '__none__'} onValueChange={(v) => setLeadId(v === '__none__' ? '' : (v ?? ''))}>
             <SelectTrigger>
-              <SelectValue placeholder={leadId ? leads.find(l => l.id === leadId)?.nome ?? 'Selecionar...' : 'Nenhum'} />
+              <span className="flex flex-1 text-left truncate">
+                {leadId ? leads.find(l => l.id === leadId)?.nome ?? 'Selecionar...' : 'Nenhum'}
+              </span>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__none__">Nenhum</SelectItem>
@@ -226,7 +232,9 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
           <Label>Negociação (opcional)</Label>
           <Select value={dealId || '__none__'} onValueChange={(v) => setDealId(v === '__none__' ? '' : (v ?? ''))}>
             <SelectTrigger>
-              <SelectValue placeholder={dealId ? deals.find(d => d.id === dealId)?.titulo ?? 'Selecionar...' : 'Nenhuma'} />
+              <span className="flex flex-1 text-left truncate">
+                {dealId ? deals.find(d => d.id === dealId)?.titulo ?? 'Selecionar...' : 'Nenhuma'}
+              </span>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__none__">Nenhuma</SelectItem>

@@ -56,6 +56,13 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
     contato = c
   }
 
+  // Buscar dados da empresa
+  const { data: empresa } = await supabase
+    .from('organizations')
+    .select('nome, nome_fantasia, cnpj, telefone, email, endereco, logo_url')
+    .eq('id', perfil.organization_id)
+    .single()
+
   const { data: itens } = await supabase
     .from('quote_items')
     .select('*')
@@ -100,6 +107,14 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
               const endereco = orcamento.endereco_entrega ?? contato?.endereco ?? null
               return nome ? { nome, telefone, email, endereco } : null
             })()}
+            empresa={empresa ? {
+              nome_fantasia: empresa.nome_fantasia,
+              cnpj: empresa.cnpj,
+              telefone: empresa.telefone,
+              email: empresa.email,
+              endereco: empresa.endereco,
+              logo_url: empresa.logo_url,
+            } : null}
             itens={(itens ?? []).map((item) => ({
               descricao: item.descricao,
               quantidade: item.quantidade,

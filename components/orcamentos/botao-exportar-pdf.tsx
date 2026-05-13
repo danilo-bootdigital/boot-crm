@@ -23,6 +23,14 @@ type Props = {
     email: string | null
     endereco: string | null
   } | null
+  empresa: {
+    nome_fantasia: string | null
+    cnpj: string | null
+    telefone: string | null
+    email: string | null
+    endereco: string | null
+    logo_url: string | null
+  } | null
   itens: Item[]
   valorSubtotal: number
   descontoGeral: number
@@ -41,33 +49,95 @@ export function BotaoExportarPdf(props: Props) {
     const pageWidth = doc.internal.pageSize.getWidth()
     const margin = 14
 
-    // === CABEÇALHO ===
-    // Fundo do cabeçalho
-    doc.setFillColor(30, 41, 59) // slate-800
-    doc.rect(0, 0, pageWidth, 35, 'F')
+    // Carregar logo se disponível
+    let logoLoaded = false
+    if (props.empresa?.logo_url) {
+      try {
+        const img = new Image()
+        img.crossOrigin = 'anonymous'
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve()
+          img.onerror = () => reject()
+          img.src = props.empresa!.logo_url!
+        })
+        const canvas = document.createElement('canvas')
+        canvas.width = img.naturalWidth
+        canvas.height = img.naturalHeight
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(img, 0, 0)
+        const imgData = canvas.toDataURL('image/png')
 
-    // Título da empresa (esquerda)
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(16)
+        // Fundo do cabeçalho - cinza claro
+        doc.setFillColor(241, 245, 249) // slate-100
+        doc.rect(0, 0, pageWidth, 42, 'F')
+
+        // Logo proporcional (max 50mm largura, max 24mm altura)
+        const maxW = 50
+        const maxH = 24
+        const ratio = img.naturalWidth / img.naturalHeight
+        let logoW = maxW
+        let logoH = logoW / ratio
+        if (logoH > maxH) {
+          logoH = maxH
+          logoW = logoH * ratio
+        }
+        doc.addImage(imgData, 'PNG', margin, 9, logoW, logoH)
+        logoLoaded = true
+      } catch {
+        // Se falhar, segue sem logo
+      }
+    }
+
+    if (!logoLoaded) {
+      // Fundo do cabeçalho sem logo - cinza claro
+      doc.setFillColor(241, 245, 249) // slate-100
+      doc.rect(0, 0, pageWidth, 42, 'F')
+    }
+
+    // Nome da empresa (após logo ou no início) - texto preto
+    const textStartX = logoLoaded ? margin + 54 : margin
+    doc.setTextColor(30, 41, 59) // slate-800
+    doc.setFontSize(14)
     doc.setFont(undefined!, 'bold')
-    doc.text('ORÇAMENTO', margin, 15)
+    const nomeEmpresa = props.empresa?.nome_fantasia || 'ORÇAMENTO'
+    doc.text(nomeEmpresa, textStartX, 14)
+
+    // Dados da empresa abaixo do nome
+    doc.setFontSize(8)
+    doc.setFont(undefined!, 'normal')
+    doc.setTextColor(71, 85, 105) // slate-600
+    let headerY = 20
+    if (props.empresa?.cnpj) {
+      doc.text(`CNPJ: ${props.empresa.cnpj}`, textStartX, headerY)
+      headerY += 4
+    }
+    if (props.empresa?.telefone || props.empresa?.email) {
+      const info = [props.empresa?.telefone, props.empresa?.email].filter(Boolean).join(' | ')
+      doc.text(info, textStartX, headerY)
+      headerY += 4
+    }
+    if (props.empresa?.endereco) {
+      doc.text(props.empresa.endereco, textStartX, headerY)
+    }
 
     // Número e data (direita)
+    doc.setTextColor(30, 41, 59)
     doc.setFontSize(10)
+    doc.setFont(undefined!, 'bold')
+    doc.text(`ORÇAMENTO Nº ${props.numero}`, pageWidth - margin, 14, { align: 'right' })
+    doc.setFontSize(9)
     doc.setFont(undefined!, 'normal')
-    doc.text(`Nº ${props.numero}`, pageWidth - margin, 12, { align: 'right' })
-    doc.text(`Data: ${props.criadoEm}`, pageWidth - margin, 18, { align: 'right' })
-    doc.text(`Responsável: ${props.responsavel}`, pageWidth - margin, 24, { align: 'right' })
+    doc.setTextColor(71, 85, 105)
+    doc.text(`Data: ${props.criadoEm}`, pageWidth - margin, 21, { align: 'right' })
+    doc.text(`Responsável: ${props.responsavel}`, pageWidth - margin, 27, { align: 'right' })
 
-    // Fornecedor no cabeçalho
+    // Fornecedor
     if (props.fornecedor) {
-      doc.setFontSize(11)
-      doc.setFont(undefined!, 'bold')
-      doc.text(`Fornecedor: ${props.fornecedor}`, margin, 28)
+      doc.text(`Fornecedor: ${props.fornecedor}`, pageWidth - margin, 33, { align: 'right' })
     }
 
     // === DADOS DO CLIENTE ===
-    let y = 45
+    let y = 52
     doc.setTextColor(30, 41, 59)
 
     const cliente = props.cliente
