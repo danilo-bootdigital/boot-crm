@@ -9,6 +9,7 @@ import { GraficoFunil } from '@/components/relatorios/grafico-funil'
 import { GraficoLeadsPeriodo } from '@/components/relatorios/grafico-leads-periodo'
 import { GraficoVendasVendedor } from '@/components/relatorios/grafico-vendas-vendedor'
 import { TabelaResumoVendas } from '@/components/relatorios/tabela-resumo-vendas'
+import { BotoesExportar } from '@/components/relatorios/botoes-exportar'
 import { formatarMoeda } from '@/lib/utils'
 
 function calcularPeriodo(periodo: string | null, inicioCustom: string | null, fimCustom: string | null) {
@@ -231,11 +232,59 @@ export default async function RelatoriosPage({
   })
   const dadosVendas = Array.from(vendasMap.values()).sort((a, b) => b.valor - a.valor)
 
+  // Produtos mais vendidos (via quote_items)
+  let queryProdutosVendidos = supabase
+    .from('quote_items')
+    .select('descricao, quantidade, preco_unitario, subtotal, product_id, quote:quotes!quote_id(organization_id, status, supplier_id, criado_em)')
+    .gte('criado_em', inicio)
+    .lte('criado_em', fim)
+
+  const { data: itensVendidos } = await queryProdutosVendidos
+
+  // Agrupar por produto
+  const produtosMap = new Map<string, { nome: string; fornecedor: string; quantidade: number; receita: number }>()
+  ;(itensVendidos ?? []).forEach((item) => {
+    const quote = Array.isArray(item.quote) ? item.quote[0] : item.quote
+    if (!quote || quote.organization_id !== orgId) return
+    if (quote.status !== 'aprovado' && quote.status !== 'enviado') return
+
+    const key = item.product_id || item.descricao
+    const atual = produtosMap.get(key) ?? { nome: item.descricao, fornecedor: '', quantidade: 0, receita: 0 }
+    atual.quantidade += item.quantidade
+    atual.receita += item.subtotal
+    produtosMap.set(key, atual)
+  })
+  const dadosProdutos = Array.from(produtosMap.values()).sort((a, b) => b.receita - a.receita).slice(0, 20)
+
+  // Período formatado para exibição
+  const periodoLabel = params.periodo === '7' ? 'Últimos 7 dias'
+    : params.periodo === '90' ? 'Últimos 90 dias'
+    : params.periodo === '365' ? 'Último ano'
+    : params.periodo === 'custom' ? `${params.inicio ?? ''} a ${params.fim ?? ''}`
+    : 'Últimos 30 dias'
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Relatórios</h1>
-        <p className="mt-1 text-sm text-slate-500">Análise de desempenho com filtros por período.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Relatórios</h1>
+          <p className="mt-1 text-sm text-slate-500">Análise de desempenho com filtros por período.</p>
+        </div>
+        <BotoesExportar
+          metricas={{
+            leadsNovos: leadsNovos ?? 0,
+            taxaConversao,
+            dealsGanhos: totalDealsGanhos,
+            receita: receitaTotal,
+            ticketMedio,
+            dealsPerdidos: dealsPerdidos ?? 0,
+          }}
+          dadosFunil={dadosFunil}
+          dadosLeadsSemana={dadosLeadsSemana}
+          dadosVendas={dadosVendas}
+          dadosProdutos={dadosProdutos}
+          periodo={periodoLabel}
+        />
       </div>
 
       <FiltrosRelatorio
@@ -272,6 +321,34 @@ export default async function RelatoriosPage({
           <CardContent><TabelaResumoVendas dados={dadosVendas} /></CardContent>
         </Card>
       </div>
+
+      {dadosProdutos.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Produtos Mais Vendidos</CardTitle></CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs font-medium text-slate-500">
+                    <th className="pb-2 pr-4">Produto</th>
+                    <th className="pb-2 pr-4 text-right">Qtd</th>
+                    <th className="pb-2 text-right">Receita</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dadosProdutos.map((p, i) => (
+                    <tr key={i} className="border-b last:border-0">
+                      <td className="py-2 pr-4 text-slate-700">{p.nome}</td>
+                      <td className="py-2 pr-4 text-right text-slate-600">{p.quantidade}</td>
+                      <td className="py-2 text-right font-medium text-slate-900">{formatarMoeda(p.receita)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
