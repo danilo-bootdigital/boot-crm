@@ -23,6 +23,7 @@ export function ModalNovoProduto({ produto, fornecedores, categorias }: Props) {
   const [aberto, setAberto] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [supplierId, setSupplierId] = useState(produto?.supplier_id ?? '')
+  const [categoryId, setCategoryId] = useState(produto?.category_id ?? '')
   const router = useRouter()
   const editando = !!produto
 
@@ -30,8 +31,15 @@ export function ModalNovoProduto({ produto, fornecedores, categorias }: Props) {
     ? categorias.filter(c => c.supplier_id === supplierId)
     : categorias
 
+  function handleFornecedorChange(v: string | null) {
+    const val = v === '__none__' ? '' : (v ?? '')
+    setSupplierId(val)
+    setCategoryId('')
+  }
+
   function handleSubmit(formData: FormData) {
     formData.set('supplier_id', supplierId)
+    formData.set('category_id', categoryId || '__none__')
     startTransition(async () => {
       try {
         if (editando) {
@@ -69,7 +77,7 @@ export function ModalNovoProduto({ produto, fornecedores, categorias }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Fornecedor</Label>
-                <Select value={supplierId || '__none__'} onValueChange={(v) => setSupplierId(v === '__none__' ? '' : (v ?? ''))}>
+                <Select value={supplierId || '__none__'} onValueChange={handleFornecedorChange}>
                   <SelectTrigger>
                     <span className="flex flex-1 text-left truncate">
                       {supplierId ? fornecedores.find(f => f.id === supplierId)?.nome ?? 'Selecionar' : 'Selecionar fornecedor'}
@@ -85,10 +93,10 @@ export function ModalNovoProduto({ produto, fornecedores, categorias }: Props) {
               </div>
               <div className="space-y-1">
                 <Label>Categoria</Label>
-                <Select name="category_id" defaultValue={produto?.category_id ?? '__none__'}>
+                <Select value={categoryId || '__none__'} onValueChange={(v) => setCategoryId(v === '__none__' ? '' : (v ?? ''))}>
                   <SelectTrigger>
                     <span className="flex flex-1 text-left truncate">
-                      {produto?.category_id ? categorias.find(c => c.id === produto.category_id)?.nome ?? 'Selecionar' : 'Selecionar categoria'}
+                      {categoryId ? categoriasFiltradas.find(c => c.id === categoryId)?.nome ?? 'Selecionar' : 'Selecionar categoria'}
                     </span>
                   </SelectTrigger>
                   <SelectContent>
