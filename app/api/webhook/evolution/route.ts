@@ -270,7 +270,15 @@ export async function POST(req: NextRequest) {
 
     if (['imagem', 'audio', 'documento'].includes(tipoMidia)) {
       try {
-        const resultado = await baixarMidia(instanceName, data.message as Record<string, unknown> ?? data)
+        const mediaPayload = {
+          key: {
+            id: messageIdExterno,
+            remoteJid,
+            fromMe,
+          },
+          message,
+        }
+        const resultado = await baixarMidia(instanceName, mediaPayload)
         if (resultado) {
           const ext = tipoMidia === 'imagem' ? 'jpg' : tipoMidia === 'audio' ? 'ogg' : 'pdf'
           const path = `${instancia.organization_id}/${conversaAtual.id}/${messageIdExterno || Date.now()}.${ext}`

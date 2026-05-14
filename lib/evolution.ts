@@ -160,7 +160,7 @@ export async function baixarMidia(
   messageData: Record<string, unknown>
 ): Promise<{ base64: string; mimeType: string } | null> {
   try {
-    const data = await apiFetch<{ base64?: string; mimetype?: string }>(
+    const data = await apiFetch<{ base64?: string; mimetype?: string; mediaType?: string }>(
       `/chat/getBase64FromMediaMessage/${instanceName}`,
       {
         method: 'POST',
