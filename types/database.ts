@@ -51,6 +51,7 @@ export type Lead = {
   telefone: string | null
   empresa: string | null
   cpf_cnpj: string | null
+  endereco: string | null
   origem: LeadOrigem
   status: LeadStatus
   responsavel_id: string | null

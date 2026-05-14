@@ -80,6 +80,10 @@ export function ModalNovoLead({ responsaveis }: Props) {
               <Input id="observacoes" name="observacoes" placeholder="000.000.000-00" />
             </div>
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="endereco">Endereço</Label>
+            <Input id="endereco" name="endereco" placeholder="Rua, número, bairro, cidade" />
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Origem</Label>

@@ -120,10 +120,22 @@ export default async function LeadDetalhePage({ params }: { params: Promise<{ id
                   <p className="font-medium">{lead.email}</p>
                 </div>
               )}
+              {lead.observacoes && (
+                <div>
+                  <p className="text-xs text-slate-500">CPF/CNPJ</p>
+                  <p className="font-medium">{lead.observacoes}</p>
+                </div>
+              )}
               {lead.empresa && (
                 <div>
                   <p className="text-xs text-slate-500">Empresa</p>
                   <p className="font-medium">{lead.empresa}</p>
+                </div>
+              )}
+              {lead.endereco && (
+                <div>
+                  <p className="text-xs text-slate-500">Endereço</p>
+                  <p className="font-medium">{lead.endereco}</p>
                 </div>
               )}
               <div>
@@ -134,12 +146,6 @@ export default async function LeadDetalhePage({ params }: { params: Promise<{ id
                 <p className="text-xs text-slate-500">Cadastrado em</p>
                 <p className="font-medium">{format(new Date(lead.criado_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
               </div>
-              {lead.observacoes && (
-                <div>
-                  <p className="text-xs text-slate-500">CPF/CNPJ</p>
-                  <p className="text-slate-700">{lead.observacoes}</p>
-                </div>
-              )}
             </CardContent>
           </Card>
 

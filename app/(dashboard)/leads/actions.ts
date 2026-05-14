@@ -48,6 +48,7 @@ export async function criarLead(formData: FormData) {
   const email = formData.get('email') as string | null
   const telefone = formData.get('telefone') as string | null
   const empresa = formData.get('empresa') as string | null
+  const endereco = formData.get('endereco') as string | null
   const origem = (formData.get('origem') as LeadOrigem) ?? 'manual'
   const responsavel_id = formData.get('responsavel_id') as string | null
   const observacoes = formData.get('observacoes') as string | null
@@ -60,6 +61,7 @@ export async function criarLead(formData: FormData) {
       email: email || null,
       telefone: telefone || null,
       empresa: empresa || null,
+      endereco: endereco || null,
       origem,
       status: 'novo' as LeadStatus,
       responsavel_id: responsavel_id || null,
@@ -112,6 +114,7 @@ export async function editarLead(leadId: string, formData: FormData) {
   const email = formData.get('email') as string | null
   const telefone = formData.get('telefone') as string | null
   const empresa = formData.get('empresa') as string | null
+  const endereco = formData.get('endereco') as string | null
   const origem = formData.get('origem') as LeadOrigem
   const responsavel_id = formData.get('responsavel_id') as string | null
   const observacoes = formData.get('observacoes') as string | null
@@ -123,6 +126,7 @@ export async function editarLead(leadId: string, formData: FormData) {
       email: email || null,
       telefone: telefone || null,
       empresa: empresa || null,
+      endereco: endereco || null,
       origem,
       responsavel_id: responsavel_id || null,
       observacoes: observacoes || null,
