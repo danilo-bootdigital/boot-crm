@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { distribuirLead } from '@/lib/distribuicao'
 import { criarDealParaLead } from '@/lib/pipeline-lead'
+import { baixarMidia } from '@/lib/evolution'
 
 function normalizarTelefone(jid: string): string {
   return jid.replace(/@.*$/, '').replace(/:\d+$/, '')
@@ -264,13 +265,43 @@ export async function POST(req: NextRequest) {
       locationMessage: 'localizacao',
     }
 
+    const tipoMidia = tipoMidiaMap[messageType] ?? 'texto'
+    let urlMidia: string | null = null
+
+    if (['imagem', 'audio', 'documento'].includes(tipoMidia)) {
+      try {
+        const resultado = await baixarMidia(instanceName, data.message as Record<string, unknown> ?? data)
+        if (resultado) {
+          const ext = tipoMidia === 'imagem' ? 'jpg' : tipoMidia === 'audio' ? 'ogg' : 'pdf'
+          const path = `${instancia.organization_id}/${conversaAtual.id}/${messageIdExterno || Date.now()}.${ext}`
+          const buffer = Buffer.from(resultado.base64, 'base64')
+
+          const { error: uploadErr } = await supabase.storage
+            .from('whatsapp-media')
+            .upload(path, buffer, { contentType: resultado.mimeType, upsert: false })
+
+          if (!uploadErr) {
+            const { data: urlData } = supabase.storage
+              .from('whatsapp-media')
+              .getPublicUrl(path)
+            urlMidia = urlData.publicUrl
+          } else {
+            console.error('[webhook] Upload mídia falhou:', uploadErr.message)
+          }
+        }
+      } catch (err) {
+        console.error('[webhook] Erro ao processar mídia:', err)
+      }
+    }
+
     const { error: errMsg } = await supabase.from('messages').insert({
       organization_id: instancia.organization_id,
       conversation_id: conversaAtual.id,
       message_id_externo: messageIdExterno || null,
       direcao: fromMe ? 'enviada' : 'recebida',
-      tipo_midia: tipoMidiaMap[messageType] ?? 'texto',
+      tipo_midia: tipoMidia,
       conteudo,
+      url_midia: urlMidia,
       telefone_remetente: fromMe ? null : telefone,
       telefone_destinatario: fromMe ? telefone : null,
       responsavel_id: instancia.vendedor_id ?? null,

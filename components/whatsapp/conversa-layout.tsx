@@ -18,6 +18,8 @@ type Mensagem = {
   id: string
   direcao: 'enviada' | 'recebida'
   conteudo: string | null
+  tipo_midia: string
+  url_midia: string | null
   enviado_em: string
   responsavel: { nome: string } | null
 }

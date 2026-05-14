@@ -82,3 +82,95 @@ export async function enviarTexto(
   if (!id) throw new Error('Evolution API não retornou key.id para a mensagem enviada')
   return id
 }
+
+export async function enviarImagem(
+  instanceName: string,
+  numero: string,
+  mediaBase64: string,
+  mimeType: string,
+  caption?: string
+): Promise<string> {
+  const data = await apiFetch<{ key?: { id?: string } }>(
+    `/message/sendMedia/${instanceName}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        number: numero,
+        mediatype: 'image',
+        media: mediaBase64,
+        mimetype: mimeType,
+        caption: caption || '',
+      }),
+    }
+  )
+  const id = data.key?.id
+  if (!id) throw new Error('Evolution API não retornou key.id para imagem enviada')
+  return id
+}
+
+export async function enviarAudio(
+  instanceName: string,
+  numero: string,
+  mediaBase64: string,
+  mimeType: string
+): Promise<string> {
+  const data = await apiFetch<{ key?: { id?: string } }>(
+    `/message/sendWhatsAppAudio/${instanceName}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        number: numero,
+        audio: mediaBase64,
+        mimetype: mimeType,
+      }),
+    }
+  )
+  const id = data.key?.id
+  if (!id) throw new Error('Evolution API não retornou key.id para áudio enviado')
+  return id
+}
+
+export async function enviarDocumento(
+  instanceName: string,
+  numero: string,
+  mediaBase64: string,
+  mimeType: string,
+  fileName: string
+): Promise<string> {
+  const data = await apiFetch<{ key?: { id?: string } }>(
+    `/message/sendMedia/${instanceName}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        number: numero,
+        mediatype: 'document',
+        media: mediaBase64,
+        mimetype: mimeType,
+        fileName,
+      }),
+    }
+  )
+  const id = data.key?.id
+  if (!id) throw new Error('Evolution API não retornou key.id para documento enviado')
+  return id
+}
+
+export async function baixarMidia(
+  instanceName: string,
+  messageData: Record<string, unknown>
+): Promise<{ base64: string; mimeType: string } | null> {
+  try {
+    const data = await apiFetch<{ base64?: string; mimetype?: string }>(
+      `/chat/getBase64FromMediaMessage/${instanceName}`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ message: messageData }),
+      }
+    )
+    if (!data.base64) return null
+    return { base64: data.base64, mimeType: data.mimetype || 'application/octet-stream' }
+  } catch (err) {
+    console.error('[evolution] baixarMidia:', err)
+    return null
+  }
+}

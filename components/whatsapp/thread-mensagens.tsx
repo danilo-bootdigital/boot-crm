@@ -8,6 +8,8 @@ type Mensagem = {
   id: string
   direcao: 'enviada' | 'recebida'
   conteudo: string | null
+  tipo_midia: string
+  url_midia: string | null
   enviado_em: string
   responsavel: { nome: string } | null
 }
@@ -47,6 +49,8 @@ export function ThreadMensagens({ mensagensIniciais, conversaId }: Props) {
                 id: nova.id as string,
                 direcao: nova.direcao as 'enviada' | 'recebida',
                 conteudo: nova.conteudo as string | null,
+                tipo_midia: (nova.tipo_midia as string) ?? 'texto',
+                url_midia: (nova.url_midia as string) ?? null,
                 enviado_em: nova.enviado_em as string,
                 responsavel: null,
               },

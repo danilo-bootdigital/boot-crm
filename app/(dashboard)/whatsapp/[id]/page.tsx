@@ -33,7 +33,7 @@ export default async function ConversaPage({ params }: { params: Promise<{ id: s
   // Mensagens
   const { data: mensagensRaw } = await supabase
     .from('messages')
-    .select('id, direcao, conteudo, enviado_em, responsavel:profiles!responsavel_id(nome)')
+    .select('id, direcao, conteudo, tipo_midia, url_midia, enviado_em, responsavel:profiles!responsavel_id(nome)')
     .eq('conversation_id', id)
     .eq('organization_id', perfil.organization_id)
     .order('enviado_em', { ascending: true })
@@ -43,6 +43,8 @@ export default async function ConversaPage({ params }: { params: Promise<{ id: s
     id: m.id as string,
     direcao: m.direcao as 'enviada' | 'recebida',
     conteudo: m.conteudo as string | null,
+    tipo_midia: (m.tipo_midia as string) ?? 'texto',
+    url_midia: m.url_midia as string | null,
     enviado_em: m.enviado_em as string,
     responsavel: (Array.isArray(m.responsavel) ? m.responsavel[0] : m.responsavel) as { nome: string } | null,
   }))
