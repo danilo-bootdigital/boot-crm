@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Input } from '@/components/ui/input'
 import { Search, X } from 'lucide-react'
 import type { Product } from '@/types/database'
@@ -14,7 +14,10 @@ type Props = {
 export function BuscaProduto({ produtos, value, onSelect }: Props) {
   const [busca, setBusca] = useState('')
   const [aberto, setAberto] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(-1)
   const ref = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLUListElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   const produtoSelecionado = value ? produtos.find(p => p.id === value) : null
 
@@ -22,43 +25,107 @@ export function BuscaProduto({ produtos, value, onSelect }: Props) {
     ? produtos.filter(p => p.nome.toLowerCase().includes(busca.toLowerCase())).slice(0, 10)
     : produtos.slice(0, 10)
 
+  const opcoes = [{ id: '__livre__', nome: 'Descrição livre' }, ...filtrados]
+
   useEffect(() => {
     function handleClickFora(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setAberto(false)
+        setActiveIndex(-1)
       }
     }
     document.addEventListener('mousedown', handleClickFora)
     return () => document.removeEventListener('mousedown', handleClickFora)
   }, [])
 
+  useEffect(() => {
+    setActiveIndex(-1)
+  }, [busca])
+
+  useEffect(() => {
+    if (activeIndex >= 0 && listRef.current) {
+      const item = listRef.current.children[activeIndex] as HTMLElement | undefined
+      item?.scrollIntoView({ block: 'nearest' })
+    }
+  }, [activeIndex])
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (!aberto) {
+      if (e.key === 'ArrowDown' || e.key === 'Enter') {
+        setAberto(true)
+        e.preventDefault()
+      }
+      return
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault()
+        setActiveIndex(prev => (prev < opcoes.length - 1 ? prev + 1 : 0))
+        break
+      case 'ArrowUp':
+        e.preventDefault()
+        setActiveIndex(prev => (prev > 0 ? prev - 1 : opcoes.length - 1))
+        break
+      case 'Enter':
+        e.preventDefault()
+        if (activeIndex >= 0 && activeIndex < opcoes.length) {
+          const opcao = opcoes[activeIndex]
+          if (opcao.id === '__livre__') {
+            onSelect(null)
+          } else {
+            onSelect(opcao.id)
+            setBusca('')
+          }
+          setAberto(false)
+          setActiveIndex(-1)
+        }
+        break
+      case 'Escape':
+        e.preventDefault()
+        setAberto(false)
+        setActiveIndex(-1)
+        break
+    }
+  }, [aberto, activeIndex, opcoes, onSelect])
+
   function handleSelect(produtoId: string) {
     onSelect(produtoId)
     setBusca('')
     setAberto(false)
+    setActiveIndex(-1)
   }
 
   function handleLimpar() {
     onSelect(null)
     setBusca('')
+    inputRef.current?.focus()
   }
 
   if (produtoSelecionado) {
     return (
       <div className="flex h-9 items-center gap-2 rounded-lg border bg-slate-50 px-3">
         <span className="flex-1 text-sm text-slate-900 truncate">{produtoSelecionado.nome}</span>
-        <button type="button" onClick={handleLimpar} className="text-slate-400 hover:text-slate-600">
+        <button
+          type="button"
+          onClick={handleLimpar}
+          className="text-slate-400 hover:text-slate-600"
+          aria-label="Limpar produto selecionado"
+        >
           <X className="h-3.5 w-3.5" />
         </button>
       </div>
     )
   }
 
+  const listboxId = 'busca-produto-listbox'
+
   return (
     <div ref={ref} className="relative">
       <div className="relative">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
         <Input
+          ref={inputRef}
           className="h-9 text-sm pl-8"
           placeholder="Buscar produto..."
           value={busca}
@@ -67,36 +134,62 @@ export function BuscaProduto({ produtos, value, onSelect }: Props) {
             setAberto(true)
           }}
           onFocus={() => setAberto(true)}
+          onKeyDown={handleKeyDown}
+          role="combobox"
+          aria-expanded={aberto}
+          aria-controls={listboxId}
+          aria-activedescendant={activeIndex >= 0 ? `busca-produto-opt-${activeIndex}` : undefined}
+          aria-autocomplete="list"
         />
       </div>
       {aberto && (
-        <div className="absolute z-50 mt-1 w-full rounded-lg border bg-white shadow-lg max-h-48 overflow-y-auto">
-          <button
-            type="button"
-            className="w-full px-3 py-2 text-left text-sm text-slate-500 hover:bg-slate-50"
-            onClick={() => { onSelect(null); setAberto(false) }}
-          >
-            Descricao livre
-          </button>
-          {filtrados.length === 0 && (
-            <div className="px-3 py-2 text-sm text-slate-400">Nenhum produto encontrado</div>
-          )}
-          {filtrados.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              className="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 hover:text-blue-700 truncate"
-              onClick={() => handleSelect(p.id)}
+        <ul
+          id={listboxId}
+          ref={listRef}
+          role="listbox"
+          className="absolute z-50 mt-1 w-full rounded-lg border bg-white shadow-lg max-h-48 overflow-y-auto"
+        >
+          {opcoes.map((opcao, index) => (
+            <li
+              key={opcao.id}
+              id={`busca-produto-opt-${index}`}
+              role="option"
+              aria-selected={activeIndex === index}
+              className={`w-full px-3 py-2 text-left text-sm cursor-pointer truncate ${
+                opcao.id === '__livre__' ? 'text-slate-500' : ''
+              } ${activeIndex === index ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50'}`}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                if (opcao.id === '__livre__') {
+                  onSelect(null)
+                  setAberto(false)
+                  setActiveIndex(-1)
+                } else {
+                  handleSelect(opcao.id)
+                }
+              }}
+              onMouseEnter={() => setActiveIndex(index)}
             >
-              {p.nome}
-              {p.preco_unitario > 0 && (
-                <span className="ml-2 text-xs text-slate-400">
-                  R$ {p.preco_unitario.toFixed(2)}
-                </span>
+              {opcao.id === '__livre__' ? (
+                'Descrição livre'
+              ) : (
+                <>
+                  {opcao.nome}
+                  {'preco_unitario' in opcao && (opcao as Product).preco_unitario > 0 && (
+                    <span className="ml-2 text-xs text-slate-400">
+                      R$ {(opcao as Product).preco_unitario.toFixed(2)}
+                    </span>
+                  )}
+                </>
               )}
-            </button>
+            </li>
           ))}
-        </div>
+          {filtrados.length === 0 && (
+            <li className="px-3 py-2 text-sm text-slate-400" role="option" aria-disabled="true" aria-selected={false}>
+              Nenhum produto encontrado
+            </li>
+          )}
+        </ul>
       )}
     </div>
   )

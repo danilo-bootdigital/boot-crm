@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useMemo, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -75,13 +75,12 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
     ? categorias.filter((c) => c.supplier_id === supplierId)
     : []
 
-  // Filtrar produtos pelo fornecedor e categoria selecionados
-  const produtosFiltrados = produtos.filter((p) => {
+  const produtosFiltrados = useMemo(() => produtos.filter((p) => {
     if (!p.ativo) return false
     if (supplierId && p.supplier_id !== supplierId) return false
     if (categoryId && p.category_id !== categoryId) return false
     return true
-  })
+  }), [produtos, supplierId, categoryId])
 
   function handleFornecedorChange(novoId: string | null) {
     const id = (!novoId || novoId === '__none__') ? '' : novoId
@@ -104,7 +103,7 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
   function adicionarItem() {
     setItens((prev) => [
       ...prev,
-      { key: `item-${Date.now()}`, product_id: null, descricao: '', unidade: 'un', quantidade: 1, preco_unitario: 0, desconto_item: 0 },
+      { key: crypto.randomUUID(), product_id: null, descricao: '', unidade: 'un', quantidade: 1, preco_unitario: 0, desconto_item: 0 },
     ])
   }
 
@@ -143,6 +142,11 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
       toast.error('Todos os itens precisam de uma descrição.')
       return
     }
+    const itensComValorInvalido = itens.some((i) => i.quantidade <= 0 || i.preco_unitario < 0 || i.desconto_item < 0 || i.desconto_item > 100)
+    if (itensComValorInvalido) {
+      toast.error('Verifique os valores dos itens: quantidade deve ser maior que zero, preço não pode ser negativo e desconto deve estar entre 0 e 100%.')
+      return
+    }
 
     startTransition(async () => {
       try {
@@ -152,11 +156,12 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
           supplier_id: supplierId || null,
           observacoes: observacoes || null,
           endereco_entrega: enderecoEntrega || null,
-          desconto_geral: descontoGeral,
+          desconto_geral: Math.min(Math.max(descontoGeral, 0), 100),
           frete,
-          itens: itens.map(({ product_id, descricao, quantidade, preco_unitario, desconto_item }) => ({
+          itens: itens.map(({ product_id, descricao, unidade, quantidade, preco_unitario, desconto_item }) => ({
             product_id,
             descricao,
+            unidade,
             quantidade,
             preco_unitario,
             desconto_item,
@@ -167,6 +172,7 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
           toast.success('Orçamento atualizado.')
         } else {
           await criarOrcamento(dados)
+          toast.success('Orçamento criado com sucesso.')
         }
       } catch (e: unknown) {
         toast.error(e instanceof Error ? e.message : 'Erro ao salvar orçamento.')
@@ -179,7 +185,7 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
       <div className="grid gap-4 md:grid-cols-4">
         <div className="space-y-1">
           <Label>Fornecedor *</Label>
-          <Select value={supplierId || '__none__'} onValueChange={handleFornecedorChange}>
+          <Select value={supplierId || '__none__'} onValueChange={handleFornecedorChange} aria-required="true">
             <SelectTrigger>
               <span className="flex flex-1 text-left truncate">
                 {supplierId ? fornecedores.find(f => f.id === supplierId)?.nome ?? 'Selecionar...' : 'Todos (sem filtro)'}
@@ -345,6 +351,7 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
                     className="h-9 w-9 text-red-400 hover:text-red-600"
                     onClick={() => removerItem(item.key)}
                     disabled={itens.length === 1}
+                    aria-label="Remover item"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
