@@ -43,11 +43,18 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
 
   if (!orcamento) notFound()
 
-  // Buscar dados completos do contato (via deal)
+  // Buscar dados completos do contato (prioridade: contato_id direto no orçamento)
   const dealData = Array.isArray(orcamento.deal) ? orcamento.deal[0] : orcamento.deal
   let contato: { nome: string; telefone: string | null; email: string | null; endereco: string | null; cpf_cnpj: string | null } | null = null
 
-  if (dealData?.contato_id) {
+  if (orcamento.contato_id) {
+    const { data: c } = await supabase
+      .from('contacts')
+      .select('nome, telefone, email, endereco, cpf_cnpj')
+      .eq('id', orcamento.contato_id)
+      .single()
+    contato = c
+  } else if (dealData?.contato_id) {
     const { data: c } = await supabase
       .from('contacts')
       .select('nome, telefone, email, endereco, cpf_cnpj')
