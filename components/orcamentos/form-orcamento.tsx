@@ -34,7 +34,6 @@ type ItemForm = {
   desconto_item: number
 }
 
-type Lead = { id: string; nome: string | null }
 type Deal = { id: string; titulo: string }
 type Contato = { id: string; nome: string; telefone: string | null; email: string | null; cpf_cnpj: string | null; endereco: string | null }
 
@@ -42,7 +41,6 @@ type Props = {
   produtos: Product[]
   fornecedores: Supplier[]
   categorias: SupplierCategory[]
-  leads: Lead[]
   deals: Deal[]
   contatos: Contato[]
   orcamentoId?: string
@@ -64,12 +62,11 @@ function calcularSubtotal(item: ItemForm) {
   return item.quantidade * item.preco_unitario * (1 - item.desconto_item / 100)
 }
 
-export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals, contatos, orcamentoId, defaultValues }: Props) {
+export function FormOrcamento({ produtos, fornecedores, categorias, deals, contatos, orcamentoId, defaultValues }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const editando = !!orcamentoId
 
-  const [leadId, setLeadId] = useState(defaultValues?.lead_id ?? '')
   const [dealId, setDealId] = useState(defaultValues?.deal_id ?? '')
   const [supplierId, setSupplierId] = useState(defaultValues?.supplier_id ?? '')
   const [categoryId, setCategoryId] = useState('')
@@ -203,7 +200,7 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
     startTransition(async () => {
       try {
         const dados = {
-          lead_id: leadId || null,
+          lead_id: null,
           deal_id: dealId || null,
           supplier_id: supplierId || null,
           contato_id: contatoId || null,

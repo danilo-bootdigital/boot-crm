@@ -41,6 +41,20 @@ function ConteudoMidia({ tipo, url, conteudo }: { tipo: string; url: string | nu
     )
   }
 
+  if (tipo === 'video' && url) {
+    return (
+      <div>
+        <video controls className="max-w-[280px] rounded-md" preload="metadata">
+          <source src={url} />
+          Seu navegador não suporta vídeo.
+        </video>
+        {conteudo && conteudo !== '[Vídeo]' && (
+          <p className="mt-1 whitespace-pre-wrap break-words text-sm">{conteudo}</p>
+        )}
+      </div>
+    )
+  }
+
   if (tipo === 'documento' && url) {
     const fileName = url.split('/').pop() || 'documento'
     return (

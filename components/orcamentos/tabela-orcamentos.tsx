@@ -21,6 +21,7 @@ type OrcamentoLista = {
   criado_em: string
   responsavel: { nome: string } | null
   lead: { nome: string | null } | null
+  contato: { nome: string } | null
   deal: { titulo: string } | null
 }
 
@@ -35,13 +36,14 @@ export function TabelaOrcamentos({ orcamentos }: Props) {
 
   // Filtrar
   const filtrados = orcamentos.filter((o) => {
-    // Filtro por texto (nome do lead ou número)
+    // Filtro por texto (nome do lead/contato ou número)
     if (busca) {
       const termo = busca.toLowerCase()
       const matchNome = o.lead?.nome?.toLowerCase().includes(termo)
+      const matchContato = o.contato?.nome?.toLowerCase().includes(termo)
       const matchNumero = o.numero.toString().includes(termo)
       const matchDeal = o.deal?.titulo?.toLowerCase().includes(termo)
-      if (!matchNome && !matchNumero && !matchDeal) return false
+      if (!matchNome && !matchContato && !matchNumero && !matchDeal) return false
     }
     // Filtro por data
     if (dataInicio) {
@@ -131,7 +133,7 @@ export function TabelaOrcamentos({ orcamentos }: Props) {
                 onClick={() => router.push(`/orcamentos/${o.id}`)}
               >
                 <td className="px-4 py-3 font-medium text-slate-900">#{o.numero}</td>
-                <td className="px-4 py-3 text-slate-700">{o.lead?.nome ?? '—'}</td>
+                <td className="px-4 py-3 text-slate-700">{o.contato?.nome ?? o.lead?.nome ?? '—'}</td>
                 <td className="px-4 py-3 text-slate-600">{o.deal?.titulo ?? '—'}</td>
                 <td className="px-4 py-3 font-medium text-slate-900">{formatarMoeda(o.valor_total)}</td>
                 <td className="px-4 py-3"><BadgeStatusOrcamento status={o.status} /></td>
@@ -140,15 +142,17 @@ export function TabelaOrcamentos({ orcamentos }: Props) {
                   {format(new Date(o.criado_em), 'dd/MM/yyyy', { locale: ptBR })}
                 </td>
                 <td className="px-4 py-3">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-red-400 hover:text-red-600"
-                    onClick={(e) => handleExcluir(o.id, o.numero, e)}
-                    disabled={isPending}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {(o.status === 'rascunho' || o.status === 'rejeitado_internamente') && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-red-400 hover:text-red-600"
+                      onClick={(e) => handleExcluir(o.id, o.numero, e)}
+                      disabled={isPending}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </td>
               </tr>
             ))}

@@ -7,7 +7,7 @@ export type LeadStatus = 'novo' | 'em_atendimento' | 'qualificado' | 'descartado
 export type TaskTipo = 'ligacao' | 'email' | 'reuniao' | 'whatsapp'
 export type WhatsappStatus = 'conectado' | 'desconectado' | 'aguardando_qr'
 export type MessageDirecao = 'enviada' | 'recebida'
-export type MessageTipoMidia = 'texto' | 'audio' | 'imagem' | 'documento' | 'sticker' | 'localizacao'
+export type MessageTipoMidia = 'texto' | 'audio' | 'imagem' | 'video' | 'documento' | 'sticker' | 'localizacao'
 export type MessageStatus = 'enviada' | 'entregue' | 'lida' | 'falhou'
 export type DistribuicaoModo = 'manual' | 'rotativo' | 'por_carga'
 export type QuoteStatus =
@@ -293,6 +293,7 @@ export type Quote = {
   numero: number
   lead_id: string | null
   deal_id: string | null
+  contato_id: string | null
   responsavel_id: string
   status: QuoteStatus
   valor_subtotal: number
@@ -315,6 +316,32 @@ export type QuoteItem = {
   product_id: string | null
   descricao: string
   unidade: string | null
+  quantidade: number
+  preco_unitario: number
+  desconto_item: number
+  subtotal: number
+}
+
+export type Order = {
+  id: string
+  organization_id: string
+  quote_id: string
+  numero: number
+  status: OrderStatus
+  lead_id: string | null
+  contato_id: string | null
+  responsavel_id: string
+  valor_total: number
+  observacoes: string | null
+  criado_em: string
+  atualizado_em: string
+}
+
+export type OrderItem = {
+  id: string
+  order_id: string
+  product_id: string | null
+  descricao: string
   quantidade: number
   preco_unitario: number
   desconto_item: number

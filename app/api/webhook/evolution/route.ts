@@ -68,6 +68,7 @@ export async function POST(req: NextRequest) {
       ((message?.extendedTextMessage as Record<string, unknown>)?.text as string) ??
       (messageType === 'imageMessage' ? '[Imagem]' : null) ??
       (messageType === 'audioMessage' ? '[Áudio]' : null) ??
+      (messageType === 'videoMessage' ? '[Vídeo]' : null) ??
       (messageType === 'documentMessage' ? '[Documento]' : null) ??
       (messageType === 'stickerMessage' ? '[Sticker]' : null) ??
       (messageType === 'locationMessage' ? '[Localização]' : null) ??
@@ -261,6 +262,7 @@ export async function POST(req: NextRequest) {
       imageMessage: 'imagem',
       audioMessage: 'audio',
       documentMessage: 'documento',
+      videoMessage: 'video',
       stickerMessage: 'sticker',
       locationMessage: 'localizacao',
     }
@@ -268,7 +270,7 @@ export async function POST(req: NextRequest) {
     const tipoMidia = tipoMidiaMap[messageType] ?? 'texto'
     let urlMidia: string | null = null
 
-    if (['imagem', 'audio', 'documento'].includes(tipoMidia)) {
+    if (['imagem', 'audio', 'documento', 'video'].includes(tipoMidia)) {
       try {
         const mediaPayload = {
           key: {
@@ -280,7 +282,7 @@ export async function POST(req: NextRequest) {
         }
         const resultado = await baixarMidia(instanceName, mediaPayload)
         if (resultado) {
-          const ext = tipoMidia === 'imagem' ? 'jpg' : tipoMidia === 'audio' ? 'ogg' : 'pdf'
+          const ext = tipoMidia === 'imagem' ? 'jpg' : tipoMidia === 'audio' ? 'ogg' : tipoMidia === 'video' ? 'mp4' : 'pdf'
           const path = `${instancia.organization_id}/${conversaAtual.id}/${messageIdExterno || Date.now()}.${ext}`
           const buffer = Buffer.from(resultado.base64, 'base64')
 

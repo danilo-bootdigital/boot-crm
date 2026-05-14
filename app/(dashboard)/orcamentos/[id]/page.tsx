@@ -32,7 +32,7 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
     .select(`
       *,
       responsavel:profiles!responsavel_id(nome),
-      lead:leads!lead_id(id, nome, telefone, email, endereco, observacoes),
+      lead:leads!lead_id(id, nome, telefone, email, endereco, cpf_cnpj),
       deal:deals!deal_id(id, titulo, contato_id),
       aprovador:profiles!aprovacao_interna_por(nome),
       fornecedor:suppliers!supplier_id(nome)
@@ -140,7 +140,7 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
             fornecedor={fornecedor?.nome ?? null}
             cliente={(() => {
               const nome = contato?.nome ?? lead?.nome ?? ''
-              const cpf_cnpj = contato?.cpf_cnpj ?? lead?.observacoes ?? null
+              const cpf_cnpj = contato?.cpf_cnpj ?? lead?.cpf_cnpj ?? null
               const telefone = contato?.telefone ?? lead?.telefone ?? null
               const email = contato?.email ?? lead?.email ?? null
               const endereco = orcamento.endereco_entrega ?? contato?.endereco ?? lead?.endereco ?? null

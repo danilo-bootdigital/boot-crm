@@ -35,13 +35,6 @@ export default async function NovoOrcamentoPage() {
     .eq('organization_id', perfil.organization_id)
     .order('nome')
 
-  const { data: leads } = await supabase
-    .from('leads')
-    .select('id, nome')
-    .eq('organization_id', perfil.organization_id)
-    .in('status', ['novo', 'em_atendimento', 'qualificado'])
-    .order('nome')
-
   const { data: deals } = await supabase
     .from('deals')
     .select('id, titulo')
@@ -62,7 +55,6 @@ export default async function NovoOrcamentoPage() {
         produtos={produtos ?? []}
         fornecedores={fornecedores ?? []}
         categorias={categorias ?? []}
-        leads={(leads ?? []) as { id: string; nome: string | null }[]}
         deals={(deals ?? []) as { id: string; titulo: string }[]}
         contatos={(contatos ?? []) as { id: string; nome: string; telefone: string | null; email: string | null; cpf_cnpj: string | null; endereco: string | null }[]}
       />
