@@ -280,7 +280,7 @@ export async function marcarAprovadoCliente(orcamentoId: string) {
 
   const { data: orcamento } = await supabase
     .from('quotes')
-    .select('id, status, lead_id, deal_id, contato_id, responsavel_id, valor_total, desconto_geral, frete, observacoes, endereco_entrega, forma_pagamento')
+    .select('id, status, lead_id, deal_id, contato_id, responsavel_id, numero, valor_total, desconto_geral, frete, observacoes, endereco_entrega, forma_pagamento')
     .eq('id', orcamentoId)
     .eq('organization_id', perfil.organization_id)
     .single()
@@ -315,11 +315,12 @@ export async function marcarAprovadoCliente(orcamentoId: string) {
     }
   }
 
-  // 3. Criar pedido
+  // 3. Criar pedido (mesmo número do orçamento)
   const { data: pedido, error: errPedido } = await supabase
     .from('orders')
     .insert({
       organization_id: perfil.organization_id,
+      numero: orcamento.numero,
       quote_id: orcamentoId,
       lead_id: orcamento.lead_id ?? null,
       contato_id: contatoId,
