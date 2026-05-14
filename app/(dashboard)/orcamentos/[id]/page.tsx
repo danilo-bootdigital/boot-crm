@@ -45,12 +45,12 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
 
   // Buscar dados completos do contato (via deal)
   const dealData = Array.isArray(orcamento.deal) ? orcamento.deal[0] : orcamento.deal
-  let contato: { nome: string; telefone: string | null; email: string | null; endereco: string | null; observacoes: string | null } | null = null
+  let contato: { nome: string; telefone: string | null; email: string | null; endereco: string | null; cpf_cnpj: string | null } | null = null
 
   if (dealData?.contato_id) {
     const { data: c } = await supabase
       .from('contacts')
-      .select('nome, telefone, email, endereco, observacoes')
+      .select('nome, telefone, email, endereco, cpf_cnpj')
       .eq('id', dealData.contato_id)
       .single()
     contato = c
@@ -83,7 +83,7 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
     if (lead.telefone) {
       const { data: c } = await supabase
         .from('contacts')
-        .select('nome, telefone, email, endereco, observacoes')
+        .select('nome, telefone, email, endereco, cpf_cnpj')
         .eq('organization_id', perfil.organization_id)
         .eq('telefone', lead.telefone)
         .limit(1)
@@ -95,7 +95,7 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
     if (!contatoEncontrado && lead.nome) {
       const { data: c } = await supabase
         .from('contacts')
-        .select('nome, telefone, email, endereco, observacoes')
+        .select('nome, telefone, email, endereco, cpf_cnpj')
         .eq('organization_id', perfil.organization_id)
         .eq('nome', lead.nome)
         .limit(1)
@@ -133,7 +133,7 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
             fornecedor={fornecedor?.nome ?? null}
             cliente={(() => {
               const nome = contato?.nome ?? lead?.nome ?? ''
-              const cpf_cnpj = contato?.observacoes ?? lead?.observacoes ?? null
+              const cpf_cnpj = contato?.cpf_cnpj ?? lead?.observacoes ?? null
               const telefone = contato?.telefone ?? lead?.telefone ?? null
               const email = contato?.email ?? lead?.email ?? null
               const endereco = orcamento.endereco_entrega ?? contato?.endereco ?? lead?.endereco ?? null

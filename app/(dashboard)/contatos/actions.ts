@@ -52,8 +52,8 @@ export async function criarContato(formData: FormData) {
   const email = formData.get('email') as string | null
   const telefone = formData.get('telefone') as string | null
   const cargo = formData.get('cargo') as string | null
+  const cpf_cnpj = formData.get('cpf_cnpj') as string | null
   const empresa_nome = formData.get('empresa_nome') as string | null
-  const observacoes = formData.get('observacoes') as string | null
 
   const empresa_id = await resolverEmpresa(supabase, perfil.organization_id, empresa_nome)
 
@@ -65,9 +65,9 @@ export async function criarContato(formData: FormData) {
       email: email || null,
       telefone: telefone || null,
       cargo: cargo || null,
+      cpf_cnpj: cpf_cnpj || null,
       empresa_id,
       responsavel_id: perfil.id,
-      observacoes: observacoes || null,
     })
     .select('id')
     .single()

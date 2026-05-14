@@ -96,10 +96,10 @@ export default async function ContatoDetalhePage({ params }: { params: Promise<{
                 <p className="text-xs text-slate-500">Cadastrado em</p>
                 <p className="font-medium">{format(new Date(contato.criado_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
               </div>
-              {contato.observacoes && (
+              {contato.cpf_cnpj && (
                 <div>
                   <p className="text-xs text-slate-500">CPF/CNPJ</p>
-                  <p className="font-medium">{contato.observacoes}</p>
+                  <p className="font-medium">{contato.cpf_cnpj}</p>
                 </div>
               )}
               <hr className="my-3" />

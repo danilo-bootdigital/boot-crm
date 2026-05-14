@@ -41,11 +41,11 @@ export default async function LeadDetalhePage({ params }: { params: Promise<{ id
   if (!lead) notFound()
 
   // Buscar contato correspondente para exibir CPF/CNPJ e endereço
-  let contatoVinculado: { observacoes: string | null; endereco: string | null } | null = null
+  let contatoVinculado: { cpf_cnpj: string | null; endereco: string | null } | null = null
   if (lead.telefone) {
     const { data: c } = await supabase
       .from('contacts')
-      .select('observacoes, endereco')
+      .select('cpf_cnpj, endereco')
       .eq('organization_id', perfilAtual.organization_id)
       .eq('telefone', lead.telefone)
       .limit(1)
@@ -55,7 +55,7 @@ export default async function LeadDetalhePage({ params }: { params: Promise<{ id
   if (!contatoVinculado && lead.nome) {
     const { data: c } = await supabase
       .from('contacts')
-      .select('observacoes, endereco')
+      .select('cpf_cnpj, endereco')
       .eq('organization_id', perfilAtual.organization_id)
       .eq('nome', lead.nome)
       .limit(1)
@@ -64,7 +64,7 @@ export default async function LeadDetalhePage({ params }: { params: Promise<{ id
   }
 
   // Dados consolidados: prioriza lead, fallback para contato
-  const cpfCnpj = lead.observacoes || contatoVinculado?.observacoes || null
+  const cpfCnpj = lead.observacoes || contatoVinculado?.cpf_cnpj || null
   const enderecoLead = lead.endereco || contatoVinculado?.endereco || null
 
   let tarefasQuery = supabase
