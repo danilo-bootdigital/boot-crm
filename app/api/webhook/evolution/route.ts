@@ -64,6 +64,11 @@ export async function POST(req: NextRequest) {
     const conteudo =
       (message?.conversation as string) ??
       ((message?.extendedTextMessage as Record<string, unknown>)?.text as string) ??
+      (messageType === 'imageMessage' ? '[Imagem]' : null) ??
+      (messageType === 'audioMessage' ? '[Áudio]' : null) ??
+      (messageType === 'documentMessage' ? '[Documento]' : null) ??
+      (messageType === 'stickerMessage' ? '[Sticker]' : null) ??
+      (messageType === 'locationMessage' ? '[Localização]' : null) ??
       null
 
     // Ignorar grupos
@@ -83,16 +88,23 @@ export async function POST(req: NextRequest) {
     }
 
     // Buscar ou criar conversa
-    let { data: conversa } = await supabase
+    const { data: conversa, error: errConversa } = await supabase
       .from('conversations')
-      .select('id, lead_id')
+      .select('id, lead_id, status')
       .eq('whatsapp_instance_id', instancia.id)
       .eq('telefone_externo', telefone)
       .single()
 
-    let leadId: string | null = (conversa?.lead_id as string) ?? null
+    if (errConversa && errConversa.code !== 'PGRST116') {
+      console.error('[webhook] Erro ao buscar conversa:', errConversa.message)
+      return NextResponse.json({ error: 'Internal' }, { status: 500 })
+    }
 
-    if (!conversa) {
+    let conversaAtual = conversa
+
+    let leadId: string | null = (conversaAtual?.lead_id as string) ?? null
+
+    if (!conversaAtual) {
       // Checar se lead já existe com este telefone
       const { data: leadExistente } = await supabase
         .from('leads')
@@ -121,7 +133,6 @@ export async function POST(req: NextRequest) {
         leadId = (novoLead?.id as string) ?? null
 
         if (leadId) {
-          // Buscar admin da org para autorId
           const { data: adminPerfil } = await supabase
             .from('profiles')
             .select('id')
@@ -144,7 +155,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Criar conversa (tanto para mensagens recebidas quanto enviadas)
+      // Criar conversa — mensagem recebida inicia como nao_atendida, enviada como em_atendimento
       const { data: novaConversa } = await supabase
         .from('conversations')
         .insert({
@@ -153,18 +164,38 @@ export async function POST(req: NextRequest) {
           lead_id: leadId,
           telefone_externo: telefone,
           ultima_mensagem_em: enviadoEm,
+          status: fromMe ? 'em_atendimento' : 'nao_atendida',
+          responsavel_id: fromMe ? instancia.vendedor_id : null,
         })
-        .select('id, lead_id')
+        .select('id, lead_id, status')
         .single()
-      conversa = novaConversa
+      conversaAtual = novaConversa
     } else {
+      // Atualizar conversa existente
+      const updateData: Record<string, unknown> = {
+        ultima_mensagem_em: enviadoEm,
+        atualizado_em: new Date().toISOString(),
+      }
+
+      if (!fromMe) {
+        // Mensagem recebida: se estava finalizada, reabrir como nao_atendida
+        if (conversaAtual.status === 'finalizada') {
+          updateData.status = 'nao_atendida'
+        }
+      } else {
+        // Mensagem enviada pelo vendedor: marcar como em_atendimento se estava nao_atendida
+        if (conversaAtual.status === 'nao_atendida') {
+          updateData.status = 'em_atendimento'
+        }
+      }
+
       await supabase
         .from('conversations')
-        .update({ ultima_mensagem_em: enviadoEm, atualizado_em: new Date().toISOString() })
-        .eq('id', conversa.id)
+        .update(updateData)
+        .eq('id', conversaAtual.id)
     }
 
-    if (!conversa) return NextResponse.json({ ok: true })
+    if (!conversaAtual) return NextResponse.json({ ok: true })
 
     const tipoMidiaMap: Record<string, string> = {
       conversation: 'texto',
@@ -178,7 +209,7 @@ export async function POST(req: NextRequest) {
 
     const { error: errMsg } = await supabase.from('messages').insert({
       organization_id: instancia.organization_id,
-      conversation_id: conversa.id,
+      conversation_id: conversaAtual.id,
       message_id_externo: messageIdExterno || null,
       direcao: fromMe ? 'enviada' : 'recebida',
       tipo_midia: tipoMidiaMap[messageType] ?? 'texto',

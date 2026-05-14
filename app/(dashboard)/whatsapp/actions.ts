@@ -7,6 +7,7 @@ import { enviarTexto } from '@/lib/evolution'
 
 export async function enviarMensagem(conversaId: string, texto: string) {
   if (!texto.trim()) throw new Error('Mensagem não pode estar vazia.')
+  if (texto.length > 4096) throw new Error('Mensagem muito longa (máximo 4096 caracteres).')
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -59,11 +60,34 @@ export async function enviarMensagem(conversaId: string, texto: string) {
     enviado_em: agora,
   })
 
-  await supabase
+  // Buscar status atual para transição automática
+  const { data: conversaAtual } = await supabase
     .from('conversations')
-    .update({ ultima_mensagem_em: agora, atualizado_em: agora })
+    .select('status')
     .eq('id', conversaId)
     .eq('organization_id', perfil.organization_id)
+    .single()
+
+  const updateData: Record<string, unknown> = { ultima_mensagem_em: agora, atualizado_em: agora }
+  if (conversaAtual?.status === 'nao_atendida') {
+    updateData.status = 'em_atendimento'
+    updateData.responsavel_id = perfil.id
+  }
+
+  await supabase
+    .from('conversations')
+    .update(updateData)
+    .eq('id', conversaId)
+    .eq('organization_id', perfil.organization_id)
+
+  await supabase.from('audit_logs').insert({
+    organization_id: perfil.organization_id,
+    usuario_id: perfil.id,
+    acao: 'mensagem_enviada',
+    tabela_afetada: 'messages',
+    registro_id: conversaId,
+    dados_novos: { telefone: conversa.telefone_externo, tipo: 'texto' },
+  })
 
   revalidatePath('/whatsapp')
 }

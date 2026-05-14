@@ -6,10 +6,19 @@ import { Textarea } from '@/components/ui/textarea'
 import { Send } from 'lucide-react'
 import { enviarMensagem } from '@/app/(dashboard)/whatsapp/actions'
 import { isRedirectError } from 'next/dist/client/components/redirect-error'
+import { SeletorRespostaRapida } from './seletor-resposta-rapida'
 
-type Props = { conversaId: string }
+type Props = {
+  conversaId: string
+  variaveis?: {
+    nome?: string
+    vendedor?: string
+    empresa?: string
+    telefone?: string
+  }
+}
 
-export function FormEnvioMensagem({ conversaId }: Props) {
+export function FormEnvioMensagem({ conversaId, variaveis = {} }: Props) {
   const [texto, setTexto] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -35,17 +44,22 @@ export function FormEnvioMensagem({ conversaId }: Props) {
     })
   }
 
+  function handleRespostaRapida(textoModelo: string) {
+    setTexto(textoModelo)
+  }
+
   return (
     <div className="border-t bg-white p-3 space-y-2">
       {erro && <p className="text-xs text-red-600">{erro}</p>}
-      <div className="flex items-end gap-2">
+      <div className="relative flex items-end gap-2">
+        <SeletorRespostaRapida variaveis={variaveis} onSelecionar={handleRespostaRapida} />
         <Textarea
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Digite uma mensagem... (Enter para enviar)"
           rows={2}
-          className="resize-none"
+          className="resize-none flex-1"
           disabled={isPending}
         />
         <Button

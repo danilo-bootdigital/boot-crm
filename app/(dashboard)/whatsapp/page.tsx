@@ -15,13 +15,16 @@ export default async function WhatsappPage() {
 
   if (!perfil) redirect('/login')
 
-  // Buscar conversas com última mensagem
+  // Buscar conversas com status e responsável
   let query = supabase
     .from('conversations')
     .select(`
       id,
       telefone_externo,
       ultima_mensagem_em,
+      status,
+      responsavel_id,
+      responsavel:profiles!responsavel_id(nome),
       lead:leads!lead_id(id, nome),
       instancia:whatsapp_instances!whatsapp_instance_id(nome)
     `)
@@ -29,7 +32,7 @@ export default async function WhatsappPage() {
     .order('ultima_mensagem_em', { ascending: false, nullsFirst: false })
     .limit(100)
 
-  // Vendedor só vê conversas das instâncias atribuídas a ele
+  // Vendedor só vê conversas das instâncias atribuídas a ele ou onde é responsável
   if (perfil.cargo === 'vendedor' || perfil.cargo === 'atendimento') {
     const { data: instancias } = await supabase
       .from('whatsapp_instances')
@@ -62,23 +65,80 @@ export default async function WhatsappPage() {
     })
   }
 
-  const conversas = (conversasRaw ?? []).map((c) => ({
-    id: c.id as string,
-    telefone_externo: c.telefone_externo as string,
-    ultima_mensagem_em: c.ultima_mensagem_em as string | null,
-    lead: (Array.isArray(c.lead) ? c.lead[0] : c.lead) as { id: string; nome: string | null } | null,
-    instancia: (Array.isArray(c.instancia) ? c.instancia[0] : c.instancia) as { nome: string } | null,
-    ultima_mensagem: ultimasMensagens[c.id as string] ?? null,
-  }))
+  // Buscar tags de todas as conversas
+  const tagsMap: Record<string, { id: string; nome: string; cor: string }[]> = {}
+  if (conversaIds.length > 0) {
+    const { data: tagLinks } = await supabase
+      .from('conversation_tag_links')
+      .select('conversation_id, tag:conversation_tags!tag_id(id, nome, cor)')
+      .in('conversation_id', conversaIds)
+
+    ;(tagLinks ?? []).forEach((link) => {
+      const cid = link.conversation_id as string
+      const tag = (Array.isArray(link.tag) ? link.tag[0] : link.tag) as { id: string; nome: string; cor: string } | null
+      if (tag) {
+        if (!tagsMap[cid]) tagsMap[cid] = []
+        tagsMap[cid].push(tag)
+      }
+    })
+  }
+
+  // Todas as tags da org (para filtros)
+  const { data: todasTagsRaw } = await supabase
+    .from('conversation_tags')
+    .select('id, nome, cor')
+    .eq('organization_id', perfil.organization_id)
+    .order('nome')
+
+  const todasTags = (todasTagsRaw ?? []) as { id: string; nome: string; cor: string }[]
+
+  // Usuários da org (para filtros)
+  const { data: usuariosRaw } = await supabase
+    .from('profiles')
+    .select('id, nome')
+    .eq('organization_id', perfil.organization_id)
+    .eq('ativo', true)
+    .order('nome')
+
+  const usuarios = (usuariosRaw ?? []) as { id: string; nome: string }[]
+
+  const conversas = (conversasRaw ?? []).map((c) => {
+    const resp = (Array.isArray(c.responsavel) ? c.responsavel[0] : c.responsavel) as { nome: string } | null
+    const cid = c.id as string
+    return {
+      id: cid,
+      telefone_externo: c.telefone_externo as string,
+      ultima_mensagem_em: c.ultima_mensagem_em as string | null,
+      status: (c.status as 'nao_atendida' | 'em_atendimento' | 'aguardando_cliente' | 'finalizada') ?? 'nao_atendida',
+      responsavel_id: (c.responsavel_id as string) ?? null,
+      responsavel_nome: resp?.nome ?? null,
+      lead: (Array.isArray(c.lead) ? c.lead[0] : c.lead) as { id: string; nome: string | null } | null,
+      instancia: (Array.isArray(c.instancia) ? c.instancia[0] : c.instancia) as { nome: string } | null,
+      ultima_mensagem: ultimasMensagens[cid] ?? null,
+      tags: tagsMap[cid] ?? [],
+    }
+  })
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b px-4 py-3">
-        <h1 className="text-lg font-semibold text-slate-900">WhatsApp</h1>
-        <p className="text-xs text-slate-500">{conversas.length} conversa{conversas.length !== 1 ? 's' : ''}</p>
+      <div className="flex items-center justify-between border-b px-4 py-3">
+        <div>
+          <h1 className="text-lg font-semibold text-slate-900">WhatsApp</h1>
+          <p className="text-xs text-slate-500">{conversas.length} conversa{conversas.length !== 1 ? 's' : ''}</p>
+        </div>
+        {['admin', 'gestor'].includes(perfil.cargo) && (
+          <a href="/whatsapp/relatorios" className="rounded-md border px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+            Relatórios
+          </a>
+        )}
       </div>
-      <div className="flex-1 overflow-y-auto">
-        <ListaConversas conversasIniciais={conversas} organizationId={perfil.organization_id} />
+      <div className="flex-1 overflow-hidden">
+        <ListaConversas
+          conversasIniciais={conversas}
+          organizationId={perfil.organization_id}
+          usuarios={usuarios}
+          todasTags={todasTags}
+        />
       </div>
     </div>
   )
