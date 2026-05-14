@@ -41,6 +41,15 @@ type Props = {
   criadoEm: string
 }
 
+// Cores do layout verde (baseado na imagem de referência)
+const GREEN_DARK = [34, 120, 15] as const   // #22780F - verde escuro
+const GREEN_MID = [56, 142, 60] as const    // #388E3C - verde médio
+const GREEN_LIGHT = [232, 245, 233] as const // #E8F5E9 - verde claro fundo
+const GREEN_ACCENT = [76, 175, 80] as const  // #4CAF50 - verde destaque
+const DARK_TEXT = [33, 33, 33] as const      // #212121
+const GRAY_TEXT = [97, 97, 97] as const      // #616161
+const WHITE = [255, 255, 255] as const
+
 export function BotaoExportarPdf(props: Props) {
   async function handleExportar() {
     const { default: jsPDF } = await import('jspdf')
@@ -48,10 +57,17 @@ export function BotaoExportarPdf(props: Props) {
 
     const doc = new jsPDF()
     const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
     const margin = 14
 
-    // Carregar logo se disponível
-    let logoLoaded = false
+    // === CABEÇALHO ===
+    // Fundo branco do cabeçalho com borda inferior verde
+    doc.setDrawColor(...GREEN_MID)
+    doc.setLineWidth(0.8)
+    doc.line(margin, 44, pageWidth - margin, 44)
+
+    // Logo à esquerda
+    let logoEndX = margin
     if (props.empresa?.logo_url) {
       try {
         const img = new Image()
@@ -68,13 +84,8 @@ export function BotaoExportarPdf(props: Props) {
         ctx.drawImage(img, 0, 0)
         const imgData = canvas.toDataURL('image/png')
 
-        // Fundo do cabeçalho - cinza claro
-        doc.setFillColor(241, 245, 249) // slate-100
-        doc.rect(0, 0, pageWidth, 42, 'F')
-
-        // Logo proporcional (max 50mm largura, max 24mm altura)
-        const maxW = 50
-        const maxH = 24
+        const maxW = 40
+        const maxH = 20
         const ratio = img.naturalWidth / img.naturalHeight
         let logoW = maxW
         let logoH = logoW / ratio
@@ -82,104 +93,94 @@ export function BotaoExportarPdf(props: Props) {
           logoH = maxH
           logoW = logoH * ratio
         }
-        doc.addImage(imgData, 'PNG', margin, 9, logoW, logoH)
-        logoLoaded = true
+        doc.addImage(imgData, 'PNG', margin, 8, logoW, logoH)
+        logoEndX = margin + logoW + 4
       } catch {
-        // Se falhar, segue sem logo
+        // segue sem logo
       }
     }
 
-    if (!logoLoaded) {
-      // Fundo do cabeçalho sem logo - cinza claro
-      doc.setFillColor(241, 245, 249) // slate-100
-      doc.rect(0, 0, pageWidth, 42, 'F')
-    }
-
-    // Nome da empresa (após logo ou no início) - texto preto
-    const textStartX = logoLoaded ? margin + 54 : margin
-    doc.setTextColor(30, 41, 59) // slate-800
-    doc.setFontSize(14)
+    // Dados da empresa ao lado do logo
+    doc.setTextColor(...DARK_TEXT)
+    doc.setFontSize(11)
     doc.setFont(undefined!, 'bold')
-    const nomeEmpresa = props.empresa?.nome_fantasia || 'ORÇAMENTO'
-    doc.text(nomeEmpresa, textStartX, 14)
+    const nomeEmpresa = props.empresa?.nome_fantasia || 'Empresa'
+    doc.text(nomeEmpresa, logoEndX, 14)
 
-    // Dados da empresa abaixo do nome
-    doc.setFontSize(8)
+    doc.setFontSize(7.5)
     doc.setFont(undefined!, 'normal')
-    doc.setTextColor(71, 85, 105) // slate-600
-    let headerY = 20
-    if (props.empresa?.cnpj) {
-      doc.text(`CNPJ: ${props.empresa.cnpj}`, textStartX, headerY)
-      headerY += 4
+    doc.setTextColor(...GRAY_TEXT)
+    let infoY = 19
+    if (props.empresa?.telefone) {
+      doc.text(props.empresa.telefone, logoEndX, infoY)
+      infoY += 4
     }
-    if (props.empresa?.telefone || props.empresa?.email) {
-      const info = [props.empresa?.telefone, props.empresa?.email].filter(Boolean).join(' | ')
-      doc.text(info, textStartX, headerY)
-      headerY += 4
+    if (props.empresa?.email) {
+      doc.text(props.empresa.email, logoEndX, infoY)
+      infoY += 4
     }
     if (props.empresa?.endereco) {
-      doc.text(props.empresa.endereco, textStartX, headerY)
+      doc.text(props.empresa.endereco, logoEndX, infoY)
+      infoY += 4
+    }
+    if (props.empresa?.cnpj) {
+      doc.text(`CNPJ: ${props.empresa.cnpj}`, logoEndX, infoY)
     }
 
-    // Número e data (direita)
-    doc.setTextColor(30, 41, 59)
-    doc.setFontSize(10)
+    // "ORÇAMENTO" grande à direita
+    doc.setTextColor(...GREEN_DARK)
+    doc.setFontSize(22)
     doc.setFont(undefined!, 'bold')
-    doc.text(`ORÇAMENTO Nº ${props.numero}`, pageWidth - margin, 14, { align: 'right' })
+    doc.text('ORÇAMENTO', pageWidth - margin, 16, { align: 'right' })
+
+    // Número, data e responsável à direita
     doc.setFontSize(9)
     doc.setFont(undefined!, 'normal')
-    doc.setTextColor(71, 85, 105)
-    doc.text(`Data: ${props.criadoEm}`, pageWidth - margin, 21, { align: 'right' })
-    doc.text(`Responsável: ${props.responsavel}`, pageWidth - margin, 27, { align: 'right' })
+    doc.setTextColor(...GRAY_TEXT)
+    doc.text(`Nº ${props.numero}`, pageWidth - margin, 23, { align: 'right' })
+    doc.text(`Data: ${props.criadoEm}`, pageWidth - margin, 29, { align: 'right' })
+    doc.text(`Responsável:`, pageWidth - margin, 35, { align: 'right' })
+    doc.setFont(undefined!, 'bold')
+    doc.text(props.responsavel, pageWidth - margin, 40, { align: 'right' })
 
-    // Fornecedor
-    if (props.fornecedor) {
-      doc.text(`Fornecedor: ${props.fornecedor}`, pageWidth - margin, 33, { align: 'right' })
-    }
+    // === SEÇÃO CLIENTE ===
+    let y = 50
 
-    // === DADOS DO CLIENTE ===
-    let y = 52
-    doc.setTextColor(30, 41, 59)
+    // Barra verde "CLIENTE"
+    doc.setFillColor(...GREEN_MID)
+    doc.rect(margin, y, pageWidth - margin * 2, 8, 'F')
+    doc.setTextColor(...WHITE)
+    doc.setFontSize(9)
+    doc.setFont(undefined!, 'bold')
+    doc.text('CLIENTE', margin + 4, y + 5.5)
 
+    y += 12
+
+    // Fundo verde claro para dados do cliente
     const cliente = props.cliente
-    if (cliente || props.lead) {
-      doc.setFillColor(248, 250, 252) // slate-50
-      doc.roundedRect(margin, y - 4, pageWidth - margin * 2, cliente ? 28 : 14, 2, 2, 'F')
+    const nomeCliente = cliente?.nome ?? props.lead ?? 'Não informado'
+    const clienteHeight = cliente?.telefone ? 16 : 10
+    doc.setFillColor(...GREEN_LIGHT)
+    doc.rect(margin, y - 4, pageWidth - margin * 2, clienteHeight, 'F')
 
-      doc.setFontSize(9)
-      doc.setFont(undefined!, 'bold')
-      doc.text('CLIENTE', margin + 4, y + 2)
+    doc.setTextColor(...DARK_TEXT)
+    doc.setFontSize(11)
+    doc.setFont(undefined!, 'bold')
+    doc.text(nomeCliente, margin + 4, y + 2)
+
+    if (cliente?.telefone) {
+      doc.setFontSize(8)
       doc.setFont(undefined!, 'normal')
-
-      const nomeCliente = cliente?.nome ?? props.lead ?? ''
-      doc.setFontSize(10)
-      doc.text(nomeCliente, margin + 30, y + 2)
-
-      if (cliente) {
-        y += 7
-        doc.setFontSize(8.5)
-        doc.setTextColor(71, 85, 105)
-        if (cliente.telefone) {
-          doc.text(`Tel: ${cliente.telefone}`, margin + 4, y + 2)
-        }
-        if (cliente.email) {
-          doc.text(`E-mail: ${cliente.email}`, margin + 60, y + 2)
-        }
-        if (cliente.endereco) {
-          y += 7
-          doc.text(`Endereço de entrega: ${cliente.endereco}`, margin + 4, y + 2)
-        }
-      }
-
-      y += 16
+      doc.setTextColor(...GRAY_TEXT)
+      doc.text(`Tel: ${cliente.telefone}`, margin + 4, y + 8)
     }
+
+    y += clienteHeight + 6
 
     // === TABELA DE ITENS ===
-    y += 4
-
     autoTable(doc, {
       startY: y,
-      head: [['#', 'Descrição', 'Qtd', 'Valor Unit.', 'Desc.', 'Valor Total']],
+      head: [['#', 'DESCRIÇÃO', 'QTD', 'VALOR UNIT.', 'DESC.', 'VALOR TOTAL']],
       body: props.itens.map((item, i) => [
         (i + 1).toString(),
         item.descricao,
@@ -190,23 +191,24 @@ export function BotaoExportarPdf(props: Props) {
       ]),
       styles: {
         fontSize: 8.5,
-        cellPadding: 3,
-        lineColor: [226, 232, 240], // slate-200
-        lineWidth: 0.5,
+        cellPadding: 3.5,
+        lineColor: [200, 230, 201], // verde claro para linhas
+        lineWidth: 0.3,
+        textColor: [...DARK_TEXT],
       },
       headStyles: {
-        fillColor: [51, 65, 85], // slate-700
-        textColor: [255, 255, 255],
+        fillColor: [...GREEN_DARK],
+        textColor: [...WHITE],
         fontStyle: 'bold',
-        fontSize: 9,
+        fontSize: 8,
       },
       alternateRowStyles: {
-        fillColor: [248, 250, 252], // slate-50
+        fillColor: [245, 245, 245],
       },
       columnStyles: {
-        0: { cellWidth: 10, halign: 'center' },
+        0: { cellWidth: 12, halign: 'center' },
         1: { cellWidth: 'auto' },
-        2: { cellWidth: 18, halign: 'center' },
+        2: { cellWidth: 16, halign: 'center' },
         3: { cellWidth: 30, halign: 'right' },
         4: { cellWidth: 18, halign: 'center' },
         5: { cellWidth: 32, halign: 'right' },
@@ -215,59 +217,62 @@ export function BotaoExportarPdf(props: Props) {
     })
 
     // === TOTAIS ===
-    const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8
-    const totaisX = pageWidth - margin - 70
+    const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6
+    let ty = finalY
 
+    // Subtotal alinhado à direita
     doc.setFontSize(9)
     doc.setFont(undefined!, 'normal')
-    doc.setTextColor(71, 85, 105) // slate-600
-
-    let ty = finalY
-    // Subtotal
-    doc.text('Subtotal:', totaisX, ty)
+    doc.setTextColor(...GRAY_TEXT)
+    doc.text('SUBTOTAL', pageWidth - margin - 50, ty)
     doc.text(formatarMoeda(props.valorSubtotal), pageWidth - margin, ty, { align: 'right' })
     ty += 6
 
     // Desconto
     if (props.descontoGeral > 0) {
-      doc.setTextColor(220, 38, 38) // red-600
-      doc.text(`Desconto (${props.descontoGeral}%):`, totaisX, ty)
+      doc.text(`Desconto (${props.descontoGeral}%)`, pageWidth - margin - 50, ty)
+      doc.setTextColor(220, 38, 38)
       doc.text(`-${formatarMoeda(props.valorSubtotal * props.descontoGeral / 100)}`, pageWidth - margin, ty, { align: 'right' })
-      doc.setTextColor(71, 85, 105)
+      doc.setTextColor(...GRAY_TEXT)
       ty += 6
     }
 
     // Frete
     if (props.frete > 0) {
-      doc.text('Frete:', totaisX, ty)
+      doc.text('Frete', pageWidth - margin - 50, ty)
       doc.text(`+${formatarMoeda(props.frete)}`, pageWidth - margin, ty, { align: 'right' })
       ty += 6
     }
 
-    // Linha separadora
-    ty += 2
-    doc.setDrawColor(30, 41, 59)
-    doc.setLineWidth(0.5)
-    doc.line(totaisX, ty, pageWidth - margin, ty)
-    ty += 6
-
-    // Total
-    doc.setFontSize(12)
+    // Barra TOTAL verde
+    ty += 4
+    doc.setFillColor(...GREEN_MID)
+    doc.rect(pageWidth - margin - 80, ty - 5, 80, 12, 'F')
+    doc.setTextColor(...WHITE)
+    doc.setFontSize(10)
     doc.setFont(undefined!, 'bold')
-    doc.setTextColor(30, 41, 59)
-    doc.text('TOTAL:', totaisX, ty)
-    doc.text(formatarMoeda(props.valorTotal), pageWidth - margin, ty, { align: 'right' })
+    doc.text('TOTAL', pageWidth - margin - 74, ty + 2)
+    doc.setFontSize(12)
+    doc.text(formatarMoeda(props.valorTotal), pageWidth - margin - 4, ty + 2, { align: 'right' })
+
+    ty += 18
 
     // === FORMA DE PAGAMENTO ===
     if (props.formaPagamento) {
-      ty += 14
-      doc.setFillColor(241, 245, 249) // slate-100
+      // Ícone verde + texto
+      doc.setFillColor(...GREEN_LIGHT)
       doc.roundedRect(margin, ty - 4, pageWidth - margin * 2, 14, 2, 2, 'F')
-      doc.setFontSize(9)
+
+      doc.setDrawColor(...GREEN_MID)
+      doc.setLineWidth(0.5)
+      doc.roundedRect(margin, ty - 4, pageWidth - margin * 2, 14, 2, 2, 'S')
+
+      doc.setFontSize(8)
       doc.setFont(undefined!, 'bold')
-      doc.setTextColor(30, 41, 59)
-      doc.text('Forma de Pagamento:', margin + 4, ty + 2)
+      doc.setTextColor(...GREEN_DARK)
+      doc.text('FORMA DE PAGAMENTO', margin + 4, ty + 2)
       doc.setFont(undefined!, 'normal')
+      doc.setTextColor(...DARK_TEXT)
       const labelPagamento = props.formaPagamento === 'pix' ? 'PIX'
         : props.formaPagamento === 'credito_1x' ? 'Cartão de Crédito - 1x'
         : props.formaPagamento === 'credito_2x' ? 'Cartão de Crédito - 2x'
@@ -275,30 +280,41 @@ export function BotaoExportarPdf(props: Props) {
         : props.formaPagamento === 'credito_4x' ? 'Cartão de Crédito - 4x'
         : props.formaPagamento === 'credito_5x' ? 'Cartão de Crédito - 5x'
         : props.formaPagamento
-      doc.text(labelPagamento, margin + 50, ty + 2)
+      doc.text(labelPagamento, margin + 4, ty + 7)
+      ty += 18
     }
 
     // === OBSERVAÇÕES ===
     if (props.observacoes) {
-      ty += 14
-      doc.setFontSize(9)
+      doc.setFillColor(...GREEN_LIGHT)
+      const linhas = doc.splitTextToSize(props.observacoes, pageWidth - margin * 2 - 8)
+      const obsHeight = 10 + linhas.length * 4
+      doc.roundedRect(margin, ty - 4, pageWidth - margin * 2, obsHeight, 2, 2, 'F')
+
+      doc.setDrawColor(...GREEN_MID)
+      doc.setLineWidth(0.5)
+      doc.roundedRect(margin, ty - 4, pageWidth - margin * 2, obsHeight, 2, 2, 'S')
+
+      doc.setFontSize(8)
       doc.setFont(undefined!, 'bold')
-      doc.setTextColor(30, 41, 59)
-      doc.text('Observações:', margin, ty)
-      ty += 5
+      doc.setTextColor(...GREEN_DARK)
+      doc.text('OBSERVAÇÕES', margin + 4, ty + 2)
       doc.setFont(undefined!, 'normal')
-      doc.setTextColor(71, 85, 105)
-      const linhas = doc.splitTextToSize(props.observacoes, pageWidth - margin * 2)
-      doc.text(linhas, margin, ty)
+      doc.setTextColor(...DARK_TEXT)
+      doc.setFontSize(8)
+      doc.text(linhas, margin + 4, ty + 7)
     }
 
-    // === RODAPÉ ===
-    const pageHeight = doc.internal.pageSize.getHeight()
-    doc.setFillColor(248, 250, 252) // slate-50
-    doc.rect(0, pageHeight - 15, pageWidth, 15, 'F')
+    // === RODAPÉ VERDE ===
+    doc.setFillColor(...GREEN_DARK)
+    doc.rect(0, pageHeight - 20, pageWidth, 20, 'F')
+    doc.setTextColor(...WHITE)
+    doc.setFontSize(9)
+    doc.setFont(undefined!, 'bold')
+    doc.text('Agradecemos a preferência!', pageWidth / 2, pageHeight - 12, { align: 'center' })
     doc.setFontSize(7)
-    doc.setTextColor(148, 163, 184) // slate-400
-    doc.text('Documento gerado automaticamente pelo sistema.', pageWidth / 2, pageHeight - 6, { align: 'center' })
+    doc.setFont(undefined!, 'normal')
+    doc.text('Estamos à disposição para quaisquer dúvidas.', pageWidth / 2, pageHeight - 7, { align: 'center' })
 
     doc.save(`orcamento-${props.numero}.pdf`)
   }
