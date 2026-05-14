@@ -51,6 +51,7 @@ type RealtimeDealPayload = {
   motivo_perda: string | null
   titulo: string
   pipeline_id: string
+  atualizado_em: string
 }
 
 export function KanbanBoard({ pipelineId, etapas, dealsIniciais, cargo, organizationId }: Props) {
@@ -87,8 +88,8 @@ export function KanbanBoard({ pipelineId, etapas, dealsIniciais, cargo, organiza
             setDeals((prev) => prev.filter((d) => d.id !== atualizado.id))
             return
           }
-          setDeals((prev) =>
-            prev.map((d) =>
+          setDeals((prev) => {
+            const updated = prev.map((d) =>
               d.id === atualizado.id
                 ? {
                     ...d,
@@ -97,10 +98,14 @@ export function KanbanBoard({ pipelineId, etapas, dealsIniciais, cargo, organiza
                     ganho: atualizado.ganho,
                     motivo_perda: atualizado.motivo_perda,
                     titulo: atualizado.titulo,
+                    atualizado_em: atualizado.atualizado_em,
                   }
                 : d
             )
-          )
+            return updated.sort((a, b) =>
+              new Date(b.atualizado_em).getTime() - new Date(a.atualizado_em).getTime()
+            )
+          })
         }
       )
       .on(
@@ -116,7 +121,6 @@ export function KanbanBoard({ pipelineId, etapas, dealsIniciais, cargo, organiza
           setDeals((prev) => {
             if (prev.some((d) => d.id === novo.id)) return prev
             return [
-              ...prev,
               {
                 id: novo.id,
                 titulo: novo.titulo,
@@ -125,9 +129,16 @@ export function KanbanBoard({ pipelineId, etapas, dealsIniciais, cargo, organiza
                 ganho: novo.ganho,
                 motivo_perda: novo.motivo_perda,
                 data_fechamento_prevista: null,
+                atualizado_em: novo.atualizado_em,
                 contato: null,
                 responsavel: null,
+                lead: null,
+                ultima_mensagem: null,
+                ultima_mensagem_em: null,
+                status_conversa: null,
+                tags: [],
               },
+              ...prev,
             ]
           })
         }
@@ -227,7 +238,9 @@ export function KanbanBoard({ pipelineId, etapas, dealsIniciais, cargo, organiza
 
   const colunas = etapas.map((etapa) => ({
     ...etapa,
-    deals: deals.filter((d) => d.estagio_id === etapa.id),
+    deals: deals
+      .filter((d) => d.estagio_id === etapa.id)
+      .sort((a, b) => new Date(b.atualizado_em).getTime() - new Date(a.atualizado_em).getTime()),
   }))
 
   return (

@@ -53,12 +53,16 @@ export default async function PipelinePage() {
       ganho,
       motivo_perda,
       data_fechamento_prevista,
+      origem_lead,
+      atualizado_em,
       contato:contato_id(id, nome),
-      responsavel:responsavel_id(id, nome)
+      responsavel:responsavel_id(id, nome),
+      lead:lead_id(id, nome, telefone, foto_perfil_url, origem, status)
     `)
     .eq('pipeline_id', pipeline.id)
     .eq('organization_id', perfil.organization_id)
     .is('ganho', null)
+    .order('atualizado_em', { ascending: false })
 
   if (perfil.cargo === 'vendedor') {
     dealsQuery = dealsQuery.eq('responsavel_id', perfil.id)
@@ -66,17 +70,95 @@ export default async function PipelinePage() {
 
   const { data: dealsRaw } = await dealsQuery
 
-  const deals = (dealsRaw ?? []).map((d) => ({
-    id: d.id as string,
-    titulo: d.titulo as string,
-    valor_estimado: d.valor_estimado as number | null,
-    estagio_id: d.estagio_id as string,
-    ganho: d.ganho as boolean | null,
-    motivo_perda: d.motivo_perda as string | null,
-    data_fechamento_prevista: d.data_fechamento_prevista as string | null,
-    contato: Array.isArray(d.contato) ? d.contato[0] ?? null : d.contato as { id: string; nome: string } | null,
-    responsavel: Array.isArray(d.responsavel) ? d.responsavel[0] ?? null : d.responsavel as { id: string; nome: string } | null,
-  }))
+  // Buscar última mensagem e tags para cada deal com lead vinculado
+  const leadIds = (dealsRaw ?? [])
+    .map((d) => {
+      const lead = Array.isArray(d.lead) ? d.lead[0] : d.lead
+      return lead?.id
+    })
+    .filter(Boolean) as string[]
+
+  // Buscar conversas com última mensagem para os leads
+  const { data: conversasRaw } = leadIds.length > 0
+    ? await supabase
+        .from('conversations')
+        .select(`
+          id,
+          lead_id,
+          ultima_mensagem_em,
+          status
+        `)
+        .in('lead_id', leadIds)
+        .eq('organization_id', perfil.organization_id)
+        .order('ultima_mensagem_em', { ascending: false })
+    : { data: [] }
+
+  // Buscar última mensagem de cada conversa
+  const conversaIds = (conversasRaw ?? []).map((c) => c.id)
+  const { data: ultimasMensagens } = conversaIds.length > 0
+    ? await supabase
+        .from('messages')
+        .select('conversation_id, conteudo, enviado_em')
+        .in('conversation_id', conversaIds)
+        .order('enviado_em', { ascending: false })
+    : { data: [] }
+
+  // Buscar tags das conversas
+  const { data: tagsLinks } = conversaIds.length > 0
+    ? await supabase
+        .from('conversation_tag_links')
+        .select('conversation_id, tag:tag_id(id, nome, cor)')
+        .in('conversation_id', conversaIds)
+    : { data: [] }
+
+  // Mapear por lead_id
+  const conversaPorLead = new Map<string, { ultima_mensagem: string | null; ultima_mensagem_em: string | null; status_conversa: string; tags: { id: string; nome: string; cor: string }[] }>()
+  for (const conv of conversasRaw ?? []) {
+    if (!conv.lead_id || conversaPorLead.has(conv.lead_id)) continue
+    const msg = (ultimasMensagens ?? []).find((m) => m.conversation_id === conv.id)
+    const tags = (tagsLinks ?? [])
+      .filter((t) => t.conversation_id === conv.id)
+      .map((t) => {
+        const tag = Array.isArray(t.tag) ? t.tag[0] : t.tag
+        return tag as { id: string; nome: string; cor: string }
+      })
+      .filter(Boolean)
+    conversaPorLead.set(conv.lead_id, {
+      ultima_mensagem: msg?.conteudo ?? null,
+      ultima_mensagem_em: msg?.enviado_em ?? conv.ultima_mensagem_em,
+      status_conversa: conv.status,
+      tags,
+    })
+  }
+
+  const deals = (dealsRaw ?? []).map((d) => {
+    const lead = Array.isArray(d.lead) ? d.lead[0] ?? null : d.lead as { id: string; nome: string; telefone: string | null; foto_perfil_url: string | null; origem: string; status: string } | null
+    const conversaInfo = lead ? conversaPorLead.get(lead.id) ?? null : null
+    return {
+      id: d.id as string,
+      titulo: d.titulo as string,
+      valor_estimado: d.valor_estimado as number | null,
+      estagio_id: d.estagio_id as string,
+      ganho: d.ganho as boolean | null,
+      motivo_perda: d.motivo_perda as string | null,
+      data_fechamento_prevista: d.data_fechamento_prevista as string | null,
+      atualizado_em: d.atualizado_em as string,
+      contato: Array.isArray(d.contato) ? d.contato[0] ?? null : d.contato as { id: string; nome: string } | null,
+      responsavel: Array.isArray(d.responsavel) ? d.responsavel[0] ?? null : d.responsavel as { id: string; nome: string } | null,
+      lead: lead ? {
+        id: lead.id,
+        nome: lead.nome,
+        telefone: lead.telefone,
+        foto_perfil_url: lead.foto_perfil_url,
+        origem: lead.origem,
+        status: lead.status,
+      } : null,
+      ultima_mensagem: conversaInfo?.ultima_mensagem ?? null,
+      ultima_mensagem_em: conversaInfo?.ultima_mensagem_em ?? null,
+      status_conversa: conversaInfo?.status_conversa ?? null,
+      tags: conversaInfo?.tags ?? [],
+    }
+  })
 
   const podeEditarEtapas = perfil.cargo === 'admin' || perfil.cargo === 'gestor'
 

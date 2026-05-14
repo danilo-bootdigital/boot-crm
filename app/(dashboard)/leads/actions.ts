@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import type { LeadOrigem, LeadStatus } from '@/types/database'
 import { distribuirLead } from '@/lib/distribuicao'
+import { criarDealParaLead } from '@/lib/pipeline-lead'
 
 async function getUsuarioEOrg() {
   const supabase = await createClient()
@@ -82,7 +83,25 @@ export async function criarLead(formData: FormData) {
     await distribuirLead(supabase, lead.id, perfil.organization_id, perfil.id)
   }
 
+  // Buscar responsável atualizado (pode ter sido atribuído pela distribuição)
+  const { data: leadAtualizado } = await supabase
+    .from('leads')
+    .select('responsavel_id')
+    .eq('id', lead.id)
+    .single()
+
+  await criarDealParaLead(supabase, {
+    organization_id: perfil.organization_id,
+    lead_id: lead.id,
+    lead_nome: nome,
+    lead_telefone: telefone,
+    responsavel_id: leadAtualizado?.responsavel_id ?? responsavel_id ?? null,
+    origem,
+    autor_id: perfil.id,
+  })
+
   revalidatePath('/leads')
+  revalidatePath('/pipeline')
   redirect(`/leads/${lead.id}`)
 }
 

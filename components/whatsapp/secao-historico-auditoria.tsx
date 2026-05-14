@@ -44,7 +44,7 @@ export function SecaoHistoricoAuditoria({ conversaId }: Props) {
       >
         <History className="h-3.5 w-3.5" />
         Histórico de ações
-        <span className="text-[10px] normal-case font-normal ml-1">
+        <span className="text-[12px] normal-case font-normal ml-1">
           {aberto ? '(fechar)' : '(abrir)'}
         </span>
       </button>
@@ -62,11 +62,11 @@ export function SecaoHistoricoAuditoria({ conversaId }: Props) {
                   <span className="text-xs font-medium text-slate-700">
                     {ACAO_LABELS[log.acao] ?? log.acao}
                   </span>
-                  <span className="text-[10px] text-slate-400">
+                  <span className="text-[12px] text-slate-400">
                     {new Date(log.criado_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
-                <p className="text-[10px] text-slate-500">
+                <p className="text-[12px] text-slate-500">
                   por {log.usuario_nome}
                   {log.dados_novos?.status ? ` → ${String(log.dados_novos.status)}` : null}
                   {log.dados_novos?.para_usuario_id && log.dados_novos?.motivo ? ` (${String(log.dados_novos.motivo)})` : null}

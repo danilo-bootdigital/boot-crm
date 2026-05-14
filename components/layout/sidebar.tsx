@@ -5,13 +5,21 @@ import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { navegacao } from '@/lib/navegacao'
 
-export function Sidebar() {
+type Props = {
+  logoUrl?: string | null
+}
+
+export function Sidebar({ logoUrl }: Props) {
   const pathname = usePathname()
 
   return (
     <aside className="hidden md:flex h-screen w-64 flex-col border-r bg-white">
       <div className="flex h-16 items-center border-b px-6">
-        <span className="text-xl font-bold text-slate-900">BOOT CRM</span>
+        {logoUrl ? (
+          <img src={logoUrl} alt="Logo" className="h-9 w-auto object-contain" />
+        ) : (
+          <span className="text-xl font-bold text-slate-900">BOOT CRM</span>
+        )}
       </div>
 
       <nav className="flex-1 overflow-y-auto p-4">

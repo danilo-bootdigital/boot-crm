@@ -90,7 +90,7 @@ export function ConversaLayout({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <p className="text-sm font-semibold text-slate-900 truncate">{titulo}</p>
-              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${badge.variant}`}>
+              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[12px] font-medium ${badge.variant}`}>
                 {badge.label}
               </span>
             </div>
@@ -101,12 +101,12 @@ export function ConversaLayout({
                 {!instanciaConectada && ' · ⚠ Desconectado'}
               </p>
               {tags.slice(0, 3).map((tag) => (
-                <Badge key={tag.id} variant="outline" className="text-[10px] px-1.5 py-0" style={{ borderColor: tag.cor, color: tag.cor }}>
+                <Badge key={tag.id} variant="outline" className="text-[12px] px-1.5 py-0" style={{ borderColor: tag.cor, color: tag.cor }}>
                   {tag.nome}
                 </Badge>
               ))}
               {tags.length > 3 && (
-                <span className="text-[10px] text-slate-400">+{tags.length - 3}</span>
+                <span className="text-[12px] text-slate-400">+{tags.length - 3}</span>
               )}
             </div>
           </div>

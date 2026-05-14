@@ -302,7 +302,7 @@ export function PainelDetalhesConversa({
             {notas.map((nota) => (
               <div key={nota.id} className="rounded-md bg-amber-50 border border-amber-200 p-2">
                 <p className="text-xs text-slate-700 whitespace-pre-wrap">{nota.conteudo}</p>
-                <p className="text-[10px] text-slate-400 mt-1">
+                <p className="text-[12px] text-slate-400 mt-1">
                   {nota.autor_nome} · {new Date(nota.criado_em).toLocaleString('pt-BR')}
                 </p>
               </div>

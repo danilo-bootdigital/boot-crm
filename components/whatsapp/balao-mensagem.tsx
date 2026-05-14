@@ -25,10 +25,10 @@ export function BalaoMensagem({ mensagem }: Props) {
         )}
       >
         {!enviada && mensagem.responsavel && (
-          <p className="mb-1 text-[10px] font-medium text-green-700">{mensagem.responsavel.nome}</p>
+          <p className="mb-1 text-[12px] font-medium text-green-700">{mensagem.responsavel.nome}</p>
         )}
         <p className="whitespace-pre-wrap break-words">{mensagem.conteudo ?? '(mídia)'}</p>
-        <p className={cn('mt-1 text-[10px]', enviada ? 'text-right text-green-700' : 'text-slate-400')}>
+        <p className={cn('mt-1 text-[12px]', enviada ? 'text-right text-green-700' : 'text-slate-400')}>
           {hora}
         </p>
       </div>

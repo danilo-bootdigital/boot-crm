@@ -59,7 +59,7 @@ export function ItemConversa({ conversa, ativa }: Props) {
           <p className="text-sm font-medium text-slate-900 truncate">{nome}</p>
           <div className="flex items-center gap-1 shrink-0 ml-2">
             {semResposta && (
-              <span className="flex items-center gap-0.5 text-[10px] text-red-600 font-medium">
+              <span className="flex items-center gap-0.5 text-[12px] text-red-600 font-medium">
                 <AlertCircle className="h-3 w-3" />
                 {tempoEspera}
               </span>
@@ -72,10 +72,10 @@ export function ItemConversa({ conversa, ativa }: Props) {
         )}
         <div className="flex items-center gap-1 mt-1 flex-wrap">
           {conversa.responsavel_nome && (
-            <span className="text-[10px] text-slate-400">{conversa.responsavel_nome}</span>
+            <span className="text-[12px] text-slate-400">{conversa.responsavel_nome}</span>
           )}
           {conversa.instancia && (
-            <span className="text-[10px] text-slate-400">· {conversa.instancia.nome}</span>
+            <span className="text-[12px] text-slate-400">· {conversa.instancia.nome}</span>
           )}
           {conversa.tags.slice(0, 2).map((tag) => (
             <Badge key={tag.id} variant="outline" className="text-[9px] px-1 py-0 h-4" style={{ borderColor: tag.cor, color: tag.cor }}>

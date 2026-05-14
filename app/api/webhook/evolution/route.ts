@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { distribuirLead } from '@/lib/distribuicao'
+import { criarDealParaLead } from '@/lib/pipeline-lead'
 
 function normalizarTelefone(jid: string): string {
   return jid.replace(/@.*$/, '').replace(/:\d+$/, '')
@@ -151,6 +152,23 @@ export async function POST(req: NextRequest) {
               autor_id: adminPerfil.id,
             })
             await distribuirLead(supabase, leadId, instancia.organization_id, adminPerfil.id)
+
+            // Buscar responsável atualizado após distribuição
+            const { data: leadAtualizado } = await supabase
+              .from('leads')
+              .select('responsavel_id')
+              .eq('id', leadId)
+              .single()
+
+            await criarDealParaLead(supabase, {
+              organization_id: instancia.organization_id,
+              lead_id: leadId,
+              lead_nome: pushName || null,
+              lead_telefone: telefone,
+              responsavel_id: leadAtualizado?.responsavel_id ?? instancia.vendedor_id ?? null,
+              origem: 'whatsapp',
+              autor_id: adminPerfil.id,
+            })
           }
         }
       }
@@ -181,6 +199,45 @@ export async function POST(req: NextRequest) {
         // Mensagem recebida: se estava finalizada, reabrir como nao_atendida
         if (conversaAtual.status === 'finalizada') {
           updateData.status = 'nao_atendida'
+        }
+
+        // Sincronizar deal: atualizar timestamp para subir no topo do pipeline
+        if (leadId) {
+          const { data: dealAtivo } = await supabase
+            .from('deals')
+            .select('id, ganho, estagio_id')
+            .eq('lead_id', leadId)
+            .is('ganho', null)
+            .single()
+
+          if (dealAtivo) {
+            await supabase
+              .from('deals')
+              .update({ atualizado_em: new Date().toISOString() })
+              .eq('id', dealAtivo.id)
+          } else if (conversaAtual.status === 'finalizada') {
+            // Lead finalizado recebeu nova mensagem — reabrir deal
+            const { data: adminPerfil } = await supabase
+              .from('profiles')
+              .select('id')
+              .eq('organization_id', instancia.organization_id)
+              .eq('cargo', 'admin')
+              .eq('ativo', true)
+              .limit(1)
+              .single()
+
+            if (adminPerfil) {
+              await criarDealParaLead(supabase, {
+                organization_id: instancia.organization_id,
+                lead_id: leadId,
+                lead_nome: pushName || null,
+                lead_telefone: telefone,
+                responsavel_id: instancia.vendedor_id ?? null,
+                origem: 'whatsapp',
+                autor_id: adminPerfil.id,
+              })
+            }
+          }
         }
       } else {
         // Mensagem enviada pelo vendedor: marcar como em_atendimento se estava nao_atendida

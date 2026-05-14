@@ -62,7 +62,7 @@ export function SecaoDealVinculo({ conversaId, dealVinculado: dealInicial }: Pro
         <div className="flex items-center gap-2 rounded-md border p-2">
           <div className="flex-1 min-w-0">
             <p className="text-xs font-medium text-slate-700 truncate">{deal.titulo}</p>
-            <p className="text-[10px] text-slate-400">
+            <p className="text-[12px] text-slate-400">
               {deal.estagio_nome}
               {deal.valor_estimado != null && ` · R$ ${deal.valor_estimado.toLocaleString('pt-BR')}`}
             </p>
@@ -103,7 +103,7 @@ export function SecaoDealVinculo({ conversaId, dealVinculado: dealInicial }: Pro
                     className="w-full text-left rounded px-2 py-1.5 hover:bg-slate-50 transition-colors"
                   >
                     <p className="text-xs font-medium text-slate-700 truncate">{d.titulo}</p>
-                    <p className="text-[10px] text-slate-400">
+                    <p className="text-[12px] text-slate-400">
                       {d.estagio_nome}
                       {d.valor_estimado != null && ` · R$ ${d.valor_estimado.toLocaleString('pt-BR')}`}
                     </p>

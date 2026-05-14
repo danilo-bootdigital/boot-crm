@@ -9,7 +9,11 @@ import { Menu } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { navegacao } from '@/lib/navegacao'
 
-export function SidebarMobile() {
+type Props = {
+  logoUrl?: string | null
+}
+
+export function SidebarMobile({ logoUrl }: Props) {
   const [aberto, setAberto] = useState(false)
   const pathname = usePathname()
 
@@ -26,7 +30,11 @@ export function SidebarMobile() {
       </SheetTrigger>
       <SheetContent side="left" className="w-64 p-0">
         <SheetHeader className="flex h-16 justify-center border-b px-6">
-          <SheetTitle className="text-xl font-bold text-slate-900">BOOT CRM</SheetTitle>
+          {logoUrl ? (
+            <img src={logoUrl} alt="Logo" className="h-9 w-auto object-contain" />
+          ) : (
+            <SheetTitle className="text-xl font-bold text-slate-900">BOOT CRM</SheetTitle>
+          )}
         </SheetHeader>
         <nav className="overflow-y-auto p-4">
           <ul className="space-y-1">

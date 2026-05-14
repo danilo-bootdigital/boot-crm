@@ -137,7 +137,7 @@ export function ModalExportarConversa({
               <div key={m.id} className={`flex ${m.direcao === 'enviada' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[75%] rounded-lg px-3 py-2 text-xs ${m.direcao === 'enviada' ? 'bg-green-100' : 'bg-white border'}`}>
                   <p>{m.conteudo ?? '(mídia)'}</p>
-                  <p className="mt-0.5 text-[10px] text-slate-400">
+                  <p className="mt-0.5 text-[12px] text-slate-400">
                     {format(new Date(m.enviado_em), 'dd/MM HH:mm', { locale: ptBR })}
                   </p>
                 </div>

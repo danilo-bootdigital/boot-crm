@@ -103,7 +103,7 @@ export function SeletorRespostaRapida({ variaveis, onSelecionar }: Props) {
         ) : (
           categorias.map((cat) => (
             <div key={cat} className="mb-2">
-              <p className="text-[10px] font-medium text-slate-400 uppercase px-2 mb-1">{cat}</p>
+              <p className="text-[12px] font-medium text-slate-400 uppercase px-2 mb-1">{cat}</p>
               {filtrados.filter((t) => (t.categoria || 'Sem categoria') === cat).map((t) => {
                 const preview = substituirVariaveis(t.conteudo, variaveis)
                 return (
@@ -124,7 +124,7 @@ export function SeletorRespostaRapida({ variaveis, onSelecionar }: Props) {
 
       {/* Dica de variáveis */}
       <div className="border-t px-3 py-1.5">
-        <p className="text-[10px] text-slate-400">
+        <p className="text-[12px] text-slate-400">
           Variáveis: {'{{nome}}'} {'{{vendedor}}'} {'{{empresa}}'} {'{{telefone}}'}
         </p>
       </div>

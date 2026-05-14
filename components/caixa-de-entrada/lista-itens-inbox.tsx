@@ -70,7 +70,7 @@ export function ListaItensInbox({ mensagens, tarefas, atividades }: Props) {
           >
             {t.label}
             {t.contagem > 0 && (
-              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+              <span className={`rounded-full px-1.5 py-0.5 text-[12px] font-bold ${
                 tab === t.valor ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
               }`}>
                 {t.contagem}

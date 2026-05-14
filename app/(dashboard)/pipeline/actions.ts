@@ -142,6 +142,35 @@ export async function moverDeal(
 
   if (error) throw new Error(`Erro ao mover negociação: ${error.message}`)
 
+  // Registrar log de movimentação
+  await supabase.from('deal_stage_logs').insert({
+    organization_id: perfil.organization_id,
+    deal_id: dealId,
+    usuario_id: perfil.id,
+    estagio_anterior_id: deal.estagio_id,
+    estagio_novo_id: estagioDestinoId,
+  })
+
+  // Sincronizar status da conversa vinculada ao lead do deal
+  const { data: dealCompleto } = await supabase
+    .from('deals')
+    .select('lead_id')
+    .eq('id', dealId)
+    .single()
+
+  if (dealCompleto?.lead_id) {
+    const novoStatusConversa =
+      etapaDestino.tipo_especial === 'fechado' || etapaDestino.tipo_especial === 'perdido'
+        ? 'finalizada'
+        : 'em_atendimento'
+
+    await supabase
+      .from('conversations')
+      .update({ status: novoStatusConversa, atualizado_em: new Date().toISOString() })
+      .eq('lead_id', dealCompleto.lead_id)
+      .eq('organization_id', perfil.organization_id)
+  }
+
   await supabase.from('activities').insert({
     organization_id: perfil.organization_id,
     autor_id: perfil.id,
@@ -151,6 +180,7 @@ export async function moverDeal(
   })
 
   revalidatePath('/pipeline')
+  revalidatePath('/whatsapp')
 }
 
 export async function adicionarObservacaoDeal(dealId: string, texto: string) {

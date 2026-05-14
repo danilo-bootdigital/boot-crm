@@ -156,7 +156,7 @@ export function ListaTarefas({
               {contadores[aba.valor] > 0 && (
                 <span
                   className={cn(
-                    'ml-1.5 rounded-full px-1.5 py-0.5 text-[10px]',
+                    'ml-1.5 rounded-full px-1.5 py-0.5 text-[12px]',
                     abaAtiva === aba.valor
                       ? 'bg-white/20 text-white'
                       : aba.valor === 'atrasadas'

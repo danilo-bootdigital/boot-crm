@@ -123,6 +123,7 @@ export type Deal = {
   responsavel_id: string | null
   pipeline_id: string
   estagio_id: string
+  lead_id: string | null
   data_fechamento_prevista: string | null
   origem_lead: LeadOrigem | null
   motivo_perda: string | null
@@ -328,5 +329,15 @@ export type AuditLog = {
   dados_anteriores: Record<string, unknown> | null
   dados_novos: Record<string, unknown> | null
   ip: string | null
+  criado_em: string
+}
+
+export type DealStageLog = {
+  id: string
+  organization_id: string
+  deal_id: string
+  usuario_id: string
+  estagio_anterior_id: string | null
+  estagio_novo_id: string
   criado_em: string
 }
