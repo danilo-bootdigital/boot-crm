@@ -12,8 +12,17 @@ import { Card, CardContent } from '@/components/ui/card'
 import { criarOrcamento, editarOrcamento } from '@/app/(dashboard)/orcamentos/actions'
 import { formatarMoeda } from '@/lib/utils'
 import { BuscaProduto } from '@/components/orcamentos/busca-produto'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, CreditCard } from 'lucide-react'
 import type { Product, Supplier, SupplierCategory } from '@/types/database'
+
+const FORMAS_PAGAMENTO = [
+  { value: 'pix', label: 'PIX' },
+  { value: 'credito_1x', label: 'Cartão de Crédito - 1x' },
+  { value: 'credito_2x', label: 'Cartão de Crédito - 2x' },
+  { value: 'credito_3x', label: 'Cartão de Crédito - 3x' },
+  { value: 'credito_4x', label: 'Cartão de Crédito - 4x' },
+  { value: 'credito_5x', label: 'Cartão de Crédito - 5x' },
+] as const
 
 type ItemForm = {
   key: string
@@ -41,6 +50,7 @@ type Props = {
     supplier_id: string | null
     observacoes: string | null
     endereco_entrega: string | null
+    forma_pagamento: string | null
     desconto_geral: number
     frete: number
     itens: Omit<ItemForm, 'key'>[]
@@ -62,6 +72,7 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
   const [categoryId, setCategoryId] = useState('')
   const [observacoes, setObservacoes] = useState(defaultValues?.observacoes ?? '')
   const [enderecoEntrega, setEnderecoEntrega] = useState(defaultValues?.endereco_entrega ?? '')
+  const [formaPagamento, setFormaPagamento] = useState(defaultValues?.forma_pagamento ?? '')
   const [descontoGeral, setDescontoGeral] = useState(defaultValues?.desconto_geral ?? 0)
   const [frete, setFrete] = useState(defaultValues?.frete ?? 0)
   const [itens, setItens] = useState<ItemForm[]>(
@@ -156,6 +167,7 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
           supplier_id: supplierId || null,
           observacoes: observacoes || null,
           endereco_entrega: enderecoEntrega || null,
+          forma_pagamento: formaPagamento || null,
           desconto_geral: Math.min(Math.max(descontoGeral, 0), 100),
           frete,
           itens: itens.map(({ product_id, descricao, unidade, quantidade, preco_unitario, desconto_item }) => ({
@@ -371,6 +383,23 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
               onChange={(e) => setEnderecoEntrega(e.target.value)}
               placeholder="Rua, número, bairro, cidade - UF"
             />
+          </div>
+          <div className="space-y-1">
+            <Label>Forma de pagamento</Label>
+            <Select value={formaPagamento || '__none__'} onValueChange={(v) => setFormaPagamento(v === '__none__' ? '' : (v ?? ''))}>
+              <SelectTrigger>
+                <span className="flex flex-1 items-center gap-2 text-left truncate">
+                  <CreditCard className="h-4 w-4 text-slate-400" />
+                  {formaPagamento ? FORMAS_PAGAMENTO.find(f => f.value === formaPagamento)?.label ?? 'Selecionar...' : 'Selecionar forma de pagamento'}
+                </span>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Nenhuma</SelectItem>
+                {FORMAS_PAGAMENTO.map((f) => (
+                  <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1">
             <Label>Observações</Label>

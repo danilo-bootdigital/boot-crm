@@ -56,6 +56,7 @@ export async function criarOrcamento(dados: {
   supplier_id: string | null
   observacoes: string | null
   endereco_entrega: string | null
+  forma_pagamento: string | null
   desconto_geral: number
   frete: number
   itens: ItemInput[]
@@ -77,6 +78,7 @@ export async function criarOrcamento(dados: {
       supplier_id: dados.supplier_id || null,
       observacoes: dados.observacoes || null,
       endereco_entrega: dados.endereco_entrega || null,
+      forma_pagamento: dados.forma_pagamento || null,
       desconto_geral: dados.desconto_geral,
       frete: dados.frete || 0,
       valor_subtotal: valorSubtotal,
@@ -111,6 +113,7 @@ export async function editarOrcamento(orcamentoId: string, dados: {
   supplier_id?: string | null
   observacoes: string | null
   endereco_entrega?: string | null
+  forma_pagamento?: string | null
   desconto_geral: number
   frete?: number
   itens: ItemInput[]
@@ -145,6 +148,7 @@ export async function editarOrcamento(orcamentoId: string, dados: {
       supplier_id: dados.supplier_id ?? null,
       observacoes: dados.observacoes || null,
       endereco_entrega: dados.endereco_entrega ?? null,
+      forma_pagamento: dados.forma_pagamento ?? null,
       desconto_geral: dados.desconto_geral,
       frete: dados.frete ?? 0,
       valor_subtotal: valorSubtotal,

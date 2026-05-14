@@ -12,7 +12,7 @@ export default async function OrcamentoPublicoPage({ params }: { params: Promise
   const { data: orcamento } = await supabase
     .from('quotes')
     .select(`
-      id, numero, status, valor_subtotal, desconto_geral, valor_total, observacoes, criado_em,
+      id, numero, status, valor_subtotal, desconto_geral, valor_total, observacoes, forma_pagamento, criado_em,
       responsavel:profiles!responsavel_id(nome),
       lead:leads!lead_id(nome),
       org:organizations!organization_id(nome)
@@ -95,6 +95,23 @@ export default async function OrcamentoPublicoPage({ params }: { params: Promise
             </div>
           </CardContent>
         </Card>
+
+        {orcamento.forma_pagamento && (
+          <Card>
+            <CardHeader><CardTitle className="text-base">Forma de Pagamento</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-sm font-medium text-slate-900">
+                {orcamento.forma_pagamento === 'pix' ? 'PIX'
+                  : orcamento.forma_pagamento === 'credito_1x' ? 'Cartão de Crédito - 1x'
+                  : orcamento.forma_pagamento === 'credito_2x' ? 'Cartão de Crédito - 2x'
+                  : orcamento.forma_pagamento === 'credito_3x' ? 'Cartão de Crédito - 3x'
+                  : orcamento.forma_pagamento === 'credito_4x' ? 'Cartão de Crédito - 4x'
+                  : orcamento.forma_pagamento === 'credito_5x' ? 'Cartão de Crédito - 5x'
+                  : orcamento.forma_pagamento}
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {orcamento.observacoes && (
           <Card>

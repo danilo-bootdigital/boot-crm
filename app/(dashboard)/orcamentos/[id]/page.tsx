@@ -126,6 +126,7 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
             descontoGeral={orcamento.desconto_geral}
             frete={orcamento.frete ?? 0}
             valorTotal={orcamento.valor_total}
+            formaPagamento={orcamento.forma_pagamento ?? null}
             observacoes={orcamento.observacoes}
             criadoEm={format(new Date(orcamento.criado_em), "dd/MM/yyyy", { locale: ptBR })}
           />
@@ -229,6 +230,20 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
                 <p className="text-xs text-slate-500">Criado em</p>
                 <p className="font-medium">{format(new Date(orcamento.criado_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
               </div>
+              {orcamento.forma_pagamento && (
+                <div>
+                  <p className="text-xs text-slate-500">Forma de pagamento</p>
+                  <p className="font-medium">
+                    {orcamento.forma_pagamento === 'pix' ? 'PIX'
+                      : orcamento.forma_pagamento === 'credito_1x' ? 'Cartão de Crédito - 1x'
+                      : orcamento.forma_pagamento === 'credito_2x' ? 'Cartão de Crédito - 2x'
+                      : orcamento.forma_pagamento === 'credito_3x' ? 'Cartão de Crédito - 3x'
+                      : orcamento.forma_pagamento === 'credito_4x' ? 'Cartão de Crédito - 4x'
+                      : orcamento.forma_pagamento === 'credito_5x' ? 'Cartão de Crédito - 5x'
+                      : orcamento.forma_pagamento}
+                  </p>
+                </div>
+              )}
               {aprovador && (
                 <div>
                   <p className="text-xs text-slate-500">Aprovação interna</p>

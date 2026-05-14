@@ -36,6 +36,7 @@ type Props = {
   descontoGeral: number
   frete: number
   valorTotal: number
+  formaPagamento: string | null
   observacoes: string | null
   criadoEm: string
 }
@@ -256,6 +257,26 @@ export function BotaoExportarPdf(props: Props) {
     doc.setTextColor(30, 41, 59)
     doc.text('TOTAL:', totaisX, ty)
     doc.text(formatarMoeda(props.valorTotal), pageWidth - margin, ty, { align: 'right' })
+
+    // === FORMA DE PAGAMENTO ===
+    if (props.formaPagamento) {
+      ty += 14
+      doc.setFillColor(241, 245, 249) // slate-100
+      doc.roundedRect(margin, ty - 4, pageWidth - margin * 2, 14, 2, 2, 'F')
+      doc.setFontSize(9)
+      doc.setFont(undefined!, 'bold')
+      doc.setTextColor(30, 41, 59)
+      doc.text('Forma de Pagamento:', margin + 4, ty + 2)
+      doc.setFont(undefined!, 'normal')
+      const labelPagamento = props.formaPagamento === 'pix' ? 'PIX'
+        : props.formaPagamento === 'credito_1x' ? 'Cartão de Crédito - 1x'
+        : props.formaPagamento === 'credito_2x' ? 'Cartão de Crédito - 2x'
+        : props.formaPagamento === 'credito_3x' ? 'Cartão de Crédito - 3x'
+        : props.formaPagamento === 'credito_4x' ? 'Cartão de Crédito - 4x'
+        : props.formaPagamento === 'credito_5x' ? 'Cartão de Crédito - 5x'
+        : props.formaPagamento
+      doc.text(labelPagamento, margin + 50, ty + 2)
+    }
 
     // === OBSERVAÇÕES ===
     if (props.observacoes) {
