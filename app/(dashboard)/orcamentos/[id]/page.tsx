@@ -43,7 +43,7 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
 
   if (!orcamento) notFound()
 
-  // Buscar dados completos do contato (via deal ou lead)
+  // Buscar dados completos do contato (via deal)
   const dealData = Array.isArray(orcamento.deal) ? orcamento.deal[0] : orcamento.deal
   let contato: { nome: string; telefone: string | null; email: string | null; endereco: string | null; observacoes: string | null } | null = null
 
@@ -74,6 +74,18 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
   const deal = Array.isArray(orcamento.deal) ? orcamento.deal[0] : orcamento.deal
   const aprovador = Array.isArray(orcamento.aprovador) ? orcamento.aprovador[0] : orcamento.aprovador
   const fornecedor = Array.isArray(orcamento.fornecedor) ? orcamento.fornecedor[0] : orcamento.fornecedor
+
+  // Se não encontrou contato via deal, buscar pelo telefone do lead
+  if (!contato && lead?.telefone) {
+    const { data: c } = await supabase
+      .from('contacts')
+      .select('nome, telefone, email, endereco, observacoes')
+      .eq('organization_id', perfil.organization_id)
+      .eq('telefone', lead.telefone)
+      .limit(1)
+      .single()
+    if (c) contato = c
+  }
 
   const podeEditar = (orcamento.status === 'rascunho' || orcamento.status === 'rejeitado_internamente') &&
     (perfil.cargo === 'admin' || perfil.cargo === 'gestor' || orcamento.responsavel_id === perfil.id)
