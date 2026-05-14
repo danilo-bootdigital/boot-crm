@@ -40,6 +40,33 @@ export default async function LeadDetalhePage({ params }: { params: Promise<{ id
 
   if (!lead) notFound()
 
+  // Buscar contato correspondente para exibir CPF/CNPJ e endereço
+  let contatoVinculado: { observacoes: string | null; endereco: string | null } | null = null
+  if (lead.telefone) {
+    const { data: c } = await supabase
+      .from('contacts')
+      .select('observacoes, endereco')
+      .eq('organization_id', perfilAtual.organization_id)
+      .eq('telefone', lead.telefone)
+      .limit(1)
+      .single()
+    if (c) contatoVinculado = c
+  }
+  if (!contatoVinculado && lead.nome) {
+    const { data: c } = await supabase
+      .from('contacts')
+      .select('observacoes, endereco')
+      .eq('organization_id', perfilAtual.organization_id)
+      .eq('nome', lead.nome)
+      .limit(1)
+      .single()
+    if (c) contatoVinculado = c
+  }
+
+  // Dados consolidados: prioriza lead, fallback para contato
+  const cpfCnpj = lead.observacoes || contatoVinculado?.observacoes || null
+  const enderecoLead = lead.endereco || contatoVinculado?.endereco || null
+
   let tarefasQuery = supabase
     .from('tasks')
     .select(`
@@ -120,10 +147,10 @@ export default async function LeadDetalhePage({ params }: { params: Promise<{ id
                   <p className="font-medium">{lead.email}</p>
                 </div>
               )}
-              {lead.observacoes && (
+              {cpfCnpj && (
                 <div>
                   <p className="text-xs text-slate-500">CPF/CNPJ</p>
-                  <p className="font-medium">{lead.observacoes}</p>
+                  <p className="font-medium">{cpfCnpj}</p>
                 </div>
               )}
               {lead.empresa && (
@@ -132,10 +159,10 @@ export default async function LeadDetalhePage({ params }: { params: Promise<{ id
                   <p className="font-medium">{lead.empresa}</p>
                 </div>
               )}
-              {lead.endereco && (
+              {enderecoLead && (
                 <div>
                   <p className="text-xs text-slate-500">Endereço</p>
-                  <p className="font-medium">{lead.endereco}</p>
+                  <p className="font-medium">{enderecoLead}</p>
                 </div>
               )}
               <div>

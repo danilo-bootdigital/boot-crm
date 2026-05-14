@@ -75,16 +75,35 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
   const aprovador = Array.isArray(orcamento.aprovador) ? orcamento.aprovador[0] : orcamento.aprovador
   const fornecedor = Array.isArray(orcamento.fornecedor) ? orcamento.fornecedor[0] : orcamento.fornecedor
 
-  // Se não encontrou contato via deal, buscar pelo telefone do lead
-  if (!contato && lead?.telefone) {
-    const { data: c } = await supabase
-      .from('contacts')
-      .select('nome, telefone, email, endereco, observacoes')
-      .eq('organization_id', perfil.organization_id)
-      .eq('telefone', lead.telefone)
-      .limit(1)
-      .single()
-    if (c) contato = c
+  // Se não encontrou contato via deal, buscar pelo telefone ou nome do lead
+  if (!contato && lead) {
+    let contatoEncontrado = null
+
+    // Tentar pelo telefone
+    if (lead.telefone) {
+      const { data: c } = await supabase
+        .from('contacts')
+        .select('nome, telefone, email, endereco, observacoes')
+        .eq('organization_id', perfil.organization_id)
+        .eq('telefone', lead.telefone)
+        .limit(1)
+        .single()
+      if (c) contatoEncontrado = c
+    }
+
+    // Se não encontrou por telefone, tentar pelo nome
+    if (!contatoEncontrado && lead.nome) {
+      const { data: c } = await supabase
+        .from('contacts')
+        .select('nome, telefone, email, endereco, observacoes')
+        .eq('organization_id', perfil.organization_id)
+        .eq('nome', lead.nome)
+        .limit(1)
+        .single()
+      if (c) contatoEncontrado = c
+    }
+
+    if (contatoEncontrado) contato = contatoEncontrado
   }
 
   const podeEditar = (orcamento.status === 'rascunho' || orcamento.status === 'rejeitado_internamente') &&
