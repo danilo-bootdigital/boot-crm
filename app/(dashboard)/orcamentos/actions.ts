@@ -54,6 +54,7 @@ export async function criarOrcamento(dados: {
   lead_id: string | null
   deal_id: string | null
   supplier_id: string | null
+  contato_id: string | null
   observacoes: string | null
   endereco_entrega: string | null
   forma_pagamento: string | null
@@ -76,6 +77,7 @@ export async function criarOrcamento(dados: {
       lead_id: dados.lead_id || null,
       deal_id: dados.deal_id || null,
       supplier_id: dados.supplier_id || null,
+      contato_id: dados.contato_id || null,
       observacoes: dados.observacoes || null,
       endereco_entrega: dados.endereco_entrega || null,
       forma_pagamento: dados.forma_pagamento || null,
@@ -111,6 +113,7 @@ export async function editarOrcamento(orcamentoId: string, dados: {
   lead_id?: string | null
   deal_id?: string | null
   supplier_id?: string | null
+  contato_id?: string | null
   observacoes: string | null
   endereco_entrega?: string | null
   forma_pagamento?: string | null
@@ -146,6 +149,7 @@ export async function editarOrcamento(orcamentoId: string, dados: {
       lead_id: dados.lead_id ?? null,
       deal_id: dados.deal_id ?? null,
       supplier_id: dados.supplier_id ?? null,
+      contato_id: dados.contato_id ?? null,
       observacoes: dados.observacoes || null,
       endereco_entrega: dados.endereco_entrega ?? null,
       forma_pagamento: dados.forma_pagamento ?? null,

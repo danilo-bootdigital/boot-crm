@@ -20,7 +20,7 @@ export default async function EditarOrcamentoPage({ params }: { params: Promise<
 
   const { data: orcamento } = await supabase
     .from('quotes')
-    .select('id, lead_id, deal_id, supplier_id, frete, endereco_entrega, forma_pagamento, observacoes, desconto_geral, status, responsavel_id')
+    .select('id, lead_id, deal_id, supplier_id, contato_id, frete, endereco_entrega, forma_pagamento, observacoes, desconto_geral, status, responsavel_id')
     .eq('id', id)
     .eq('organization_id', perfil.organization_id)
     .single()
@@ -74,6 +74,12 @@ export default async function EditarOrcamentoPage({ params }: { params: Promise<
     .is('ganho', null)
     .order('titulo')
 
+  const { data: contatos } = await supabase
+    .from('contacts')
+    .select('id, nome, telefone, email, cpf_cnpj, endereco')
+    .eq('organization_id', perfil.organization_id)
+    .order('nome')
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-slate-900">Editar Orçamento #{orcamento.id.slice(0, 8)}</h1>
@@ -83,11 +89,13 @@ export default async function EditarOrcamentoPage({ params }: { params: Promise<
         categorias={categorias ?? []}
         leads={(leads ?? []) as { id: string; nome: string | null }[]}
         deals={(deals ?? []) as { id: string; titulo: string }[]}
+        contatos={(contatos ?? []) as { id: string; nome: string; telefone: string | null; email: string | null; cpf_cnpj: string | null; endereco: string | null }[]}
         orcamentoId={id}
         defaultValues={{
           lead_id: orcamento.lead_id,
           deal_id: orcamento.deal_id,
           supplier_id: orcamento.supplier_id,
+          contato_id: orcamento.contato_id ?? null,
           observacoes: orcamento.observacoes,
           endereco_entrega: orcamento.endereco_entrega ?? null,
           forma_pagamento: orcamento.forma_pagamento ?? null,

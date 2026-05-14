@@ -49,6 +49,12 @@ export default async function NovoOrcamentoPage() {
     .is('ganho', null)
     .order('titulo')
 
+  const { data: contatos } = await supabase
+    .from('contacts')
+    .select('id, nome, telefone, email, cpf_cnpj, endereco')
+    .eq('organization_id', perfil.organization_id)
+    .order('nome')
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-slate-900">Novo Orçamento</h1>
@@ -58,6 +64,7 @@ export default async function NovoOrcamentoPage() {
         categorias={categorias ?? []}
         leads={(leads ?? []) as { id: string; nome: string | null }[]}
         deals={(deals ?? []) as { id: string; titulo: string }[]}
+        contatos={(contatos ?? []) as { id: string; nome: string; telefone: string | null; email: string | null; cpf_cnpj: string | null; endereco: string | null }[]}
       />
     </div>
   )

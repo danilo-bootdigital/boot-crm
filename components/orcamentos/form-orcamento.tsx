@@ -12,7 +12,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { criarOrcamento, editarOrcamento } from '@/app/(dashboard)/orcamentos/actions'
 import { formatarMoeda } from '@/lib/utils'
 import { BuscaProduto } from '@/components/orcamentos/busca-produto'
-import { Plus, Trash2, CreditCard } from 'lucide-react'
+import { Plus, Trash2, CreditCard, User } from 'lucide-react'
 import type { Product, Supplier, SupplierCategory } from '@/types/database'
 
 const FORMAS_PAGAMENTO = [
@@ -36,6 +36,7 @@ type ItemForm = {
 
 type Lead = { id: string; nome: string | null }
 type Deal = { id: string; titulo: string }
+type Contato = { id: string; nome: string; telefone: string | null; email: string | null; cpf_cnpj: string | null; endereco: string | null }
 
 type Props = {
   produtos: Product[]
@@ -43,11 +44,13 @@ type Props = {
   categorias: SupplierCategory[]
   leads: Lead[]
   deals: Deal[]
+  contatos: Contato[]
   orcamentoId?: string
   defaultValues?: {
     lead_id: string | null
     deal_id: string | null
     supplier_id: string | null
+    contato_id: string | null
     observacoes: string | null
     endereco_entrega: string | null
     forma_pagamento: string | null
@@ -61,7 +64,7 @@ function calcularSubtotal(item: ItemForm) {
   return item.quantidade * item.preco_unitario * (1 - item.desconto_item / 100)
 }
 
-export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals, orcamentoId, defaultValues }: Props) {
+export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals, contatos, orcamentoId, defaultValues }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const editando = !!orcamentoId
@@ -70,6 +73,8 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
   const [dealId, setDealId] = useState(defaultValues?.deal_id ?? '')
   const [supplierId, setSupplierId] = useState(defaultValues?.supplier_id ?? '')
   const [categoryId, setCategoryId] = useState('')
+  const [contatoId, setContatoId] = useState(defaultValues?.contato_id ?? '')
+  const [buscaContato, setBuscaContato] = useState('')
   const [observacoes, setObservacoes] = useState(defaultValues?.observacoes ?? '')
   const [enderecoEntrega, setEnderecoEntrega] = useState(defaultValues?.endereco_entrega ?? '')
   const [formaPagamento, setFormaPagamento] = useState(defaultValues?.forma_pagamento ?? '')
@@ -92,6 +97,22 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
     if (categoryId && p.category_id !== categoryId) return false
     return true
   }), [produtos, supplierId, categoryId])
+
+  const contatosFiltrados = useMemo(() => {
+    if (!buscaContato.trim()) return contatos.slice(0, 20)
+    const termo = buscaContato.toLowerCase()
+    return contatos.filter((c) =>
+      c.nome.toLowerCase().includes(termo) ||
+      c.telefone?.includes(termo) ||
+      c.email?.toLowerCase().includes(termo) ||
+      c.cpf_cnpj?.includes(termo)
+    ).slice(0, 20)
+  }, [contatos, buscaContato])
+
+  const contatoSelecionado = useMemo(() => {
+    if (!contatoId) return null
+    return contatos.find((c) => c.id === contatoId) ?? null
+  }, [contatos, contatoId])
 
   function handleFornecedorChange(novoId: string | null) {
     const id = (!novoId || novoId === '__none__') ? '' : novoId
@@ -124,7 +145,18 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
 
   function atualizarItem(key: string, campo: keyof ItemForm, valor: unknown) {
     setItens((prev) =>
-      prev.map((i) => (i.key === key ? { ...i, [campo]: valor } : i))
+      prev.map((i) => {
+        if (i.key !== key) return i
+        const atualizado = { ...i, [campo]: valor }
+        if (campo === 'quantidade' && i.descricao.toLowerCase().includes('tirzepatida')) {
+          const qtd = Number(valor)
+          if (qtd > 3) {
+            toast.error('Tirzepatida: máximo 3 unidades por linha. Crie outra linha para mais unidades.')
+            return i
+          }
+        }
+        return atualizado
+      })
     )
   }
 
@@ -132,11 +164,15 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
     const produto = produtosFiltrados.find((p) => p.id === produtoId)
     if (!produto) return
     setItens((prev) =>
-      prev.map((i) =>
-        i.key === key
-          ? { ...i, product_id: produtoId, descricao: produto.nome, preco_unitario: produto.preco_unitario, unidade: produto.unidade ?? 'un' }
-          : i
-      )
+      prev.map((i) => {
+        if (i.key !== key) return i
+        const qtd = i.quantidade
+        if (produto.nome.toLowerCase().includes('tirzepatida') && qtd > 3) {
+          toast.error('Tirzepatida: máximo 3 unidades por linha.')
+          return { ...i, product_id: produtoId, descricao: produto.nome, preco_unitario: produto.preco_unitario, unidade: produto.unidade ?? 'un', quantidade: 3 }
+        }
+        return { ...i, product_id: produtoId, descricao: produto.nome, preco_unitario: produto.preco_unitario, unidade: produto.unidade ?? 'un' }
+      })
     )
   }
 
@@ -158,6 +194,11 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
       toast.error('Verifique os valores dos itens: quantidade deve ser maior que zero, preço não pode ser negativo e desconto deve estar entre 0 e 100%.')
       return
     }
+    const tirzepatidaInvalida = itens.some((i) => i.descricao.toLowerCase().includes('tirzepatida') && i.quantidade > 3)
+    if (tirzepatidaInvalida) {
+      toast.error('Tirzepatida: máximo 3 unidades por linha. Crie linhas adicionais para mais unidades.')
+      return
+    }
 
     startTransition(async () => {
       try {
@@ -165,6 +206,7 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
           lead_id: leadId || null,
           deal_id: dealId || null,
           supplier_id: supplierId || null,
+          contato_id: contatoId || null,
           observacoes: observacoes || null,
           endereco_entrega: enderecoEntrega || null,
           forma_pagamento: formaPagamento || null,
@@ -194,6 +236,79 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
 
   return (
     <div className="space-y-6">
+      {/* Cliente */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-1">
+          <Label>Cliente</Label>
+          {contatoSelecionado ? (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-1">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-slate-400" />
+                  <span className="font-medium text-slate-800">{contatoSelecionado.nome}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setContatoId(''); setBuscaContato('') }}
+                  className="text-xs text-red-500 hover:text-red-700"
+                >
+                  Remover
+                </button>
+              </div>
+              {contatoSelecionado.telefone && <p className="text-xs text-slate-500">Tel: {contatoSelecionado.telefone}</p>}
+              {contatoSelecionado.email && <p className="text-xs text-slate-500">Email: {contatoSelecionado.email}</p>}
+              {contatoSelecionado.cpf_cnpj && <p className="text-xs text-slate-500">CPF/CNPJ: {contatoSelecionado.cpf_cnpj}</p>}
+              {contatoSelecionado.endereco && <p className="text-xs text-slate-500">Endereço: {contatoSelecionado.endereco}</p>}
+            </div>
+          ) : (
+            <div className="relative">
+              <Input
+                value={buscaContato}
+                onChange={(e) => setBuscaContato(e.target.value)}
+                placeholder="Pesquisar cliente por nome, telefone, email ou CPF/CNPJ..."
+                className="h-9 text-sm"
+              />
+              {buscaContato.trim() && contatosFiltrados.length > 0 && (
+                <div className="absolute z-50 mt-1 w-full rounded-md border border-slate-200 bg-white shadow-lg max-h-48 overflow-y-auto">
+                  {contatosFiltrados.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => { setContatoId(c.id); setBuscaContato('') }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 border-b last:border-0"
+                    >
+                      <span className="font-medium text-slate-800">{c.nome}</span>
+                      {c.telefone && <span className="ml-2 text-xs text-slate-400">{c.telefone}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {buscaContato.trim() && contatosFiltrados.length === 0 && (
+                <div className="absolute z-50 mt-1 w-full rounded-md border border-slate-200 bg-white shadow-lg p-3">
+                  <p className="text-xs text-slate-400">Nenhum cliente encontrado.</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="space-y-1">
+          <Label>Negociação (opcional)</Label>
+          <Select value={dealId || '__none__'} onValueChange={(v) => setDealId(v === '__none__' ? '' : (v ?? ''))}>
+            <SelectTrigger>
+              <span className="flex flex-1 text-left truncate">
+                {dealId ? deals.find(d => d.id === dealId)?.titulo ?? 'Selecionar...' : 'Nenhuma'}
+              </span>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">Nenhuma</SelectItem>
+              {deals.map((d) => (
+                <SelectItem key={d.id} value={d.id}>{d.titulo}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       <div className="grid gap-4 md:grid-cols-4">
         <div className="space-y-1">
           <Label>Fornecedor *</Label>
@@ -232,38 +347,6 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
             </Select>
           </div>
         )}
-        <div className="space-y-1">
-          <Label>Lead (opcional)</Label>
-          <Select value={leadId || '__none__'} onValueChange={(v) => setLeadId(v === '__none__' ? '' : (v ?? ''))}>
-            <SelectTrigger>
-              <span className="flex flex-1 text-left truncate">
-                {leadId ? leads.find(l => l.id === leadId)?.nome ?? 'Selecionar...' : 'Nenhum'}
-              </span>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">Nenhum</SelectItem>
-              {leads.map((l) => (
-                <SelectItem key={l.id} value={l.id}>{l.nome ?? l.id}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1">
-          <Label>Negociação (opcional)</Label>
-          <Select value={dealId || '__none__'} onValueChange={(v) => setDealId(v === '__none__' ? '' : (v ?? ''))}>
-            <SelectTrigger>
-              <span className="flex flex-1 text-left truncate">
-                {dealId ? deals.find(d => d.id === dealId)?.titulo ?? 'Selecionar...' : 'Nenhuma'}
-              </span>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">Nenhuma</SelectItem>
-              {deals.map((d) => (
-                <SelectItem key={d.id} value={d.id}>{d.titulo}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
       </div>
 
       <div className="space-y-3">
