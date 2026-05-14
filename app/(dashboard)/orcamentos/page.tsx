@@ -25,6 +25,7 @@ export default async function OrcamentosPage() {
       id, numero, status, valor_total, criado_em,
       responsavel:profiles!responsavel_id(nome),
       lead:leads!lead_id(nome),
+      contato:contacts!contato_id(nome),
       deal:deals!deal_id(titulo)
     `)
     .eq('organization_id', perfil.organization_id)
@@ -44,6 +45,7 @@ export default async function OrcamentosPage() {
     criado_em: o.criado_em as string,
     responsavel: (Array.isArray(o.responsavel) ? o.responsavel[0] : o.responsavel) as { nome: string } | null,
     lead: (Array.isArray(o.lead) ? o.lead[0] : o.lead) as { nome: string | null } | null,
+    contato: (Array.isArray(o.contato) ? o.contato[0] : o.contato) as { nome: string } | null,
     deal: (Array.isArray(o.deal) ? o.deal[0] : o.deal) as { titulo: string } | null,
   }))
 
