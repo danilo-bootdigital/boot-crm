@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { enviarTexto } from '@/lib/evolution'
+import { validarTelefone } from '@/lib/utils'
+import { criarDealParaLead } from '@/lib/pipeline-lead'
 
 export async function enviarMensagem(conversaId: string, texto: string) {
   if (!texto.trim()) throw new Error('Mensagem não pode estar vazia.')
@@ -90,4 +92,245 @@ export async function enviarMensagem(conversaId: string, texto: string) {
   })
 
   revalidatePath('/whatsapp')
+}
+
+// ── Iniciar nova conversa ──────────────────────────────────────
+
+type IniciarConversaParams = {
+  telefone: string
+  instanciaId: string
+  texto: string
+  leadId?: string | null
+  contatoId?: string | null
+}
+
+export async function iniciarConversa(params: IniciarConversaParams): Promise<string> {
+  const { telefone, instanciaId, texto, leadId, contatoId } = params
+
+  if (!texto.trim()) throw new Error('Mensagem não pode estar vazia.')
+  if (texto.length > 4096) throw new Error('Mensagem muito longa (máximo 4096 caracteres).')
+
+  // Validar telefone
+  const { valido, formatado } = validarTelefone(telefone)
+  if (!valido) throw new Error('Telefone inválido. Informe DDD + número (ex: 11999999999).')
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: perfil } = await supabase
+    .from('profiles')
+    .select('id, organization_id, cargo')
+    .eq('id', user.id)
+    .single()
+
+  if (!perfil) redirect('/login')
+
+  // Verificar acesso à instância
+  const { data: instancia } = await supabase
+    .from('whatsapp_instances')
+    .select('id, evolution_instance_name, status_conexao, vendedor_id, compartilhado')
+    .eq('id', instanciaId)
+    .eq('organization_id', perfil.organization_id)
+    .single()
+
+  if (!instancia) throw new Error('Instância de WhatsApp não encontrada.')
+  if (instancia.status_conexao !== 'conectado') throw new Error('WhatsApp desconectado. Reconecte a instância.')
+
+  // Vendedor só pode usar instâncias atribuídas ou compartilhadas
+  if (perfil.cargo === 'vendedor' || perfil.cargo === 'atendimento') {
+    if (!instancia.compartilhado && instancia.vendedor_id !== perfil.id) {
+      throw new Error('Você não tem permissão para usar esta instância.')
+    }
+  }
+
+  // Buscar conversa existente pelo telefone + instância
+  const { data: conversaExistente } = await supabase
+    .from('conversations')
+    .select('id')
+    .eq('organization_id', perfil.organization_id)
+    .eq('whatsapp_instance_id', instanciaId)
+    .eq('telefone_externo', formatado)
+    .limit(1)
+    .single()
+
+  let conversaId: string
+
+  if (conversaExistente) {
+    conversaId = conversaExistente.id
+  } else {
+    // Criar nova conversa
+    const { data: novaConversa, error: errConversa } = await supabase
+      .from('conversations')
+      .insert({
+        organization_id: perfil.organization_id,
+        whatsapp_instance_id: instanciaId,
+        telefone_externo: formatado,
+        lead_id: leadId || null,
+        contato_id: contatoId || null,
+        status: 'em_atendimento',
+        responsavel_id: perfil.id,
+        ultima_mensagem_em: new Date().toISOString(),
+      })
+      .select('id')
+      .single()
+
+    if (errConversa || !novaConversa) throw new Error('Erro ao criar conversa.')
+    conversaId = novaConversa.id
+  }
+
+  // Enviar mensagem via Evolution API
+  const messageIdExterno = await enviarTexto(
+    instancia.evolution_instance_name!,
+    formatado,
+    texto.trim()
+  )
+
+  const agora = new Date().toISOString()
+
+  // Salvar mensagem no histórico
+  await supabase.from('messages').insert({
+    organization_id: perfil.organization_id,
+    conversation_id: conversaId,
+    message_id_externo: messageIdExterno,
+    direcao: 'enviada',
+    tipo_midia: 'texto',
+    conteudo: texto.trim(),
+    responsavel_id: perfil.id,
+    status: 'enviada',
+    enviado_em: agora,
+  })
+
+  // Atualizar conversa
+  await supabase
+    .from('conversations')
+    .update({
+      ultima_mensagem_em: agora,
+      status: 'em_atendimento',
+      responsavel_id: perfil.id,
+      atualizado_em: agora,
+    })
+    .eq('id', conversaId)
+
+  // Atualizar última interação do lead
+  if (leadId) {
+    await supabase
+      .from('leads')
+      .update({ ultima_interacao_em: agora })
+      .eq('id', leadId)
+      .eq('organization_id', perfil.organization_id)
+
+    // Criar deal no pipeline se não existir
+    const { data: dealExistente } = await supabase
+      .from('deals')
+      .select('id')
+      .eq('lead_id', leadId)
+      .is('ganho', null)
+      .limit(1)
+      .single()
+
+    if (!dealExistente) {
+      const { data: leadData } = await supabase
+        .from('leads')
+        .select('nome, telefone, origem')
+        .eq('id', leadId)
+        .single()
+
+      if (leadData) {
+        await criarDealParaLead(supabase, {
+          organization_id: perfil.organization_id,
+          lead_id: leadId,
+          lead_nome: leadData.nome,
+          lead_telefone: leadData.telefone,
+          responsavel_id: perfil.id,
+          origem: leadData.origem ?? 'whatsapp',
+          autor_id: perfil.id,
+        })
+      }
+    }
+  }
+
+  // Registrar audit log
+  await supabase.from('audit_logs').insert({
+    organization_id: perfil.organization_id,
+    usuario_id: perfil.id,
+    acao: 'conversa_iniciada',
+    tabela_afetada: 'conversations',
+    registro_id: conversaId,
+    dados_novos: { telefone: formatado, instancia_id: instanciaId, lead_id: leadId, contato_id: contatoId },
+  })
+
+  revalidatePath('/whatsapp')
+  revalidatePath('/leads')
+  revalidatePath('/pipeline')
+
+  return conversaId
+}
+
+// ── Buscar instâncias autorizadas ──────────────────────────────
+
+export async function buscarInstanciasAutorizadas() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: perfil } = await supabase
+    .from('profiles')
+    .select('id, organization_id, cargo')
+    .eq('id', user.id)
+    .single()
+
+  if (!perfil) redirect('/login')
+
+  let query = supabase
+    .from('whatsapp_instances')
+    .select('id, nome, numero, status_conexao')
+    .eq('organization_id', perfil.organization_id)
+    .eq('status_conexao', 'conectado')
+
+  if (perfil.cargo === 'vendedor' || perfil.cargo === 'atendimento') {
+    query = query.or(`vendedor_id.eq.${perfil.id},compartilhado.eq.true`)
+  }
+
+  const { data } = await query
+  return (data ?? []) as { id: string; nome: string; numero: string | null; status_conexao: string }[]
+}
+
+// ── Buscar leads/contatos para nova conversa ───────────────────
+
+export async function buscarContatosParaConversa(busca: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: perfil } = await supabase
+    .from('profiles')
+    .select('id, organization_id')
+    .eq('id', user.id)
+    .single()
+
+  if (!perfil) redirect('/login')
+
+  const termo = `%${busca.trim()}%`
+
+  // Buscar leads
+  const { data: leads } = await supabase
+    .from('leads')
+    .select('id, nome, telefone, empresa')
+    .eq('organization_id', perfil.organization_id)
+    .or(`nome.ilike.${termo},telefone.ilike.${termo},empresa.ilike.${termo}`)
+    .limit(10)
+
+  // Buscar contatos
+  const { data: contatos } = await supabase
+    .from('contacts')
+    .select('id, nome, telefone, email')
+    .eq('organization_id', perfil.organization_id)
+    .or(`nome.ilike.${termo},telefone.ilike.${termo},email.ilike.${termo}`)
+    .limit(10)
+
+  return {
+    leads: (leads ?? []).map((l) => ({ id: l.id, nome: l.nome, telefone: l.telefone, tipo: 'lead' as const })),
+    contatos: (contatos ?? []).map((c) => ({ id: c.id, nome: c.nome, telefone: c.telefone, tipo: 'contato' as const })),
+  }
 }

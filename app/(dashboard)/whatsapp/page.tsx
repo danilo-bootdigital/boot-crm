@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { ListaConversas } from '@/components/whatsapp/lista-conversas'
+import { ModalNovaConversa } from '@/components/whatsapp/modal-nova-conversa'
 
 export default async function WhatsappPage() {
   const supabase = await createClient()
@@ -102,6 +103,20 @@ export default async function WhatsappPage() {
 
   const usuarios = (usuariosRaw ?? []) as { id: string; nome: string }[]
 
+  // Buscar instâncias autorizadas para o botão Nova Conversa
+  let instQuery = supabase
+    .from('whatsapp_instances')
+    .select('id, nome, numero, status_conexao')
+    .eq('organization_id', perfil.organization_id)
+    .eq('status_conexao', 'conectado')
+
+  if (perfil.cargo === 'vendedor' || perfil.cargo === 'atendimento') {
+    instQuery = instQuery.or(`vendedor_id.eq.${perfil.id},compartilhado.eq.true`)
+  }
+
+  const { data: instanciasRaw } = await instQuery
+  const instancias = (instanciasRaw ?? []) as { id: string; nome: string; numero: string | null; status_conexao: string }[]
+
   const conversas = (conversasRaw ?? []).map((c) => {
     const resp = (Array.isArray(c.responsavel) ? c.responsavel[0] : c.responsavel) as { nome: string } | null
     const cid = c.id as string
@@ -126,11 +141,14 @@ export default async function WhatsappPage() {
           <h1 className="text-lg font-semibold text-slate-900">WhatsApp</h1>
           <p className="text-xs text-slate-500">{conversas.length} conversa{conversas.length !== 1 ? 's' : ''}</p>
         </div>
-        {['admin', 'gestor'].includes(perfil.cargo) && (
-          <a href="/whatsapp/relatorios" className="rounded-md border px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
-            Relatórios
-          </a>
-        )}
+        <div className="flex items-center gap-2">
+          <ModalNovaConversa instancias={instancias} />
+          {['admin', 'gestor'].includes(perfil.cargo) && (
+            <a href="/whatsapp/relatorios" className="rounded-md border px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+              Relatórios
+            </a>
+          )}
+        </div>
       </div>
       <div className="flex-1 overflow-hidden">
         <ListaConversas

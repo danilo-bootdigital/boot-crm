@@ -10,6 +10,7 @@ import { BotaoDescartarLead } from '@/components/leads/botao-descartar-lead'
 import { FormObservacao } from '@/components/leads/form-observacao'
 import { TimelineAtividades } from '@/components/shared/timeline-atividades'
 import { ListaTarefas } from '@/components/tarefas/lista-tarefas'
+import { ModalChamarWhatsapp } from '@/components/whatsapp/modal-chamar-whatsapp'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChevronLeft } from 'lucide-react'
@@ -111,6 +112,20 @@ export default async function LeadDetalhePage({ params }: { params: Promise<{ id
 
   const podeConverter = lead.status !== 'qualificado' && lead.status !== 'descartado'
 
+  // Buscar instâncias WhatsApp autorizadas
+  let instQuery = supabase
+    .from('whatsapp_instances')
+    .select('id, nome, numero, status_conexao')
+    .eq('organization_id', perfilAtual.organization_id)
+    .eq('status_conexao', 'conectado')
+
+  if (perfilAtual.cargo === 'vendedor' || perfilAtual.cargo === 'atendimento') {
+    instQuery = instQuery.or(`vendedor_id.eq.${perfilAtual.id},compartilhado.eq.true`)
+  }
+
+  const { data: instanciasRaw } = await instQuery
+  const instancias = (instanciasRaw ?? []) as { id: string; nome: string; numero: string | null; status_conexao: string }[]
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
@@ -177,6 +192,14 @@ export default async function LeadDetalhePage({ params }: { params: Promise<{ id
           </Card>
 
           <div className="flex flex-col gap-2">
+            {lead.telefone && (
+              <ModalChamarWhatsapp
+                nome={lead.nome ?? 'Sem nome'}
+                telefone={lead.telefone}
+                leadId={lead.id}
+                instancias={instancias}
+              />
+            )}
             {podeConverter && <ModalConverterLead lead={lead} />}
             {lead.status !== 'descartado' && (
               <BotaoDescartarLead leadId={lead.id} />

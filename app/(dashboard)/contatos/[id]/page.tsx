@@ -6,6 +6,7 @@ import { ptBR } from 'date-fns/locale'
 import { TimelineAtividades } from '@/components/shared/timeline-atividades'
 import { FormObservacaoContato } from '@/components/contatos/form-observacao-contato'
 import { AcoesContato } from '@/components/contatos/acoes-contato'
+import { ModalChamarWhatsapp } from '@/components/whatsapp/modal-chamar-whatsapp'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChevronLeft } from 'lucide-react'
@@ -39,6 +40,20 @@ export default async function ContatoDetalhePage({ params }: { params: Promise<{
     .single() as { data: ContatoCompleto | null }
 
   if (!contato) notFound()
+
+  // Buscar instâncias WhatsApp autorizadas
+  let instQuery = supabase
+    .from('whatsapp_instances')
+    .select('id, nome, numero, status_conexao')
+    .eq('organization_id', perfil.organization_id)
+    .eq('status_conexao', 'conectado')
+
+  if (perfil.cargo === 'vendedor' || perfil.cargo === 'atendimento') {
+    instQuery = instQuery.or(`vendedor_id.eq.${perfil.id},compartilhado.eq.true`)
+  }
+
+  const { data: instanciasRaw } = await instQuery
+  const instancias = (instanciasRaw ?? []) as { id: string; nome: string; numero: string | null; status_conexao: string }[]
 
   return (
     <div className="space-y-6">
@@ -103,6 +118,16 @@ export default async function ContatoDetalhePage({ params }: { params: Promise<{
                 </div>
               )}
               <hr className="my-3" />
+              {contato.telefone && (
+                <div className="mb-3">
+                  <ModalChamarWhatsapp
+                    nome={contato.nome}
+                    telefone={contato.telefone}
+                    contatoId={contato.id}
+                    instancias={instancias}
+                  />
+                </div>
+              )}
               <AcoesContato contatoId={contato.id} contatoNome={contato.nome} />
             </CardContent>
           </Card>
