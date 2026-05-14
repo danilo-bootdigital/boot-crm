@@ -316,7 +316,15 @@ export function BotaoExportarPdf(props: Props) {
     doc.setFont(undefined!, 'normal')
     doc.text('Estamos à disposição para quaisquer dúvidas.', pageWidth / 2, pageHeight - 7, { align: 'center' })
 
-    doc.save(`orcamento-${props.numero}.pdf`)
+    const nomeArquivo = props.cliente?.nome || props.lead || 'cliente'
+    const nomeNormalizado = nomeArquivo
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-zA-Z0-9\s]/g, '')
+      .trim()
+      .replace(/\s+/g, '-')
+      .toLowerCase()
+    doc.save(`${nomeNormalizado}-orcamento-${props.numero}.pdf`)
   }
 
   return (
