@@ -240,7 +240,7 @@ export async function converterContatoEmLead(contatoId: string) {
     organization_id: perfil.organization_id,
     nome: contato.nome,
     email: contato.email,
-    telefone: contato.telefone ?? '',
+    telefone: contato.telefone || null,
     origem: 'manual',
     status: 'novo',
     responsavel_id: perfil.id,
@@ -253,6 +253,8 @@ export async function converterContatoEmLead(contatoId: string) {
     .from('pipelines')
     .select('id')
     .eq('organization_id', perfil.organization_id)
+    .eq('padrao', true)
+    .eq('ativo', true)
     .limit(1)
     .single()
 
@@ -261,8 +263,9 @@ export async function converterContatoEmLead(contatoId: string) {
       .from('pipeline_stages')
       .select('id')
       .eq('pipeline_id', pipeline.id)
-      .eq('organization_id', perfil.organization_id)
-      .order('ordem')
+      .eq('oculto', false)
+      .is('tipo_especial', null)
+      .order('ordem', { ascending: true })
       .limit(1)
       .single()
 
@@ -272,6 +275,7 @@ export async function converterContatoEmLead(contatoId: string) {
         titulo: contato.nome,
         pipeline_id: pipeline.id,
         estagio_id: primeiraEtapa.id,
+        lead_id: lead.id,
         contato_id: contatoId,
         responsavel_id: perfil.id,
       })

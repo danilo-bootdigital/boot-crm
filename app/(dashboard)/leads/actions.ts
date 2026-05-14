@@ -49,9 +49,9 @@ export async function criarLead(formData: FormData) {
   const telefone = formData.get('telefone') as string | null
   const empresa = formData.get('empresa') as string | null
   const endereco = formData.get('endereco') as string | null
+  const cpf_cnpj = formData.get('cpf_cnpj') as string | null
   const origem = (formData.get('origem') as LeadOrigem) ?? 'manual'
   const responsavel_id = formData.get('responsavel_id') as string | null
-  const observacoes = formData.get('observacoes') as string | null
 
   const { data: lead, error } = await supabase
     .from('leads')
@@ -62,10 +62,10 @@ export async function criarLead(formData: FormData) {
       telefone: telefone || null,
       empresa: empresa || null,
       endereco: endereco || null,
+      observacoes: cpf_cnpj || null,
       origem,
       status: 'novo' as LeadStatus,
       responsavel_id: responsavel_id || null,
-      observacoes: observacoes || null,
       ultima_interacao_em: new Date().toISOString(),
     })
     .select('id')
@@ -115,9 +115,9 @@ export async function editarLead(leadId: string, formData: FormData) {
   const telefone = formData.get('telefone') as string | null
   const empresa = formData.get('empresa') as string | null
   const endereco = formData.get('endereco') as string | null
+  const cpf_cnpj = formData.get('cpf_cnpj') as string | null
   const origem = formData.get('origem') as LeadOrigem
   const responsavel_id = formData.get('responsavel_id') as string | null
-  const observacoes = formData.get('observacoes') as string | null
 
   const { error } = await supabase
     .from('leads')
@@ -127,9 +127,9 @@ export async function editarLead(leadId: string, formData: FormData) {
       telefone: telefone || null,
       empresa: empresa || null,
       endereco: endereco || null,
+      observacoes: cpf_cnpj || null,
       origem,
       responsavel_id: responsavel_id || null,
-      observacoes: observacoes || null,
       atualizado_em: new Date().toISOString(),
     })
     .eq('id', leadId)

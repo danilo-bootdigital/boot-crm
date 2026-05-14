@@ -97,6 +97,9 @@ export async function moverDeal(
 
   if (!deal) throw new Error('Negociação não encontrada.')
 
+  // Se já está no destino, não faz nada
+  if (deal.estagio_id === estagioDestinoId) return
+
   // Vendedor só move os próprios deals
   if (perfil.cargo === 'vendedor' && deal.responsavel_id !== perfil.id) {
     throw new Error('Você não tem permissão para mover esta negociação.')
@@ -215,4 +218,6 @@ export async function adicionarObservacaoDeal(dealId: string, texto: string) {
   })
 
   if (error) throw new Error(`Erro ao adicionar observação: ${error.message}`)
+
+  revalidatePath('/pipeline')
 }

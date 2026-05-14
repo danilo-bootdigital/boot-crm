@@ -25,6 +25,12 @@ export type Organization = {
   slug: string
   plano: string
   ativo: boolean
+  nome_fantasia: string | null
+  cnpj: string | null
+  logo_url: string | null
+  telefone: string | null
+  email: string | null
+  endereco: string | null
   criado_em: string
   atualizado_em: string
 }

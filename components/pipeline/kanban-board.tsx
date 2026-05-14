@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   DndContext,
   DragEndEvent,
@@ -55,6 +56,7 @@ type RealtimeDealPayload = {
 }
 
 export function KanbanBoard({ pipelineId, etapas, dealsIniciais, cargo, organizationId }: Props) {
+  const router = useRouter()
   const [deals, setDeals] = useState<DealCard[]>(dealsIniciais)
   const [dealArrastando, setDealArrastando] = useState<DealCard | null>(null)
   const [pendingFechado, setPendingFechado] = useState<PendingFechado | null>(null)
@@ -118,29 +120,9 @@ export function KanbanBoard({ pipelineId, etapas, dealsIniciais, cargo, organiza
         },
         (payload) => {
           const novo = payload.new as RealtimeDealPayload
-          setDeals((prev) => {
-            if (prev.some((d) => d.id === novo.id)) return prev
-            return [
-              {
-                id: novo.id,
-                titulo: novo.titulo,
-                estagio_id: novo.estagio_id,
-                valor_estimado: novo.valor_estimado,
-                ganho: novo.ganho,
-                motivo_perda: novo.motivo_perda,
-                data_fechamento_prevista: null,
-                atualizado_em: novo.atualizado_em,
-                contato: null,
-                responsavel: null,
-                lead: null,
-                ultima_mensagem: null,
-                ultima_mensagem_em: null,
-                status_conversa: null,
-                tags: [],
-              },
-              ...prev,
-            ]
-          })
+          if (!deals.some((d) => d.id === novo.id)) {
+            router.refresh()
+          }
         }
       )
       .subscribe()

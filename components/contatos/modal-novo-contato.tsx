@@ -55,17 +55,13 @@ export function ModalNovoContato() {
               <Input id="cargo" name="cargo" placeholder="Ex: Diretor" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="cpf_cnpj">CPF/CNPJ</Label>
-              <Input id="cpf_cnpj" name="cpf_cnpj" placeholder="000.000.000-00" />
+              <Label htmlFor="observacoes">CPF/CNPJ</Label>
+              <Input id="observacoes" name="observacoes" placeholder="000.000.000-00" />
             </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="empresa_nome">Empresa</Label>
             <Input id="empresa_nome" name="empresa_nome" placeholder="Nome da empresa" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="observacoes">CPF/CNPJ</Label>
-            <Input id="observacoes" name="observacoes" placeholder="000.000.000-00" />
           </div>
           {erro && (
             <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{erro}</div>

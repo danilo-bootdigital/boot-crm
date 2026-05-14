@@ -250,7 +250,7 @@ export function BotaoExportarPdf(props: Props) {
     })
 
     // === TOTAIS ===
-    const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6
+    const finalY = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y + 10) + 6
     let ty = finalY
 
     // Subtotal alinhado à direita
@@ -290,8 +290,17 @@ export function BotaoExportarPdf(props: Props) {
 
     ty += 18
 
+    // Helper: verificar se precisa nova página (reservar 25mm para rodapé)
+    const checkPage = (needed: number) => {
+      if (ty + needed > pageHeight - 25) {
+        doc.addPage()
+        ty = 20
+      }
+    }
+
     // === FORMA DE PAGAMENTO ===
     if (props.formaPagamento) {
+      checkPage(20)
       // Ícone verde + texto
       doc.setFillColor(...GREEN_LIGHT)
       doc.roundedRect(margin, ty - 4, pageWidth - margin * 2, 14, 2, 2, 'F')
@@ -319,9 +328,11 @@ export function BotaoExportarPdf(props: Props) {
 
     // === OBSERVAÇÕES ===
     if (props.observacoes) {
-      doc.setFillColor(...GREEN_LIGHT)
       const linhas = doc.splitTextToSize(props.observacoes, pageWidth - margin * 2 - 8)
       const obsHeight = 10 + linhas.length * 4
+      checkPage(obsHeight + 5)
+
+      doc.setFillColor(...GREEN_LIGHT)
       doc.roundedRect(margin, ty - 4, pageWidth - margin * 2, obsHeight, 2, 2, 'F')
 
       doc.setDrawColor(...GREEN_MID)
