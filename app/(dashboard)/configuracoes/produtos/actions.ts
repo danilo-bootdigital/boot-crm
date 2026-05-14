@@ -98,3 +98,41 @@ export async function alternarAtivoProduto(produtoId: string, ativo: boolean) {
   if (error) throw new Error(`Erro ao alterar status: ${error.message}`)
   revalidatePath('/configuracoes/produtos')
 }
+
+export async function excluirProduto(produtoId: string) {
+  const { supabase, perfil } = await getAdminOuGestor()
+
+  await supabase
+    .from('quote_items')
+    .update({ product_id: null })
+    .eq('product_id', produtoId)
+
+  const { error } = await supabase
+    .from('products')
+    .delete()
+    .eq('id', produtoId)
+    .eq('organization_id', perfil.organization_id)
+
+  if (error) throw new Error(`Erro ao excluir produto: ${error.message}`)
+  revalidatePath('/configuracoes/produtos')
+}
+
+export async function excluirProdutosEmLote(produtoIds: string[]) {
+  const { supabase, perfil } = await getAdminOuGestor()
+
+  if (produtoIds.length === 0) throw new Error('Nenhum produto selecionado.')
+
+  await supabase
+    .from('quote_items')
+    .update({ product_id: null })
+    .in('product_id', produtoIds)
+
+  const { error } = await supabase
+    .from('products')
+    .delete()
+    .in('id', produtoIds)
+    .eq('organization_id', perfil.organization_id)
+
+  if (error) throw new Error(`Erro ao excluir produtos: ${error.message}`)
+  revalidatePath('/configuracoes/produtos')
+}
