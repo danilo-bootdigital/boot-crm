@@ -22,10 +22,9 @@ export default async function OrcamentosPage() {
   let query = supabase
     .from('quotes')
     .select(`
-      id, numero, status, valor_total, criado_em,
+      id, numero, status, valor_total, criado_em, contato_id,
       responsavel:profiles!responsavel_id(nome),
       lead:leads!lead_id(nome),
-      contato:contacts!contato_id(nome),
       deal:deals!deal_id(titulo)
     `)
     .eq('organization_id', perfil.organization_id)
@@ -37,6 +36,23 @@ export default async function OrcamentosPage() {
 
   const { data: orcamentosRaw } = await query
 
+  // Buscar nomes dos contatos vinculados
+  const contatoIds = (orcamentosRaw ?? [])
+    .map((o) => o.contato_id as string | null)
+    .filter((id): id is string => !!id)
+  const uniqueContatoIds = [...new Set(contatoIds)]
+
+  let contatosMap: Record<string, string> = {}
+  if (uniqueContatoIds.length > 0) {
+    const { data: contatosData } = await supabase
+      .from('contacts')
+      .select('id, nome')
+      .in('id', uniqueContatoIds)
+    if (contatosData) {
+      contatosMap = Object.fromEntries(contatosData.map((c) => [c.id, c.nome]))
+    }
+  }
+
   const orcamentos = (orcamentosRaw ?? []).map((o) => ({
     id: o.id as string,
     numero: o.numero as number,
@@ -45,7 +61,7 @@ export default async function OrcamentosPage() {
     criado_em: o.criado_em as string,
     responsavel: (Array.isArray(o.responsavel) ? o.responsavel[0] : o.responsavel) as { nome: string } | null,
     lead: (Array.isArray(o.lead) ? o.lead[0] : o.lead) as { nome: string | null } | null,
-    contato: (Array.isArray(o.contato) ? o.contato[0] : o.contato) as { nome: string } | null,
+    contato: (o.contato_id && contatosMap[o.contato_id as string]) ? { nome: contatosMap[o.contato_id as string] } : null,
     deal: (Array.isArray(o.deal) ? o.deal[0] : o.deal) as { titulo: string } | null,
   }))
 
