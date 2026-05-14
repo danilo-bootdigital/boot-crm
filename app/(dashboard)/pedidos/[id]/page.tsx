@@ -39,6 +39,35 @@ export default async function PedidoDetalhePage({ params }: { params: Promise<{ 
 
   if (!pedido) notFound()
 
+  // Fallback: buscar contato via orçamento se não está direto no pedido
+  let contatoFallback: { id: string; nome: string; telefone: string | null; email: string | null } | null = null
+  const contatoDireto = Array.isArray(pedido.contato) ? pedido.contato[0] : pedido.contato
+  const leadDireto = Array.isArray(pedido.lead) ? pedido.lead[0] : pedido.lead
+
+  if (!contatoDireto && !leadDireto && pedido.quote_id) {
+    const { data: quote } = await supabase
+      .from('quotes')
+      .select('contato_id, lead_id')
+      .eq('id', pedido.quote_id)
+      .single()
+
+    if (quote?.contato_id) {
+      const { data: c } = await supabase
+        .from('contacts')
+        .select('id, nome, telefone, email')
+        .eq('id', quote.contato_id)
+        .single()
+      contatoFallback = c
+    } else if (quote?.lead_id) {
+      const { data: l } = await supabase
+        .from('leads')
+        .select('id, nome, telefone, email')
+        .eq('id', quote.lead_id)
+        .single()
+      if (l) contatoFallback = l
+    }
+  }
+
   const { data: itens } = await supabase
     .from('order_items')
     .select('id, descricao, quantidade, preco_unitario, desconto_item, subtotal')
@@ -53,7 +82,7 @@ export default async function PedidoDetalhePage({ params }: { params: Promise<{ 
   const responsavel = Array.isArray(pedido.responsavel) ? pedido.responsavel[0] : pedido.responsavel
   const lead = Array.isArray(pedido.lead) ? pedido.lead[0] : pedido.lead
   const contato = Array.isArray(pedido.contato) ? pedido.contato[0] : pedido.contato
-  const cliente = contato || lead
+  const cliente = contato || lead || contatoFallback
 
   return (
     <div className="space-y-6">

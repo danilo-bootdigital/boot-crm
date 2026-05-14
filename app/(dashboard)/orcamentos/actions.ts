@@ -280,7 +280,7 @@ export async function marcarAprovadoCliente(orcamentoId: string) {
 
   const { data: orcamento } = await supabase
     .from('quotes')
-    .select('id, status, lead_id, deal_id, responsavel_id, valor_total, desconto_geral, frete, observacoes, endereco_entrega, forma_pagamento')
+    .select('id, status, lead_id, deal_id, contato_id, responsavel_id, valor_total, desconto_geral, frete, observacoes, endereco_entrega, forma_pagamento')
     .eq('id', orcamentoId)
     .eq('organization_id', perfil.organization_id)
     .single()
@@ -299,17 +299,20 @@ export async function marcarAprovadoCliente(orcamentoId: string) {
 
   if (errStatus) throw new Error(`Erro ao aprovar orçamento: ${errStatus.message}`)
 
-  // 2. Buscar contato vinculado ao lead (se existir)
-  let contatoId: string | null = null
-  if (orcamento.lead_id) {
-    const { data: contato } = await supabase
-      .from('contacts')
-      .select('id')
-      .eq('organization_id', perfil.organization_id)
-      .eq('telefone', (await supabase.from('leads').select('telefone').eq('id', orcamento.lead_id).single()).data?.telefone ?? '')
-      .limit(1)
-      .single()
-    contatoId = contato?.id ?? null
+  // 2. Buscar contato vinculado (prioridade: contato_id direto no orçamento)
+  let contatoId: string | null = orcamento.contato_id ?? null
+  if (!contatoId && orcamento.lead_id) {
+    const { data: leadData } = await supabase.from('leads').select('telefone').eq('id', orcamento.lead_id).single()
+    if (leadData?.telefone) {
+      const { data: contato } = await supabase
+        .from('contacts')
+        .select('id')
+        .eq('organization_id', perfil.organization_id)
+        .eq('telefone', leadData.telefone)
+        .limit(1)
+        .single()
+      contatoId = contato?.id ?? null
+    }
   }
 
   // 3. Criar pedido

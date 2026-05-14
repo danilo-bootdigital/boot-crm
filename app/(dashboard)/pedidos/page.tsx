@@ -23,7 +23,8 @@ export default async function PedidosPage() {
       id, numero, status, valor_total, criado_em,
       responsavel:profiles!responsavel_id(nome),
       lead:leads!lead_id(nome, telefone),
-      contato:contacts!contato_id(nome, telefone)
+      contato:contacts!contato_id(nome, telefone),
+      quote:quotes!quote_id(contato_id, lead:leads!lead_id(nome, telefone), contato_quote:contacts!contato_id(nome, telefone))
     `)
     .eq('organization_id', perfil.organization_id)
     .order('criado_em', { ascending: false })
@@ -70,7 +71,10 @@ export default async function PedidosPage() {
                 const lead = Array.isArray(pedido.lead) ? pedido.lead[0] : pedido.lead
                 const contato = Array.isArray(pedido.contato) ? pedido.contato[0] : pedido.contato
                 const responsavel = Array.isArray(pedido.responsavel) ? pedido.responsavel[0] : pedido.responsavel
-                const cliente = contato?.nome || lead?.nome || lead?.telefone || '—'
+                const quote = Array.isArray(pedido.quote) ? pedido.quote[0] : pedido.quote
+                const contatoQuote = quote ? (Array.isArray(quote.contato_quote) ? quote.contato_quote[0] : quote.contato_quote) : null
+                const leadQuote = quote ? (Array.isArray(quote.lead) ? quote.lead[0] : quote.lead) : null
+                const cliente = contato?.nome || lead?.nome || contatoQuote?.nome || leadQuote?.nome || lead?.telefone || leadQuote?.telefone || '—'
 
                 return (
                   <tr key={pedido.id} className="hover:bg-slate-50 transition-colors">
