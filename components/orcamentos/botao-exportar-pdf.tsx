@@ -178,7 +178,7 @@ export function BotaoExportarPdf(props: Props) {
     doc.setFont(undefined!, 'bold')
     doc.text('Cliente:', margin + 4, cy)
     doc.setFont(undefined!, 'normal')
-    doc.text(nomeCliente, margin + 24, cy)
+    doc.text(nomeCliente.trim(), margin + 28, cy)
     cy += 6
 
     // CPF/CNPJ:
@@ -186,7 +186,7 @@ export function BotaoExportarPdf(props: Props) {
       doc.setFont(undefined!, 'bold')
       doc.text('CPF/CNPJ:', margin + 4, cy)
       doc.setFont(undefined!, 'normal')
-      doc.text(cliente.cpf_cnpj, margin + 28, cy)
+      doc.text(cliente.cpf_cnpj.trim(), margin + 28, cy)
       cy += 6
     }
 
@@ -195,7 +195,7 @@ export function BotaoExportarPdf(props: Props) {
       doc.setFont(undefined!, 'bold')
       doc.text('Endereço:', margin + 4, cy)
       doc.setFont(undefined!, 'normal')
-      doc.text(cliente.endereco, margin + 26, cy)
+      doc.text(cliente.endereco.trim(), margin + 28, cy)
       cy += 6
     }
 
@@ -204,7 +204,7 @@ export function BotaoExportarPdf(props: Props) {
       doc.setFont(undefined!, 'bold')
       doc.text('Telefone:', margin + 4, cy)
       doc.setFont(undefined!, 'normal')
-      doc.text(cliente.telefone, margin + 25, cy)
+      doc.text(cliente.telefone.trim(), margin + 28, cy)
       cy += 6
     }
 
