@@ -136,7 +136,7 @@ export default async function LeadDetalhePage({ params }: { params: Promise<{ id
               </div>
               {lead.observacoes && (
                 <div>
-                  <p className="text-xs text-slate-500">Observações</p>
+                  <p className="text-xs text-slate-500">CPF/CNPJ</p>
                   <p className="text-slate-700">{lead.observacoes}</p>
                 </div>
               )}

@@ -32,7 +32,7 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
     .select(`
       *,
       responsavel:profiles!responsavel_id(nome),
-      lead:leads!lead_id(id, nome, telefone, email, cpf_cnpj),
+      lead:leads!lead_id(id, nome, telefone, email, observacoes),
       deal:deals!deal_id(id, titulo, contato_id),
       aprovador:profiles!aprovacao_interna_por(nome),
       fornecedor:suppliers!supplier_id(nome)
@@ -45,12 +45,12 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
 
   // Buscar dados completos do contato (via deal ou lead)
   const dealData = Array.isArray(orcamento.deal) ? orcamento.deal[0] : orcamento.deal
-  let contato: { nome: string; telefone: string | null; email: string | null; endereco: string | null; cpf_cnpj: string | null } | null = null
+  let contato: { nome: string; telefone: string | null; email: string | null; endereco: string | null; observacoes: string | null } | null = null
 
   if (dealData?.contato_id) {
     const { data: c } = await supabase
       .from('contacts')
-      .select('nome, telefone, email, endereco, cpf_cnpj')
+      .select('nome, telefone, email, endereco, observacoes')
       .eq('id', dealData.contato_id)
       .single()
     contato = c
@@ -102,7 +102,7 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
             fornecedor={fornecedor?.nome ?? null}
             cliente={(() => {
               const nome = contato?.nome ?? lead?.nome ?? ''
-              const cpf_cnpj = contato?.cpf_cnpj ?? lead?.cpf_cnpj ?? null
+              const cpf_cnpj = contato?.observacoes ?? lead?.observacoes ?? null
               const telefone = contato?.telefone ?? lead?.telefone ?? null
               const email = contato?.email ?? lead?.email ?? null
               const endereco = orcamento.endereco_entrega ?? contato?.endereco ?? null

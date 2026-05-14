@@ -70,9 +70,15 @@ export function ModalNovoLead({ responsaveis }: Props) {
               <Input id="email" name="email" type="email" placeholder="joao@email.com" />
             </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="empresa">Empresa</Label>
-            <Input id="empresa" name="empresa" placeholder="Nome da empresa" />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="empresa">Empresa</Label>
+              <Input id="empresa" name="empresa" placeholder="Nome da empresa" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="observacoes">CPF/CNPJ</Label>
+              <Input id="observacoes" name="observacoes" placeholder="000.000.000-00" />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">

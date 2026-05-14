@@ -5,7 +5,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { criarContato } from '@/app/(dashboard)/contatos/actions'
 import { Plus } from 'lucide-react'
 
@@ -56,13 +55,17 @@ export function ModalNovoContato() {
               <Input id="cargo" name="cargo" placeholder="Ex: Diretor" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="empresa_nome">Empresa</Label>
-              <Input id="empresa_nome" name="empresa_nome" placeholder="Nome da empresa" />
+              <Label htmlFor="cpf_cnpj">CPF/CNPJ</Label>
+              <Input id="cpf_cnpj" name="cpf_cnpj" placeholder="000.000.000-00" />
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="observacoes">Observações</Label>
-            <Textarea id="observacoes" name="observacoes" placeholder="Contexto do contato..." rows={3} />
+            <Label htmlFor="empresa_nome">Empresa</Label>
+            <Input id="empresa_nome" name="empresa_nome" placeholder="Nome da empresa" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="observacoes">CPF/CNPJ</Label>
+            <Input id="observacoes" name="observacoes" placeholder="000.000.000-00" />
           </div>
           {erro && (
             <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{erro}</div>

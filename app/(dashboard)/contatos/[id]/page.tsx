@@ -98,8 +98,8 @@ export default async function ContatoDetalhePage({ params }: { params: Promise<{
               </div>
               {contato.observacoes && (
                 <div>
-                  <p className="text-xs text-slate-500">Observações</p>
-                  <p className="text-slate-700">{contato.observacoes}</p>
+                  <p className="text-xs text-slate-500">CPF/CNPJ</p>
+                  <p className="font-medium">{contato.observacoes}</p>
                 </div>
               )}
               <hr className="my-3" />
