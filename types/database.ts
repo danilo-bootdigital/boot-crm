@@ -19,6 +19,15 @@ export type QuoteStatus =
   | 'aprovado_pelo_cliente'
   | 'recusado_pelo_cliente'
 
+export type OrderStatus =
+  | 'pendente'
+  | 'em_producao'
+  | 'pronto'
+  | 'enviado'
+  | 'entregue'
+  | 'concluido'
+  | 'cancelado'
+
 export type Organization = {
   id: string
   nome: string
