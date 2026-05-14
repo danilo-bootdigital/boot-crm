@@ -14,7 +14,7 @@ type ContatoImportado = {
   telefone: string | null
   email: string | null
   endereco: string | null
-  observacoes: string | null
+  cpf_cnpj: string | null
 }
 
 const MAPEAMENTO_NOME: Record<string, 'nome' | 'telefone' | 'email' | 'endereco' | 'municipio' | 'estado' | 'cpf'> = {
@@ -80,10 +80,10 @@ function mapearContatos(headers: string[], rows: string[][]): ContatoImportado[]
       if (indices.estado !== undefined && row[indices.estado]?.trim()) partesEndereco.push(row[indices.estado].trim())
       const endereco = partesEndereco.length > 0 ? partesEndereco.join(' — ') : null
 
-      // Observações: CPF/CNPJ
-      const observacoes = (indices.cpf !== undefined && row[indices.cpf]?.trim()) ? `Doc: ${row[indices.cpf].trim()}` : null
+      // CPF/CNPJ
+      const cpf_cnpj = (indices.cpf !== undefined && row[indices.cpf]?.trim()) ? row[indices.cpf].trim() : null
 
-      return { nome, telefone, email, endereco, observacoes } as ContatoImportado
+      return { nome, telefone, email, endereco, cpf_cnpj } as ContatoImportado
     })
     .filter((c): c is ContatoImportado => c !== null)
 }
@@ -174,7 +174,7 @@ export function FormImportacao() {
                       <th className="pb-2 pr-4">Telefone</th>
                       <th className="pb-2 pr-4">Email</th>
                       <th className="pb-2 pr-4">Endereço</th>
-                      <th className="pb-2">Observações</th>
+                      <th className="pb-2">CPF/CNPJ</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -184,7 +184,7 @@ export function FormImportacao() {
                         <td className="py-2 pr-4 text-slate-600">{c.telefone ?? '—'}</td>
                         <td className="py-2 pr-4 text-slate-600">{c.email ?? '—'}</td>
                         <td className="py-2 pr-4 text-slate-500 text-xs max-w-xs truncate">{c.endereco ?? '—'}</td>
-                        <td className="py-2 text-slate-500 text-xs max-w-xs truncate">{c.observacoes ?? '—'}</td>
+                        <td className="py-2 text-slate-500 text-xs max-w-xs truncate">{c.cpf_cnpj ?? '—'}</td>
                       </tr>
                     ))}
                   </tbody>

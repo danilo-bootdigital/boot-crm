@@ -301,7 +301,7 @@ type ContatoImportado = {
   telefone: string | null
   email: string | null
   endereco: string | null
-  observacoes: string | null
+  cpf_cnpj: string | null
 }
 
 export async function importarContatos(contatos: ContatoImportado[], modo: 'pular' | 'atualizar' = 'pular') {
@@ -361,7 +361,7 @@ export async function importarContatos(contatos: ContatoImportado[], modo: 'pula
       telefone: c.telefone?.trim() || null,
       email: c.email?.trim() || null,
       endereco: c.endereco || null,
-      observacoes: c.observacoes || null,
+      cpf_cnpj: c.cpf_cnpj || null,
     }))
 
     const { error } = await supabase.from('contacts').insert(lote)
@@ -379,7 +379,7 @@ export async function importarContatos(contatos: ContatoImportado[], modo: 'pula
           telefone: dup.dados.telefone?.trim() || null,
           email: dup.dados.email?.trim() || null,
           endereco: dup.dados.endereco || null,
-          observacoes: dup.dados.observacoes || null,
+          cpf_cnpj: dup.dados.cpf_cnpj || null,
           atualizado_em: new Date().toISOString(),
         })
         .eq('id', dup.id)
