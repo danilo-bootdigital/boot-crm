@@ -19,6 +19,7 @@ type Props = {
   fornecedor: string | null
   cliente: {
     nome: string
+    cpf_cnpj: string | null
     telefone: string | null
     email: string | null
     endereco: string | null
@@ -152,27 +153,59 @@ export function BotaoExportarPdf(props: Props) {
     doc.setTextColor(...WHITE)
     doc.setFontSize(9)
     doc.setFont(undefined!, 'bold')
-    doc.text('CLIENTE', margin + 4, y + 5.5)
+    doc.text('DADOS DO COMPRADOR', margin + 4, y + 5.5)
 
     y += 12
 
     // Fundo verde claro para dados do cliente
     const cliente = props.cliente
     const nomeCliente = cliente?.nome ?? props.lead ?? 'Não informado'
-    const clienteHeight = cliente?.telefone ? 16 : 10
+
+    // Calcular altura do bloco baseado nos dados disponíveis
+    let clienteLines = 1 // nome sempre presente
+    if (cliente?.cpf_cnpj) clienteLines++
+    if (cliente?.endereco) clienteLines++
+    if (cliente?.telefone) clienteLines++
+    const clienteHeight = 6 + clienteLines * 6
+
     doc.setFillColor(...GREEN_LIGHT)
     doc.rect(margin, y - 4, pageWidth - margin * 2, clienteHeight, 'F')
 
+    let cy = y + 1
+    // Cliente:
     doc.setTextColor(...DARK_TEXT)
-    doc.setFontSize(11)
+    doc.setFontSize(8.5)
     doc.setFont(undefined!, 'bold')
-    doc.text(nomeCliente, margin + 4, y + 2)
+    doc.text('Cliente:', margin + 4, cy)
+    doc.setFont(undefined!, 'normal')
+    doc.text(nomeCliente, margin + 24, cy)
+    cy += 6
 
-    if (cliente?.telefone) {
-      doc.setFontSize(8)
+    // CPF/CNPJ:
+    if (cliente?.cpf_cnpj) {
+      doc.setFont(undefined!, 'bold')
+      doc.text('CPF/CNPJ:', margin + 4, cy)
       doc.setFont(undefined!, 'normal')
-      doc.setTextColor(...GRAY_TEXT)
-      doc.text(`Tel: ${cliente.telefone}`, margin + 4, y + 8)
+      doc.text(cliente.cpf_cnpj, margin + 28, cy)
+      cy += 6
+    }
+
+    // Endereço:
+    if (cliente?.endereco) {
+      doc.setFont(undefined!, 'bold')
+      doc.text('Endereço:', margin + 4, cy)
+      doc.setFont(undefined!, 'normal')
+      doc.text(cliente.endereco, margin + 26, cy)
+      cy += 6
+    }
+
+    // Telefone:
+    if (cliente?.telefone) {
+      doc.setFont(undefined!, 'bold')
+      doc.text('Telefone:', margin + 4, cy)
+      doc.setFont(undefined!, 'normal')
+      doc.text(cliente.telefone, margin + 25, cy)
+      cy += 6
     }
 
     y += clienteHeight + 6

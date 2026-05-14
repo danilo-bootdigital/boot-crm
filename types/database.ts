@@ -50,6 +50,7 @@ export type Lead = {
   email: string | null
   telefone: string | null
   empresa: string | null
+  cpf_cnpj: string | null
   origem: LeadOrigem
   status: LeadStatus
   responsavel_id: string | null
@@ -81,6 +82,7 @@ export type Contact = {
   email: string | null
   telefone: string | null
   cargo: string | null
+  cpf_cnpj: string | null
   empresa_id: string | null
   responsavel_id: string | null
   foto_perfil_url: string | null
