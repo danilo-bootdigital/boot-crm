@@ -61,6 +61,15 @@ export async function criarDeal(formData: FormData) {
 
   if (error) throw new Error(`Erro ao criar negociação: ${error.message}`)
 
+  // Registrar log de criação
+  await supabase.from('deal_stage_logs').insert({
+    organization_id: perfil.organization_id,
+    deal_id: deal.id,
+    usuario_id: perfil.id,
+    estagio_anterior_id: null,
+    estagio_novo_id: estagio_id,
+  })
+
   await supabase.from('activities').insert({
     organization_id: perfil.organization_id,
     autor_id: perfil.id,

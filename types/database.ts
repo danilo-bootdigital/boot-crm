@@ -176,13 +176,18 @@ export type WhatsappInstance = {
   atualizado_em: string
 }
 
+export type ConversaStatus = 'nao_atendida' | 'em_atendimento' | 'aguardando_cliente' | 'finalizada'
+
 export type Conversation = {
   id: string
   organization_id: string
   whatsapp_instance_id: string
   lead_id: string | null
   contato_id: string | null
+  deal_id: string | null
   telefone_externo: string
+  status: ConversaStatus
+  responsavel_id: string | null
   ultima_mensagem_em: string | null
   criado_em: string
   atualizado_em: string
@@ -278,6 +283,7 @@ export type Quote = {
   desconto_geral: number
   frete: number
   endereco_entrega: string | null
+  forma_pagamento: string | null
   valor_total: number
   aprovacao_interna_por: string | null
   aprovacao_interna_em: string | null

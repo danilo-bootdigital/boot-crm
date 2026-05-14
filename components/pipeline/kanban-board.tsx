@@ -80,7 +80,7 @@ export function KanbanBoard({ pipelineId, etapas, dealsIniciais, cargo, organiza
           event: 'UPDATE',
           schema: 'public',
           table: 'deals',
-          filter: `pipeline_id=eq.${pipelineId},organization_id=eq.${organizationId}`,
+          filter: `pipeline_id=eq.${pipelineId}`,
         },
         (payload) => {
           const atualizado = payload.new as RealtimeDealPayload
@@ -114,7 +114,7 @@ export function KanbanBoard({ pipelineId, etapas, dealsIniciais, cargo, organiza
           event: 'INSERT',
           schema: 'public',
           table: 'deals',
-          filter: `pipeline_id=eq.${pipelineId},organization_id=eq.${organizationId}`,
+          filter: `pipeline_id=eq.${pipelineId}`,
         },
         (payload) => {
           const novo = payload.new as RealtimeDealPayload
