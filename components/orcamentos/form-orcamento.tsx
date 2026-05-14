@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/u
 import { Card, CardContent } from '@/components/ui/card'
 import { criarOrcamento, editarOrcamento } from '@/app/(dashboard)/orcamentos/actions'
 import { formatarMoeda } from '@/lib/utils'
+import { BuscaProduto } from '@/components/orcamentos/busca-produto'
 import { Plus, Trash2 } from 'lucide-react'
 import type { Product, Supplier, SupplierCategory } from '@/types/database'
 
@@ -258,33 +259,20 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
         {itens.map((item) => (
           <Card key={item.key}>
             <CardContent className="space-y-3 p-4">
-              {/* Linha 1: Produto (largura total) */}
-              <div className="space-y-1">
-                <Label className="text-xs">Produto</Label>
-                <Select
-                  value={item.product_id || '__livre__'}
-                  onValueChange={(v) => {
-                    if (v && v !== '__livre__') selecionarProduto(item.key, v)
-                    else atualizarItem(item.key, 'product_id', null)
-                  }}
-                >
-                  <SelectTrigger className="h-9">
-                    <span className="flex flex-1 text-left truncate text-sm">
-                      {item.product_id ? produtosFiltrados.find(p => p.id === item.product_id)?.nome ?? 'Produto' : 'Descrição livre'}
-                    </span>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__livre__">Descrição livre</SelectItem>
-                    {produtosFiltrados.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Linha 2: Descrição (50%) + Unidade + Qtd */}
-              <div className="grid gap-3 md:grid-cols-12">
-                <div className="md:col-span-6 space-y-1">
+              {/* Linha 1: Produto (50%) + Descrição (50%) */}
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Produto</Label>
+                  <BuscaProduto
+                    produtos={produtosFiltrados}
+                    value={item.product_id}
+                    onSelect={(produtoId) => {
+                      if (produtoId) selecionarProduto(item.key, produtoId)
+                      else atualizarItem(item.key, 'product_id', null)
+                    }}
+                  />
+                </div>
+                <div className="space-y-1">
                   <Label className="text-xs">Descrição</Label>
                   <Input
                     className="h-9 text-sm"
@@ -293,10 +281,14 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
                     placeholder="Descrição do item"
                   />
                 </div>
-                <div className="md:col-span-2 space-y-1">
+              </div>
+
+              {/* Linha 2: Unidade + Qtd + Desc% + Preço + Total + Excluir */}
+              <div className="grid gap-3 md:grid-cols-12 items-end">
+                <div className="md:col-span-1 space-y-1">
                   <Label className="text-xs">Unidade</Label>
                   <Input
-                    className="h-9 text-sm w-20"
+                    className="h-9 text-sm"
                     value={item.unidade ?? 'un'}
                     onChange={(e) => atualizarItem(item.key, 'unidade', e.target.value)}
                     placeholder="un"
@@ -305,7 +297,7 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
                 <div className="md:col-span-2 space-y-1">
                   <Label className="text-xs">Qtd</Label>
                   <Input
-                    className="h-9 text-sm w-20"
+                    className="h-9 text-sm"
                     type="number"
                     min="0.001"
                     step="0.001"
@@ -313,10 +305,10 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
                     onChange={(e) => atualizarItem(item.key, 'quantidade', parseFloat(e.target.value) || 0)}
                   />
                 </div>
-                <div className="md:col-span-2 space-y-1">
+                <div className="md:col-span-1 space-y-1">
                   <Label className="text-xs">Desc %</Label>
                   <Input
-                    className="h-9 text-sm w-20"
+                    className="h-9 text-sm"
                     type="number"
                     min="0"
                     max="100"
@@ -325,10 +317,6 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
                     onChange={(e) => atualizarItem(item.key, 'desconto_item', parseFloat(e.target.value) || 0)}
                   />
                 </div>
-              </div>
-
-              {/* Linha 3: Preço unitário + Valor total + Botão excluir */}
-              <div className="grid gap-3 md:grid-cols-12 items-end">
                 <div className="md:col-span-3 space-y-1">
                   <Label className="text-xs">Preço unitário</Label>
                   <div className="relative">
@@ -349,8 +337,7 @@ export function FormOrcamento({ produtos, fornecedores, categorias, leads, deals
                     <span className="text-sm font-medium text-slate-900">{formatarMoeda(calcularSubtotal(item))}</span>
                   </div>
                 </div>
-                <div className="md:col-span-5"></div>
-                <div className="md:col-span-1 flex items-end justify-end">
+                <div className="md:col-span-2 flex items-end justify-end">
                   <Button
                     type="button"
                     variant="ghost"
