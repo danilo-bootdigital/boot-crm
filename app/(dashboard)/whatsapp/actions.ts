@@ -157,8 +157,71 @@ export async function iniciarConversa(params: IniciarConversaParams): Promise<st
 
   let conversaId: string
 
+  // Garantir que existe um lead vinculado
+  let leadIdFinal = leadId || null
+
+  if (!leadIdFinal) {
+    // Buscar lead existente pelo telefone
+    const { data: leadExistente } = await supabase
+      .from('leads')
+      .select('id')
+      .eq('organization_id', perfil.organization_id)
+      .eq('telefone', formatado)
+      .limit(1)
+      .single()
+
+    if (leadExistente) {
+      leadIdFinal = leadExistente.id
+    } else {
+      // Criar lead — buscar nome do contato cadastrado
+      let nomeLead = 'Contato WhatsApp'
+      if (contatoId) {
+        const { data: contato } = await supabase
+          .from('contacts')
+          .select('nome')
+          .eq('id', contatoId)
+          .eq('organization_id', perfil.organization_id)
+          .single()
+        if (contato?.nome) nomeLead = contato.nome
+      } else {
+        // Buscar por telefone na tabela contacts
+        const { data: contatoPorTel } = await supabase
+          .from('contacts')
+          .select('nome')
+          .eq('organization_id', perfil.organization_id)
+          .eq('telefone', formatado)
+          .limit(1)
+          .single()
+        if (contatoPorTel?.nome) nomeLead = contatoPorTel.nome
+      }
+
+      const { data: novoLead } = await supabase
+        .from('leads')
+        .insert({
+          organization_id: perfil.organization_id,
+          nome: nomeLead,
+          telefone: formatado,
+          origem: 'whatsapp',
+          status: 'novo',
+        })
+        .select('id')
+        .single()
+
+      leadIdFinal = novoLead?.id ?? null
+    }
+  }
+
   if (conversaExistente) {
     conversaId = conversaExistente.id
+    // Vincular lead se conversa não tem
+    if (leadIdFinal) {
+      await supabase
+        .from('conversations')
+        .update({ lead_id: leadIdFinal, atualizado_em: new Date().toISOString() })
+        .eq('id', conversaId)
+        .eq('organization_id', perfil.organization_id)
+        .is('lead_id', null)
+    }
   } else {
     // Criar nova conversa
     const { data: novaConversa, error: errConversa } = await supabase
@@ -167,7 +230,7 @@ export async function iniciarConversa(params: IniciarConversaParams): Promise<st
         organization_id: perfil.organization_id,
         whatsapp_instance_id: instanciaId,
         telefone_externo: formatado,
-        lead_id: leadId || null,
+        lead_id: leadIdFinal,
         contato_id: contatoId || null,
         status: 'em_atendimento',
         responsavel_id: perfil.id,
@@ -214,18 +277,18 @@ export async function iniciarConversa(params: IniciarConversaParams): Promise<st
     .eq('id', conversaId)
 
   // Atualizar última interação do lead
-  if (leadId) {
+  if (leadIdFinal) {
     await supabase
       .from('leads')
       .update({ ultima_interacao_em: agora })
-      .eq('id', leadId)
+      .eq('id', leadIdFinal)
       .eq('organization_id', perfil.organization_id)
 
     // Criar deal no pipeline se não existir
     const { data: dealExistente } = await supabase
       .from('deals')
       .select('id')
-      .eq('lead_id', leadId)
+      .eq('lead_id', leadIdFinal)
       .is('ganho', null)
       .limit(1)
       .single()
@@ -234,13 +297,13 @@ export async function iniciarConversa(params: IniciarConversaParams): Promise<st
       const { data: leadData } = await supabase
         .from('leads')
         .select('nome, telefone, origem')
-        .eq('id', leadId)
+        .eq('id', leadIdFinal)
         .single()
 
       if (leadData) {
         await criarDealParaLead(supabase, {
           organization_id: perfil.organization_id,
-          lead_id: leadId,
+          lead_id: leadIdFinal,
           lead_nome: leadData.nome,
           lead_telefone: leadData.telefone,
           responsavel_id: perfil.id,
