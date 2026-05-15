@@ -201,10 +201,9 @@ export function GerenciarCategorias({ fornecedorId, categorias, produtos }: Prop
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1">
                 <label className="text-sm font-medium text-slate-700">Categoria *</label>
-                <Select value={categoriaImport || '__none__'} onValueChange={(v) => setCategoriaImport(v === '__none__' ? '' : (v ?? ''))}>
+                <Select value={categoriaImport} onValueChange={(v) => setCategoriaImport(v ?? '')}>
                   <SelectTrigger><SelectValue placeholder="Selecionar categoria..." /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">Selecionar...</SelectItem>
                     {categorias.map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
                     ))}
