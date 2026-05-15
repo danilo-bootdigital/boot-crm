@@ -178,7 +178,7 @@ export async function POST(req: NextRequest) {
             await criarDealParaLead(supabase, {
               organization_id: instancia.organization_id,
               lead_id: leadId,
-              lead_nome: pushName || null,
+              lead_nome: nomeLead,
               lead_telefone: telefone,
               responsavel_id: leadAtualizado?.responsavel_id ?? instancia.vendedor_id ?? null,
               origem: 'whatsapp',
@@ -316,11 +316,18 @@ export async function POST(req: NextRequest) {
               .single()
 
             if (adminPerfil) {
+              // Buscar nome real do lead (nunca usar pushName de outra pessoa)
+              const { data: leadParaDeal } = await supabase
+                .from('leads')
+                .select('nome, telefone')
+                .eq('id', leadId)
+                .single()
+
               await criarDealParaLead(supabase, {
                 organization_id: instancia.organization_id,
                 lead_id: leadId,
-                lead_nome: pushName || null,
-                lead_telefone: telefone,
+                lead_nome: leadParaDeal?.nome || null,
+                lead_telefone: leadParaDeal?.telefone || telefone,
                 responsavel_id: instancia.vendedor_id ?? null,
                 origem: 'whatsapp',
                 autor_id: adminPerfil.id,

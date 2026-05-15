@@ -83,7 +83,9 @@ export function ModalChamarWhatsapp({ nome, telefone, leadId, contatoId, instanc
 
   return (
     <Dialog open={aberto} onOpenChange={(v) => { setAberto(v); if (!v) setConversaId(null) }}>
-      <DialogTrigger render={trigger ?? botaoDefault} />
+      <DialogTrigger>
+        {trigger ?? botaoDefault}
+      </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
