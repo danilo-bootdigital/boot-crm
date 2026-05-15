@@ -288,6 +288,37 @@ export async function listarDeals() {
   }))
 }
 
+// ── Editar nome do contato ──────────────────────────────────────
+
+export async function editarNomeConversa(conversaId: string, novoNome: string) {
+  if (!novoNome.trim()) throw new Error('Nome não pode estar vazio.')
+  if (novoNome.trim().length > 200) throw new Error('Nome muito longo.')
+
+  const { supabase, perfil } = await getPerfilAutenticado()
+
+  // Buscar conversa e lead vinculado
+  const { data: conversa } = await supabase
+    .from('conversations')
+    .select('id, lead_id')
+    .eq('id', conversaId)
+    .eq('organization_id', perfil.organization_id)
+    .single()
+
+  if (!conversa) throw new Error('Conversa não encontrada.')
+
+  if (conversa.lead_id) {
+    // Atualizar nome do lead
+    await supabase
+      .from('leads')
+      .update({ nome: novoNome.trim(), atualizado_em: new Date().toISOString() })
+      .eq('id', conversa.lead_id)
+      .eq('organization_id', perfil.organization_id)
+  }
+
+  revalidatePath('/whatsapp')
+  revalidatePath(`/whatsapp/${conversaId}`)
+}
+
 // ── Log de auditoria ────────────────────────────────────────────
 
 export async function listarAuditLog(conversaId: string) {

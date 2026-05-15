@@ -1,15 +1,19 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { ThreadMensagens } from './thread-mensagens'
 import { FormEnvioMensagem } from './form-envio-mensagem'
 import { PainelDetalhesConversa } from './painel-detalhes-conversa'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { ModalExportarConversaButton } from './modal-exportar-conversa-button'
 import Link from 'next/link'
-import { ChevronLeft, PanelRightOpen } from 'lucide-react'
+import { ChevronLeft, PanelRightOpen, Pencil, Check, X } from 'lucide-react'
 import { formatarTelefone, iniciais } from '@/lib/telefone'
+import { editarNomeConversa } from '@/app/(dashboard)/whatsapp/actions-conversa'
 
 type ConversaStatus = 'nao_atendida' | 'em_atendimento' | 'aguardando_cliente' | 'finalizada'
 type TagType = { id: string; nome: string; cor: string }
@@ -74,7 +78,28 @@ export function ConversaLayout({
   perfilNome,
 }: Props) {
   const [painelAberto, setPainelAberto] = useState(false)
+  const [editandoNome, setEditandoNome] = useState(false)
+  const [novoNome, setNovoNome] = useState(titulo)
+  const [isPending, startTransition] = useTransition()
+  const router = useRouter()
   const badge = STATUS_BADGE[status]
+
+  function salvarNome() {
+    if (!novoNome.trim()) {
+      toast.error('Nome não pode estar vazio.')
+      return
+    }
+    startTransition(async () => {
+      try {
+        await editarNomeConversa(conversaId, novoNome.trim())
+        toast.success('Nome atualizado.')
+        setEditandoNome(false)
+        router.refresh()
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : 'Erro ao salvar.')
+      }
+    })
+  }
 
   return (
     <div className="flex h-full">
@@ -92,7 +117,30 @@ export function ConversaLayout({
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <p className="text-sm font-semibold text-slate-900 truncate">{titulo}</p>
+              {editandoNome ? (
+                <div className="flex items-center gap-1">
+                  <Input
+                    className="h-7 text-sm w-48"
+                    value={novoNome}
+                    onChange={(e) => setNovoNome(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') salvarNome(); if (e.key === 'Escape') setEditandoNome(false) }}
+                    autoFocus
+                  />
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-green-600" onClick={salvarNome} disabled={isPending}>
+                    <Check className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400" onClick={() => { setEditandoNome(false); setNovoNome(titulo) }}>
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold text-slate-900 truncate">{titulo}</p>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:text-blue-600" onClick={() => { setEditandoNome(true); setNovoNome(titulo) }}>
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                </>
+              )}
               <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[12px] font-medium ${badge.variant}`}>
                 {badge.label}
               </span>
