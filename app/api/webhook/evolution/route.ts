@@ -3,9 +3,33 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { distribuirLead } from '@/lib/distribuicao'
 import { criarDealParaLead } from '@/lib/pipeline-lead'
 import { baixarMidia } from '@/lib/evolution'
+import { telefonesIguais } from '@/lib/telefone'
 
 function normalizarTelefone(jid: string): string {
   return jid.replace(/@.*$/, '').replace(/:\d+$/, '')
+}
+
+// Busca contato por telefone normalizado (considera variações de formato)
+async function buscarContatoPorTelefone(
+  supabase: ReturnType<typeof createAdminClient>,
+  organizationId: string,
+  telefone: string
+): Promise<{ id: string; nome: string } | null> {
+  const { data: contatos } = await supabase
+    .from('contacts')
+    .select('id, nome, telefone')
+    .eq('organization_id', organizationId)
+    .not('telefone', 'is', null)
+
+  if (!contatos || contatos.length === 0) return null
+
+  for (const c of contatos) {
+    if (!c.telefone) continue
+    if (telefonesIguais(telefone, c.telefone)) {
+      return { id: c.id, nome: c.nome }
+    }
+  }
+  return null
 }
 
 export async function POST(req: NextRequest) {
@@ -132,13 +156,7 @@ export async function POST(req: NextRequest) {
       leadId = (leadExistente?.id as string) ?? null
 
       // Checar se existe contato cadastrado com este telefone
-      const { data: contatoExistente } = await supabase
-        .from('contacts')
-        .select('id, nome')
-        .eq('organization_id', instancia.organization_id)
-        .eq('telefone', telefone)
-        .limit(1)
-        .single()
+      const contatoExistente = await buscarContatoPorTelefone(supabase, instancia.organization_id, telefone)
 
       // Criar lead para qualquer nova conversa (recebida ou enviada pelo celular)
       if (!leadId) {
@@ -252,13 +270,7 @@ export async function POST(req: NextRequest) {
           updateData.lead_id = leadId
         } else {
           // Criar lead para conversa órfã — buscar nome do contato cadastrado
-          const { data: contatoCadastrado } = await supabase
-            .from('contacts')
-            .select('nome')
-            .eq('organization_id', instancia.organization_id)
-            .eq('telefone', telefone)
-            .limit(1)
-            .single()
+          const contatoCadastrado = await buscarContatoPorTelefone(supabase, instancia.organization_id, telefone)
 
           const nomeLead = contatoCadastrado?.nome?.trim() || pushName?.trim() || 'Contato WhatsApp'
           const { data: novoLead } = await supabase
@@ -295,13 +307,7 @@ export async function POST(req: NextRequest) {
             || /^\d{8,15}$/.test(nomeAtual.replace(/\D/g, ''))
           if (ehGenerico) {
             // Prioridade: contato cadastrado > pushName
-            const { data: contatoNome } = await supabase
-              .from('contacts')
-              .select('nome')
-              .eq('organization_id', instancia.organization_id)
-              .eq('telefone', telefone)
-              .limit(1)
-              .single()
+            const contatoNome = await buscarContatoPorTelefone(supabase, instancia.organization_id, telefone)
 
             const novoNome = contatoNome?.nome?.trim() || pushName?.trim()
             if (novoNome) {

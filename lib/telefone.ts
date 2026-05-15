@@ -56,3 +56,27 @@ function pareceTelefone(str: string): boolean {
   const limpo = str.replace(/[\s\-\(\)\+]/g, '')
   return /^\d{8,15}$/.test(limpo)
 }
+
+/**
+ * Extrai DDD+número (sem DDI 55) para comparação normalizada
+ */
+export function normalizarParaBusca(tel: string): string {
+  const digits = tel.replace(/\D/g, '')
+  if (digits.length >= 12 && digits.startsWith('55')) {
+    return digits.slice(2)
+  }
+  return digits
+}
+
+/**
+ * Compara dois telefones considerando variações de formato e nono dígito
+ */
+export function telefonesIguais(tel1: string, tel2: string): boolean {
+  const a = normalizarParaBusca(tel1)
+  const b = normalizarParaBusca(tel2)
+  if (a === b) return true
+  // Nono dígito: 11 dígitos vs 10 (celular com/sem 9)
+  if (a.length === 11 && b.length === 10 && a.slice(0, 2) === b.slice(0, 2) && a.slice(3) === b.slice(2)) return true
+  if (b.length === 11 && a.length === 10 && b.slice(0, 2) === a.slice(0, 2) && b.slice(3) === a.slice(2)) return true
+  return false
+}

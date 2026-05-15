@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { enviarTexto, enviarImagem, enviarAudio, enviarDocumento } from '@/lib/evolution'
 import { validarTelefone } from '@/lib/utils'
 import { criarDealParaLead } from '@/lib/pipeline-lead'
+import { telefonesIguais } from '@/lib/telefone'
 
 export async function enviarMensagem(conversaId: string, texto: string) {
   if (!texto.trim()) throw new Error('Mensagem não pode estar vazia.')
@@ -184,14 +185,14 @@ export async function iniciarConversa(params: IniciarConversaParams): Promise<st
           .single()
         if (contato?.nome) nomeLead = contato.nome
       } else {
-        // Buscar por telefone na tabela contacts
-        const { data: contatoPorTel } = await supabase
+        // Buscar por telefone na tabela contacts (comparação normalizada)
+        const { data: todosContatos } = await supabase
           .from('contacts')
-          .select('nome')
+          .select('nome, telefone')
           .eq('organization_id', perfil.organization_id)
-          .eq('telefone', formatado)
-          .limit(1)
-          .single()
+          .not('telefone', 'is', null)
+
+        const contatoPorTel = (todosContatos ?? []).find((c) => c.telefone && telefonesIguais(formatado, c.telefone))
         if (contatoPorTel?.nome) nomeLead = contatoPorTel.nome
       }
 
