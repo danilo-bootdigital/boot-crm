@@ -117,7 +117,7 @@ export async function iniciarConversa(params: IniciarConversaParams): Promise<st
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  if (!user) throw new Error('Sessão expirada. Faça login novamente.')
 
   const { data: perfil } = await supabase
     .from('profiles')
@@ -125,7 +125,7 @@ export async function iniciarConversa(params: IniciarConversaParams): Promise<st
     .eq('id', user.id)
     .single()
 
-  if (!perfil) redirect('/login')
+  if (!perfil) throw new Error('Perfil não encontrado. Faça login novamente.')
 
   // Verificar acesso à instância
   const { data: instancia } = await supabase
