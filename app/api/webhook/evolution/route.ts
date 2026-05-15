@@ -63,6 +63,11 @@ export async function POST(req: NextRequest) {
     const messageTimestamp = (data?.messageTimestamp as number) ?? Math.floor(Date.now() / 1000)
     const messageType = (data?.messageType as string) ?? 'conversation'
     const message = (data?.message ?? {}) as Record<string, unknown>
+
+    // Ignorar mensagens de protocolo/sistema que não são conteúdo real
+    const tiposIgnorados = ['protocolMessage', 'reactionMessage', 'ephemeralMessage', 'senderKeyDistributionMessage']
+    if (tiposIgnorados.includes(messageType)) return NextResponse.json({ ok: true })
+
     const conteudo =
       (message?.conversation as string) ??
       ((message?.extendedTextMessage as Record<string, unknown>)?.text as string) ??
@@ -72,10 +77,17 @@ export async function POST(req: NextRequest) {
       (messageType === 'documentMessage' ? '[Documento]' : null) ??
       (messageType === 'stickerMessage' ? '[Sticker]' : null) ??
       (messageType === 'locationMessage' ? '[Localização]' : null) ??
+      (messageType === 'contactMessage' ? '[Contato]' : null) ??
+      (messageType === 'contactsArrayMessage' ? '[Contatos]' : null) ??
       null
 
     // Ignorar grupos
     if (remoteJid.endsWith('@g.us')) return NextResponse.json({ ok: true })
+
+    // Ignorar mensagens sem conteúdo (status broadcasts, etc)
+    if (!conteudo && !['imageMessage', 'audioMessage', 'videoMessage', 'documentMessage', 'stickerMessage'].includes(messageType)) {
+      return NextResponse.json({ ok: true })
+    }
 
     const telefone = normalizarTelefone(remoteJid)
     const enviadoEm = new Date(messageTimestamp * 1000).toISOString()
@@ -93,7 +105,7 @@ export async function POST(req: NextRequest) {
     // Buscar ou criar conversa
     const { data: conversa, error: errConversa } = await supabase
       .from('conversations')
-      .select('id, lead_id, status')
+      .select('id, lead_id, status, responsavel_id')
       .eq('whatsapp_instance_id', instancia.id)
       .eq('telefone_externo', telefone)
       .single()
@@ -119,8 +131,8 @@ export async function POST(req: NextRequest) {
 
       leadId = (leadExistente?.id as string) ?? null
 
-      if (!leadId && !fromMe) {
-        // Criar novo lead apenas para mensagens recebidas
+      // Criar lead para qualquer nova conversa (recebida ou enviada pelo celular)
+      if (!leadId) {
         const nomeLead = pushName?.trim() || 'Contato WhatsApp'
         const { data: novoLead } = await supabase
           .from('leads')
@@ -176,7 +188,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Criar conversa — mensagem recebida inicia como nao_atendida, enviada como em_atendimento
+      // Criar conversa
       const { data: novaConversa } = await supabase
         .from('conversations')
         .insert({
@@ -186,9 +198,9 @@ export async function POST(req: NextRequest) {
           telefone_externo: telefone,
           ultima_mensagem_em: enviadoEm,
           status: fromMe ? 'em_atendimento' : 'nao_atendida',
-          responsavel_id: fromMe ? instancia.vendedor_id : null,
+          responsavel_id: instancia.vendedor_id ?? null,
         })
-        .select('id, lead_id, status')
+        .select('id, lead_id, status, responsavel_id')
         .single()
       conversaAtual = novaConversa
     } else {
@@ -196,6 +208,41 @@ export async function POST(req: NextRequest) {
       const updateData: Record<string, unknown> = {
         ultima_mensagem_em: enviadoEm,
         atualizado_em: new Date().toISOString(),
+      }
+
+      // Se conversa existe mas não tem lead vinculado, tentar vincular
+      if (!leadId) {
+        const { data: leadExistente } = await supabase
+          .from('leads')
+          .select('id')
+          .eq('organization_id', instancia.organization_id)
+          .eq('telefone', telefone)
+          .limit(1)
+          .single()
+
+        if (leadExistente) {
+          leadId = leadExistente.id
+          updateData.lead_id = leadId
+        } else {
+          // Criar lead para conversa órfã
+          const nomeLead = pushName?.trim() || 'Contato WhatsApp'
+          const { data: novoLead } = await supabase
+            .from('leads')
+            .insert({
+              organization_id: instancia.organization_id,
+              nome: nomeLead,
+              telefone,
+              origem: 'whatsapp',
+              status: 'novo',
+              whatsapp_instance_id: instancia.id,
+            })
+            .select('id')
+            .single()
+          if (novoLead) {
+            leadId = novoLead.id
+            updateData.lead_id = leadId
+          }
+        }
       }
 
       // Atualizar nome do lead se pushName disponível e lead tem nome genérico
@@ -268,6 +315,10 @@ export async function POST(req: NextRequest) {
         // Mensagem enviada pelo vendedor: marcar como em_atendimento se estava nao_atendida
         if (conversaAtual.status === 'nao_atendida') {
           updateData.status = 'em_atendimento'
+        }
+        // Atribuir responsável se não tem (mensagem enviada pelo celular)
+        if (!conversaAtual.responsavel_id) {
+          updateData.responsavel_id = instancia.vendedor_id ?? null
         }
       }
 
