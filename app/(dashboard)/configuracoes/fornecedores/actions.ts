@@ -38,6 +38,21 @@ export async function criarFornecedor(formData: FormData) {
   revalidatePath('/configuracoes/fornecedores')
 }
 
+export async function editarFornecedor(id: string, nome: string) {
+  const { supabase, perfil } = await getAdminOuGestor()
+
+  if (!nome?.trim()) throw new Error('Nome é obrigatório.')
+
+  const { error } = await supabase
+    .from('suppliers')
+    .update({ nome: nome.trim() })
+    .eq('id', id)
+    .eq('organization_id', perfil.organization_id)
+
+  if (error) throw new Error(`Erro ao editar fornecedor: ${error.message}`)
+  revalidatePath('/configuracoes/fornecedores')
+}
+
 export async function excluirFornecedor(id: string) {
   const { supabase, perfil } = await getAdminOuGestor()
 
