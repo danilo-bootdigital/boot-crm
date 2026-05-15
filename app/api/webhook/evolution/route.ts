@@ -131,9 +131,19 @@ export async function POST(req: NextRequest) {
 
       leadId = (leadExistente?.id as string) ?? null
 
+      // Checar se existe contato cadastrado com este telefone
+      const { data: contatoExistente } = await supabase
+        .from('contacts')
+        .select('id, nome')
+        .eq('organization_id', instancia.organization_id)
+        .eq('telefone', telefone)
+        .limit(1)
+        .single()
+
       // Criar lead para qualquer nova conversa (recebida ou enviada pelo celular)
       if (!leadId) {
-        const nomeLead = pushName?.trim() || 'Contato WhatsApp'
+        // Prioridade de nome: contato cadastrado > pushName > genérico
+        const nomeLead = contatoExistente?.nome?.trim() || pushName?.trim() || 'Contato WhatsApp'
         const { data: novoLead } = await supabase
           .from('leads')
           .insert({
@@ -241,8 +251,16 @@ export async function POST(req: NextRequest) {
           leadId = leadExistente.id
           updateData.lead_id = leadId
         } else {
-          // Criar lead para conversa órfã
-          const nomeLead = pushName?.trim() || 'Contato WhatsApp'
+          // Criar lead para conversa órfã — buscar nome do contato cadastrado
+          const { data: contatoCadastrado } = await supabase
+            .from('contacts')
+            .select('nome')
+            .eq('organization_id', instancia.organization_id)
+            .eq('telefone', telefone)
+            .limit(1)
+            .single()
+
+          const nomeLead = contatoCadastrado?.nome?.trim() || pushName?.trim() || 'Contato WhatsApp'
           const { data: novoLead } = await supabase
             .from('leads')
             .insert({
@@ -262,8 +280,8 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Atualizar nome do lead se pushName disponível e lead tem nome genérico
-      if (!fromMe && pushName?.trim() && leadId) {
+      // Atualizar nome do lead se tem nome genérico
+      if (!fromMe && leadId) {
         const { data: leadAtual } = await supabase
           .from('leads')
           .select('nome')
@@ -276,10 +294,22 @@ export async function POST(req: NextRequest) {
             || nomeAtual === 'Contato WhatsApp'
             || /^\d{8,15}$/.test(nomeAtual.replace(/\D/g, ''))
           if (ehGenerico) {
-            await supabase
-              .from('leads')
-              .update({ nome: pushName.trim(), atualizado_em: new Date().toISOString() })
-              .eq('id', leadId)
+            // Prioridade: contato cadastrado > pushName
+            const { data: contatoNome } = await supabase
+              .from('contacts')
+              .select('nome')
+              .eq('organization_id', instancia.organization_id)
+              .eq('telefone', telefone)
+              .limit(1)
+              .single()
+
+            const novoNome = contatoNome?.nome?.trim() || pushName?.trim()
+            if (novoNome) {
+              await supabase
+                .from('leads')
+                .update({ nome: novoNome, atualizado_em: new Date().toISOString() })
+                .eq('id', leadId)
+            }
           }
         }
       }
