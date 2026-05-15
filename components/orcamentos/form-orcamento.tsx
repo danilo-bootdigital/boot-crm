@@ -12,8 +12,9 @@ import { Card, CardContent } from '@/components/ui/card'
 import { criarOrcamento, editarOrcamento } from '@/app/(dashboard)/orcamentos/actions'
 import { formatarMoeda } from '@/lib/utils'
 import { BuscaProduto } from '@/components/orcamentos/busca-produto'
-import { Plus, Trash2, CreditCard, User } from 'lucide-react'
+import { Plus, Trash2, CreditCard, User, Upload } from 'lucide-react'
 import type { Product, Supplier, SupplierCategory } from '@/types/database'
+import { ImportarItensPlanilha } from '@/components/orcamentos/importar-itens-planilha'
 
 const FORMAS_PAGAMENTO = [
   { value: 'pix', label: 'PIX' },
@@ -345,9 +346,16 @@ export function FormOrcamento({ produtos, fornecedores, categorias, deals, conta
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <Label className="text-base font-semibold">Itens</Label>
-          <Button type="button" variant="outline" size="sm" onClick={adicionarItem} className="gap-1">
-            <Plus className="h-3.5 w-3.5" /> Adicionar item
-          </Button>
+          <div className="flex items-center gap-2">
+            <ImportarItensPlanilha
+              produtos={produtosFiltrados}
+              onImportar={(novos) => setItens((prev) => [...prev, ...novos])}
+              disabled={!supplierId}
+            />
+            <Button type="button" variant="outline" size="sm" onClick={adicionarItem} className="gap-1">
+              <Plus className="h-3.5 w-3.5" /> Adicionar item
+            </Button>
+          </div>
         </div>
 
         {itens.map((item) => (
