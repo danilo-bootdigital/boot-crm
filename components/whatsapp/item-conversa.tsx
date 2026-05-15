@@ -4,6 +4,7 @@ import { ptBR } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { AlertCircle } from 'lucide-react'
+import { nomeExibicao, iniciais, formatarTelefone } from '@/lib/telefone'
 
 type ConversaStatus = 'nao_atendida' | 'em_atendimento' | 'aguardando_cliente' | 'finalizada'
 
@@ -31,7 +32,9 @@ const STATUS_DOT: Record<ConversaStatus, string> = {
 }
 
 export function ItemConversa({ conversa, ativa }: Props) {
-  const nome = conversa.lead?.nome ?? conversa.telefone_externo
+  const nome = nomeExibicao(conversa.lead?.nome, conversa.telefone_externo)
+  const telefoneFormatado = formatarTelefone(conversa.telefone_externo)
+  const avatarIniciais = iniciais(conversa.lead?.nome ?? nome)
   const hora = conversa.ultima_mensagem_em
     ? format(new Date(conversa.ultima_mensagem_em), 'HH:mm', { locale: ptBR })
     : ''
@@ -50,13 +53,16 @@ export function ItemConversa({ conversa, ativa }: Props) {
         semResposta && 'bg-red-50/50'
       )}
     >
-      <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-700 font-semibold text-sm">
-        {nome.charAt(0).toUpperCase()}
+      <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-700 font-semibold text-xs">
+        {avatarIniciais}
         <span className={cn('absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full ring-2 ring-white', STATUS_DOT[conversa.status])} />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-medium text-slate-900 truncate">{nome}</p>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-slate-900 truncate">{nome}</p>
+            <p className="text-[11px] text-slate-400 truncate">{telefoneFormatado}</p>
+          </div>
           <div className="flex items-center gap-1 shrink-0 ml-2">
             {semResposta && (
               <span className="flex items-center gap-0.5 text-[12px] text-red-600 font-medium">

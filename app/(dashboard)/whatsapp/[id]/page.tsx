@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import { ConversaLayout } from '@/components/whatsapp/conversa-layout'
+import { nomeExibicao } from '@/lib/telefone'
 
 export default async function ConversaPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient()
@@ -123,7 +124,7 @@ export default async function ConversaPage({ params }: { params: Promise<{ id: s
 
   const lead = (Array.isArray(conversa.lead) ? conversa.lead[0] : conversa.lead) as { id: string; nome: string | null } | null
   const instancia = (Array.isArray(conversa.instancia) ? conversa.instancia[0] : conversa.instancia) as { nome: string; status_conexao: string } | null
-  const titulo = lead?.nome ?? conversa.telefone_externo as string
+  const titulo = nomeExibicao(lead?.nome, conversa.telefone_externo as string)
 
   return (
     <ConversaLayout

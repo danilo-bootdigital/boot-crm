@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { ModalExportarConversaButton } from './modal-exportar-conversa-button'
 import Link from 'next/link'
 import { ChevronLeft, PanelRightOpen } from 'lucide-react'
+import { formatarTelefone, iniciais } from '@/lib/telefone'
 
 type ConversaStatus = 'nao_atendida' | 'em_atendimento' | 'aguardando_cliente' | 'finalizada'
 type TagType = { id: string; nome: string; cor: string }
@@ -86,8 +87,8 @@ export function ConversaLayout({
               <ChevronLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-green-100 text-green-700 font-semibold text-sm shrink-0">
-            {titulo.charAt(0).toUpperCase()}
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-green-100 text-green-700 font-semibold text-xs shrink-0">
+            {iniciais(titulo)}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
@@ -98,7 +99,7 @@ export function ConversaLayout({
             </div>
             <div className="flex items-center gap-1 flex-wrap">
               <p className="text-xs text-slate-400">
-                {telefone}
+                {formatarTelefone(telefone)}
                 {instanciaNome && ` · ${instanciaNome}`}
                 {!instanciaConectada && ' · ⚠ Desconectado'}
               </p>

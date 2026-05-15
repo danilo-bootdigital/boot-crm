@@ -121,11 +121,12 @@ export async function POST(req: NextRequest) {
 
       if (!leadId && !fromMe) {
         // Criar novo lead apenas para mensagens recebidas
+        const nomeLead = pushName?.trim() || 'Contato WhatsApp'
         const { data: novoLead } = await supabase
           .from('leads')
           .insert({
             organization_id: instancia.organization_id,
-            nome: pushName || telefone,
+            nome: nomeLead,
             telefone,
             origem: 'whatsapp',
             status: 'novo',
@@ -195,6 +196,28 @@ export async function POST(req: NextRequest) {
       const updateData: Record<string, unknown> = {
         ultima_mensagem_em: enviadoEm,
         atualizado_em: new Date().toISOString(),
+      }
+
+      // Atualizar nome do lead se pushName disponível e lead tem nome genérico
+      if (!fromMe && pushName?.trim() && leadId) {
+        const { data: leadAtual } = await supabase
+          .from('leads')
+          .select('nome')
+          .eq('id', leadId)
+          .single()
+
+        if (leadAtual) {
+          const nomeAtual = leadAtual.nome?.trim() ?? ''
+          const ehGenerico = !nomeAtual
+            || nomeAtual === 'Contato WhatsApp'
+            || /^\d{8,15}$/.test(nomeAtual.replace(/\D/g, ''))
+          if (ehGenerico) {
+            await supabase
+              .from('leads')
+              .update({ nome: pushName.trim(), atualizado_em: new Date().toISOString() })
+              .eq('id', leadId)
+          }
+        }
       }
 
       if (!fromMe) {
