@@ -201,9 +201,10 @@ export function GerenciarCategorias({ fornecedorId, categorias, produtos }: Prop
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1">
                 <label className="text-sm font-medium text-slate-700">Categoria *</label>
-                <Select value={categoriaImport} onValueChange={(v) => setCategoriaImport(v ?? '')}>
+                <Select value={categoriaImport || '__none__'} onValueChange={(v) => setCategoriaImport(v === '__none__' ? '' : (v ?? ''))}>
                   <SelectTrigger><SelectValue placeholder="Selecionar categoria..." /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="__none__" disabled>Selecionar...</SelectItem>
                     {categorias.map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
                     ))}
@@ -225,7 +226,7 @@ export function GerenciarCategorias({ fornecedorId, categorias, produtos }: Prop
                       <span className="text-sm text-slate-500">Selecionar planilha...</span>
                     </>
                   )}
-                  <input type="file" accept=".xlsx,.xls,.csv" onChange={handleUpload} className="hidden" />
+                  <input type="file" accept=".xlsx,.xls,.csv" onChange={handleUpload} onClick={(e) => { (e.target as HTMLInputElement).value = '' }} className="hidden" />
                 </label>
               </div>
             </div>
