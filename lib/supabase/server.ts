@@ -4,7 +4,7 @@ import { cookies } from 'next/headers'
 export async function createClient() {
   const cookieStore = await cookies()
 
-  return createServerClient(
+  const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -24,4 +24,10 @@ export async function createClient() {
       },
     }
   )
+
+  // Forçar refresh da sessão para manter token válido
+  // Isso garante que o token é renovado mesmo em Server Actions
+  await supabase.auth.getUser()
+
+  return supabase
 }
