@@ -62,11 +62,12 @@ export function BotaoExportarPdf(props: Props) {
     const pageWidth = doc.internal.pageSize.getWidth()
     const pageHeight = doc.internal.pageSize.getHeight()
     const margin = 14
+    const headerBottom = 44
 
-    // === CABEÇALHO (layout conforme modelo) ===
+    // === CABEÇALHO (layout modelo) ===
 
-    // Logo à esquerda
-    let logoEndX = margin
+    // Logo à esquerda (área generosa)
+    let logoAreaEnd = margin + 44
     if (props.empresa?.logo_url) {
       try {
         const img = new Image()
@@ -83,8 +84,8 @@ export function BotaoExportarPdf(props: Props) {
         ctx.drawImage(img, 0, 0)
         const imgData = canvas.toDataURL('image/png')
 
-        const maxW = 35
-        const maxH = 28
+        const maxW = 40
+        const maxH = 30
         const ratio = img.naturalWidth / img.naturalHeight
         let logoW = maxW
         let logoH = logoW / ratio
@@ -92,74 +93,72 @@ export function BotaoExportarPdf(props: Props) {
           logoH = maxH
           logoW = logoH * ratio
         }
-        doc.addImage(imgData, 'PNG', margin, 8, logoW, logoH)
-        logoEndX = margin + logoW + 3
+        const logoY = 6 + (headerBottom - 12 - logoH) / 2
+        doc.addImage(imgData, 'PNG', margin + 2, logoY, logoW, logoH)
+        logoAreaEnd = margin + logoW + 8
       } catch {
         // segue sem logo
       }
     }
 
-    // Separador vertical verde ao lado do logo
-    doc.setDrawColor(...GREEN_MID)
-    doc.setLineWidth(0.6)
-    doc.line(logoEndX, 8, logoEndX, 36)
+    // Separador vertical verde
+    doc.setDrawColor(...GREEN_DARK)
+    doc.setLineWidth(0.8)
+    doc.line(logoAreaEnd, 8, logoAreaEnd, headerBottom - 6)
 
-    // Dados da empresa ao lado do separador
-    const infoX = logoEndX + 4
+    // Dados da empresa (ao lado do separador)
+    const empresaX = logoAreaEnd + 5
     doc.setTextColor(...DARK_TEXT)
-    doc.setFontSize(11)
+    doc.setFontSize(12)
     doc.setFont(undefined!, 'bold')
     const nomeEmpresa = props.empresa?.nome_fantasia || 'Empresa'
-    doc.text(nomeEmpresa, infoX, 14)
+    doc.text(nomeEmpresa, empresaX, 15)
 
-    doc.setFontSize(7.5)
-    doc.setFont(undefined!, 'normal')
-    doc.setTextColor(...GRAY_TEXT)
-    let infoY = 19
-    if (props.empresa?.telefone) {
-      doc.text(props.empresa.telefone, infoX, infoY)
-      infoY += 4
-    }
-    if (props.empresa?.site) {
-      doc.text(props.empresa.site, infoX, infoY)
-      infoY += 4
-    }
-    if (props.empresa?.instagram) {
-      doc.text(props.empresa.instagram, infoX, infoY)
-      infoY += 4
-    }
-    if (props.empresa?.email) {
-      doc.text(props.empresa.email, infoX, infoY)
-    }
-
-    // "ORÇAMENTO" centralizado
-    doc.setTextColor(...GREEN_DARK)
-    doc.setFontSize(20)
-    doc.setFont(undefined!, 'bold')
-    doc.text('ORÇAMENTO', pageWidth / 2, 14, { align: 'center' })
-
-    // Sublinhado verde abaixo de "ORÇAMENTO"
-    const orcTextoW = doc.getTextWidth('ORÇAMENTO')
-    doc.setDrawColor(...GREEN_ACCENT)
-    doc.setLineWidth(1.2)
-    doc.line(pageWidth / 2 - orcTextoW / 2, 16, pageWidth / 2 + orcTextoW / 2, 16)
-
-    // Dados do orçamento à direita
     doc.setFontSize(8.5)
     doc.setFont(undefined!, 'normal')
     doc.setTextColor(...GRAY_TEXT)
-    doc.text(`Nº ${props.numero}`, pageWidth - margin, 22, { align: 'right' })
-    doc.text(`Data: ${props.criadoEm}`, pageWidth - margin, 27, { align: 'right' })
+    let empY = 21
+    if (props.empresa?.telefone) {
+      doc.text(props.empresa.telefone, empresaX, empY)
+      empY += 5
+    }
+    if (props.empresa?.site) {
+      doc.text(props.empresa.site, empresaX, empY)
+      empY += 5
+    }
+    if (props.empresa?.instagram) {
+      doc.text(props.empresa.instagram, empresaX, empY)
+    }
+
+    // "ORÇAMENTO" grande em verde escuro (centro-direita)
+    doc.setTextColor(...GREEN_DARK)
+    doc.setFontSize(22)
+    doc.setFont(undefined!, 'bold')
+    doc.text('ORÇAMENTO', pageWidth - margin, 16, { align: 'right' })
+
+    // Sublinhado verde
+    const orcW = doc.getTextWidth('ORÇAMENTO')
+    doc.setDrawColor(...GREEN_ACCENT)
+    doc.setLineWidth(1.2)
+    doc.line(pageWidth - margin - orcW, 18, pageWidth - margin, 18)
+
+    // Dados do orçamento (abaixo de "ORÇAMENTO", alinhados à direita)
+    doc.setFontSize(8.5)
+    doc.setFont(undefined!, 'normal')
+    doc.setTextColor(...GRAY_TEXT)
+    doc.text(`Nº ${props.numero}`, pageWidth - margin, 24, { align: 'right' })
+    doc.text(`Data: ${props.criadoEm}`, pageWidth - margin, 29, { align: 'right' })
+    doc.text(`Proposta: ${props.numero}`, pageWidth - margin, 34, { align: 'right' })
     doc.setFont(undefined!, 'bold')
     doc.setTextColor(...DARK_TEXT)
-    doc.text(`Responsável: ${props.responsavel}`, pageWidth - margin, 32, { align: 'right' })
+    doc.text(props.responsavel, pageWidth - margin, 39, { align: 'right' })
 
-    // Barra verde grossa inferior do cabeçalho
+    // Barra verde grossa na base do cabeçalho
     doc.setFillColor(...GREEN_DARK)
-    doc.rect(margin, 40, pageWidth - margin * 2, 3, 'F')
+    doc.rect(margin, headerBottom, pageWidth - margin * 2, 3, 'F')
 
     // === SEÇÃO CLIENTE ===
-    let y = 50
+    let y = headerBottom + 10
 
     // Barra verde "CLIENTE"
     doc.setFillColor(...GREEN_MID)
