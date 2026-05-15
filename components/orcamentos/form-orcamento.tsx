@@ -113,17 +113,10 @@ export function FormOrcamento({ produtos, fornecedores, categorias, deals, conta
 
   function handleFornecedorChange(novoId: string | null) {
     const id = (!novoId || novoId === '__none__') ? '' : novoId
-    // Se já tem itens com produto selecionado de outro fornecedor, avisar
     const temProdutoSelecionado = itens.some((i) => i.product_id)
     if (temProdutoSelecionado && id !== supplierId) {
-      const confirmar = window.confirm(
-        'Trocar de fornecedor vai limpar os produtos selecionados nos itens. Continuar?'
-      )
-      if (!confirmar) return
-      // Limpar produtos dos itens
-      setItens((prev) =>
-        prev.map((i) => ({ ...i, product_id: null, descricao: '', preco_unitario: 0 }))
-      )
+      toast.error('Remova os produtos dos itens antes de trocar de fornecedor.')
+      return
     }
     setSupplierId(id)
     setCategoryId('')
@@ -177,6 +170,10 @@ export function FormOrcamento({ produtos, fornecedores, categorias, deals, conta
   const valorTotal = valorSubtotal * (1 - descontoGeral / 100) + frete
 
   function handleSubmit() {
+    if (!supplierId) {
+      toast.error('Selecione um fornecedor.')
+      return
+    }
     if (itens.length === 0) {
       toast.error('Adicione ao menos um item.')
       return
@@ -202,7 +199,7 @@ export function FormOrcamento({ produtos, fornecedores, categorias, deals, conta
         const dados = {
           lead_id: null,
           deal_id: dealId || null,
-          supplier_id: supplierId || null,
+          supplier_id: supplierId,
           contato_id: contatoId || null,
           observacoes: observacoes || null,
           endereco_entrega: enderecoEntrega || null,
@@ -312,11 +309,10 @@ export function FormOrcamento({ produtos, fornecedores, categorias, deals, conta
           <Select value={supplierId || '__none__'} onValueChange={handleFornecedorChange} aria-required="true">
             <SelectTrigger>
               <span className="flex flex-1 text-left truncate">
-                {supplierId ? fornecedores.find(f => f.id === supplierId)?.nome ?? 'Selecionar...' : 'Todos (sem filtro)'}
+                {supplierId ? fornecedores.find(f => f.id === supplierId)?.nome ?? 'Selecionar...' : 'Selecionar fornecedor...'}
               </span>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__none__">Todos (sem filtro)</SelectItem>
               {fornecedores.map((f) => (
                 <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
               ))}

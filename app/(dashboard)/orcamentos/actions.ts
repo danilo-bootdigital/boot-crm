@@ -50,10 +50,34 @@ function validarItensEDesconto(itens: ItemInput[], descontoGeral: number) {
   }
 }
 
+async function validarFornecedorItens(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  supplierId: string,
+  itens: ItemInput[]
+) {
+  const productIds = itens
+    .map((i) => i.product_id)
+    .filter((id): id is string => id !== null)
+
+  if (productIds.length === 0) return
+
+  const { data: products, error } = await supabase
+    .from('products')
+    .select('id, supplier_id')
+    .in('id', productIds)
+
+  if (error) throw new Error('Erro ao validar produtos do fornecedor.')
+
+  const invalidos = products?.filter((p) => p.supplier_id !== supplierId)
+  if (invalidos && invalidos.length > 0) {
+    throw new Error('Um ou mais produtos não pertencem ao fornecedor selecionado. Não é permitido misturar fornecedores em um orçamento.')
+  }
+}
+
 export async function criarOrcamento(dados: {
   lead_id: string | null
   deal_id: string | null
-  supplier_id: string | null
+  supplier_id: string
   contato_id: string | null
   observacoes: string | null
   endereco_entrega: string | null
@@ -64,8 +88,10 @@ export async function criarOrcamento(dados: {
 }) {
   const { supabase, perfil } = await getUsuarioEOrg()
 
+  if (!dados.supplier_id) throw new Error('Fornecedor é obrigatório.')
   if (dados.itens.length === 0) throw new Error('Adicione ao menos um item.')
   validarItensEDesconto(dados.itens, dados.desconto_geral)
+  await validarFornecedorItens(supabase, dados.supplier_id, dados.itens)
 
   const { subtotais, valorSubtotal, valorTotal } = calcularTotais(dados.itens, dados.desconto_geral, dados.frete)
 
@@ -76,7 +102,7 @@ export async function criarOrcamento(dados: {
       responsavel_id: perfil.id,
       lead_id: dados.lead_id || null,
       deal_id: dados.deal_id || null,
-      supplier_id: dados.supplier_id || null,
+      supplier_id: dados.supplier_id,
       contato_id: dados.contato_id || null,
       observacoes: dados.observacoes || null,
       endereco_entrega: dados.endereco_entrega || null,
@@ -112,7 +138,7 @@ export async function criarOrcamento(dados: {
 export async function editarOrcamento(orcamentoId: string, dados: {
   lead_id?: string | null
   deal_id?: string | null
-  supplier_id?: string | null
+  supplier_id: string
   contato_id?: string | null
   observacoes: string | null
   endereco_entrega?: string | null
@@ -123,6 +149,7 @@ export async function editarOrcamento(orcamentoId: string, dados: {
 }) {
   const { supabase, perfil } = await getUsuarioEOrg()
 
+  if (!dados.supplier_id) throw new Error('Fornecedor é obrigatório.')
   if (dados.itens.length === 0) throw new Error('Adicione ao menos um item.')
   validarItensEDesconto(dados.itens, dados.desconto_geral)
 
@@ -141,6 +168,8 @@ export async function editarOrcamento(orcamentoId: string, dados: {
     throw new Error('Você só pode editar seus próprios orçamentos.')
   }
 
+  await validarFornecedorItens(supabase, dados.supplier_id, dados.itens)
+
   const { subtotais, valorSubtotal, valorTotal } = calcularTotais(dados.itens, dados.desconto_geral, dados.frete ?? 0)
 
   const { error: updateError } = await supabase
@@ -148,7 +177,7 @@ export async function editarOrcamento(orcamentoId: string, dados: {
     .update({
       lead_id: dados.lead_id ?? null,
       deal_id: dados.deal_id ?? null,
-      supplier_id: dados.supplier_id ?? null,
+      supplier_id: dados.supplier_id,
       contato_id: dados.contato_id ?? null,
       observacoes: dados.observacoes || null,
       endereco_entrega: dados.endereco_entrega ?? null,
