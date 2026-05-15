@@ -61,6 +61,52 @@ export function ListaConversas({ conversasIniciais, organizationId, usuarios, to
       }, () => {
         router.refresh()
       })
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `organization_id=eq.${organizationId}`,
+      }, (payload) => {
+        const msg = payload.new as Record<string, unknown>
+        const convId = msg.conversation_id as string
+        const conteudo = msg.conteudo as string | null
+        const enviadoEm = msg.enviado_em as string
+
+        setConversas((prev) => {
+          const idx = prev.findIndex((c) => c.id === convId)
+          if (idx === -1) {
+            // Nova conversa — refresh para buscar dados completos
+            router.refresh()
+            return prev
+          }
+          const updated = [...prev]
+          updated[idx] = {
+            ...updated[idx],
+            ultima_mensagem: conteudo ?? updated[idx].ultima_mensagem,
+            ultima_mensagem_em: enviadoEm ?? updated[idx].ultima_mensagem_em,
+          }
+          // Reordenar: conversa com nova mensagem vai pro topo
+          const [moved] = updated.splice(idx, 1)
+          updated.unshift(moved)
+          return updated
+        })
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'leads',
+        filter: `organization_id=eq.${organizationId}`,
+      }, (payload) => {
+        const lead = payload.new as Record<string, unknown>
+        const leadId = lead.id as string
+        const nome = lead.nome as string | null
+
+        setConversas((prev) =>
+          prev.map((c) =>
+            c.lead?.id === leadId ? { ...c, lead: { ...c.lead, nome } } : c
+          )
+        )
+      })
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
