@@ -1,4 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { formatarTelefone } from '@/lib/telefone'
+
+function pareceTelefone(str: string): boolean {
+  const limpo = str.replace(/[\s\-\(\)\+]/g, '')
+  return /^\d{8,15}$/.test(limpo)
+}
 
 export async function criarDealParaLead(
   supabase: SupabaseClient,
@@ -34,7 +40,15 @@ export async function criarDealParaLead(
 
   if (!primeiraEtapa) return null
 
-  const titulo = params.lead_nome || params.lead_telefone || 'Novo Lead'
+  // Título: usar nome do lead se existir e não for genérico, senão telefone formatado
+  let titulo: string
+  if (params.lead_nome && params.lead_nome.trim() && !pareceTelefone(params.lead_nome) && params.lead_nome !== 'Contato WhatsApp') {
+    titulo = params.lead_nome.trim()
+  } else if (params.lead_telefone) {
+    titulo = formatarTelefone(params.lead_telefone)
+  } else {
+    titulo = 'Novo Lead'
+  }
 
   const { data: deal, error } = await supabase
     .from('deals')
