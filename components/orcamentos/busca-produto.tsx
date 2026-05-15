@@ -22,8 +22,8 @@ export function BuscaProduto({ produtos, value, onSelect }: Props) {
   const produtoSelecionado = value ? produtos.find(p => p.id === value) : null
 
   const filtrados = busca.trim()
-    ? produtos.filter(p => p.nome.toLowerCase().includes(busca.toLowerCase())).slice(0, 12)
-    : produtos.slice(0, 12)
+    ? produtos.filter(p => p.nome.toLowerCase().includes(busca.toLowerCase()))
+    : produtos
 
   const opcoes = [{ id: '__livre__', nome: 'Descrição livre' }, ...filtrados]
 
@@ -147,7 +147,7 @@ export function BuscaProduto({ produtos, value, onSelect }: Props) {
           id={listboxId}
           ref={listRef}
           role="listbox"
-          className="absolute z-[9999] mt-1 w-full rounded-lg border bg-white shadow-lg max-h-48 overflow-y-auto"
+          className="absolute z-[9999] mt-1 w-full rounded-lg border bg-white shadow-lg max-h-72 overflow-y-auto"
         >
           {opcoes.map((opcao, index) => (
             <li

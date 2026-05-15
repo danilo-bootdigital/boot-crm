@@ -359,7 +359,7 @@ export function FormOrcamento({ produtos, fornecedores, categorias, deals, conta
         </div>
 
         {itens.map((item) => (
-          <Card key={item.key}>
+          <Card key={item.key} className="overflow-visible">
             <CardContent className="space-y-3 p-4">
               {/* Linha 1: Produto (50%) + Descrição (50%) */}
               <div className="grid gap-3 md:grid-cols-2">
