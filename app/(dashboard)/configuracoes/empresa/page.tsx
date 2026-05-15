@@ -21,7 +21,7 @@ export default async function EmpresaPage() {
 
   const { data: org } = await supabase
     .from('organizations')
-    .select('id, nome, nome_fantasia, cnpj, telefone, email, endereco, logo_url')
+    .select('id, nome, nome_fantasia, cnpj, telefone, email, endereco, logo_url, site, instagram')
     .eq('id', perfil.organization_id)
     .single()
 
@@ -49,6 +49,8 @@ export default async function EmpresaPage() {
           email: org?.email ?? '',
           endereco: org?.endereco ?? '',
           logo_url: org?.logo_url ?? '',
+          site: org?.site ?? '',
+          instagram: org?.instagram ?? '',
         }}
       />
     </div>

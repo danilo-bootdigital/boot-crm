@@ -19,6 +19,8 @@ type Props = {
     email: string
     endereco: string
     logo_url: string
+    site: string
+    instagram: string
   }
 }
 
@@ -130,6 +132,16 @@ export function FormEmpresa({ organizationId, defaultValues }: Props) {
             <div className="space-y-1">
               <Label htmlFor="endereco">Endereço</Label>
               <Input id="endereco" name="endereco" defaultValue={defaultValues.endereco} placeholder="Rua, número, bairro, cidade - UF" />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label htmlFor="site">Site</Label>
+                <Input id="site" name="site" defaultValue={defaultValues.site} placeholder="https://www.seusite.com.br" />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="instagram">Instagram</Label>
+                <Input id="instagram" name="instagram" defaultValue={defaultValues.instagram} placeholder="@seuinstagram" />
+              </div>
             </div>
             <div className="flex justify-end">
               <Button type="submit" disabled={isPending}>

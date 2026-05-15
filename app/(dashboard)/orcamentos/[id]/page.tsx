@@ -66,7 +66,7 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
   // Buscar dados da empresa
   const { data: empresa } = await supabase
     .from('organizations')
-    .select('nome, nome_fantasia, cnpj, telefone, email, endereco, logo_url')
+    .select('nome, nome_fantasia, cnpj, telefone, email, endereco, logo_url, site, instagram')
     .eq('id', perfil.organization_id)
     .single()
 
@@ -153,6 +153,8 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
               email: empresa.email,
               endereco: empresa.endereco,
               logo_url: empresa.logo_url,
+              site: empresa.site,
+              instagram: empresa.instagram,
             } : null}
             itens={(itens ?? []).map((item) => ({
               descricao: item.descricao,

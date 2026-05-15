@@ -31,6 +31,8 @@ type Props = {
     email: string | null
     endereco: string | null
     logo_url: string | null
+    site: string | null
+    instagram: string | null
   } | null
   itens: Item[]
   valorSubtotal: number
@@ -61,11 +63,7 @@ export function BotaoExportarPdf(props: Props) {
     const pageHeight = doc.internal.pageSize.getHeight()
     const margin = 14
 
-    // === CABEÇALHO ===
-    // Fundo branco do cabeçalho com borda inferior verde
-    doc.setDrawColor(...GREEN_MID)
-    doc.setLineWidth(0.8)
-    doc.line(margin, 44, pageWidth - margin, 44)
+    // === CABEÇALHO (layout conforme modelo) ===
 
     // Logo à esquerda
     let logoEndX = margin
@@ -85,8 +83,8 @@ export function BotaoExportarPdf(props: Props) {
         ctx.drawImage(img, 0, 0)
         const imgData = canvas.toDataURL('image/png')
 
-        const maxW = 40
-        const maxH = 20
+        const maxW = 35
+        const maxH = 28
         const ratio = img.naturalWidth / img.naturalHeight
         let logoW = maxW
         let logoH = logoW / ratio
@@ -95,54 +93,70 @@ export function BotaoExportarPdf(props: Props) {
           logoW = logoH * ratio
         }
         doc.addImage(imgData, 'PNG', margin, 8, logoW, logoH)
-        logoEndX = margin + logoW + 4
+        logoEndX = margin + logoW + 3
       } catch {
         // segue sem logo
       }
     }
 
-    // Dados da empresa ao lado do logo
+    // Separador vertical verde ao lado do logo
+    doc.setDrawColor(...GREEN_MID)
+    doc.setLineWidth(0.6)
+    doc.line(logoEndX, 8, logoEndX, 36)
+
+    // Dados da empresa ao lado do separador
+    const infoX = logoEndX + 4
     doc.setTextColor(...DARK_TEXT)
     doc.setFontSize(11)
     doc.setFont(undefined!, 'bold')
     const nomeEmpresa = props.empresa?.nome_fantasia || 'Empresa'
-    doc.text(nomeEmpresa, logoEndX, 14)
+    doc.text(nomeEmpresa, infoX, 14)
 
     doc.setFontSize(7.5)
     doc.setFont(undefined!, 'normal')
     doc.setTextColor(...GRAY_TEXT)
     let infoY = 19
     if (props.empresa?.telefone) {
-      doc.text(props.empresa.telefone, logoEndX, infoY)
+      doc.text(props.empresa.telefone, infoX, infoY)
+      infoY += 4
+    }
+    if (props.empresa?.site) {
+      doc.text(props.empresa.site, infoX, infoY)
+      infoY += 4
+    }
+    if (props.empresa?.instagram) {
+      doc.text(props.empresa.instagram, infoX, infoY)
       infoY += 4
     }
     if (props.empresa?.email) {
-      doc.text(props.empresa.email, logoEndX, infoY)
-      infoY += 4
-    }
-    if (props.empresa?.endereco) {
-      doc.text(props.empresa.endereco, logoEndX, infoY)
-      infoY += 4
-    }
-    if (props.empresa?.cnpj) {
-      doc.text(`CNPJ: ${props.empresa.cnpj}`, logoEndX, infoY)
+      doc.text(props.empresa.email, infoX, infoY)
     }
 
-    // "ORÇAMENTO" grande à direita
+    // "ORÇAMENTO" centralizado
     doc.setTextColor(...GREEN_DARK)
-    doc.setFontSize(22)
+    doc.setFontSize(20)
     doc.setFont(undefined!, 'bold')
-    doc.text('ORÇAMENTO', pageWidth - margin, 16, { align: 'right' })
+    doc.text('ORÇAMENTO', pageWidth / 2, 14, { align: 'center' })
 
-    // Número, data e responsável à direita
-    doc.setFontSize(9)
+    // Sublinhado verde abaixo de "ORÇAMENTO"
+    const orcTextoW = doc.getTextWidth('ORÇAMENTO')
+    doc.setDrawColor(...GREEN_ACCENT)
+    doc.setLineWidth(1.2)
+    doc.line(pageWidth / 2 - orcTextoW / 2, 16, pageWidth / 2 + orcTextoW / 2, 16)
+
+    // Dados do orçamento à direita
+    doc.setFontSize(8.5)
     doc.setFont(undefined!, 'normal')
     doc.setTextColor(...GRAY_TEXT)
-    doc.text(`Nº ${props.numero}`, pageWidth - margin, 23, { align: 'right' })
-    doc.text(`Data: ${props.criadoEm}`, pageWidth - margin, 29, { align: 'right' })
-    doc.text(`Responsável:`, pageWidth - margin, 35, { align: 'right' })
+    doc.text(`Nº ${props.numero}`, pageWidth - margin, 22, { align: 'right' })
+    doc.text(`Data: ${props.criadoEm}`, pageWidth - margin, 27, { align: 'right' })
     doc.setFont(undefined!, 'bold')
-    doc.text(props.responsavel, pageWidth - margin, 40, { align: 'right' })
+    doc.setTextColor(...DARK_TEXT)
+    doc.text(`Responsável: ${props.responsavel}`, pageWidth - margin, 32, { align: 'right' })
+
+    // Barra verde grossa inferior do cabeçalho
+    doc.setFillColor(...GREEN_DARK)
+    doc.rect(margin, 40, pageWidth - margin * 2, 3, 'F')
 
     // === SEÇÃO CLIENTE ===
     let y = 50

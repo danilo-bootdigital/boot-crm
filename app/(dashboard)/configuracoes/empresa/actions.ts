@@ -37,10 +37,12 @@ export async function atualizarEmpresa(formData: FormData) {
   const telefone = (formData.get('telefone') as string)?.trim() || null
   const email = (formData.get('email') as string)?.trim() || null
   const endereco = (formData.get('endereco') as string)?.trim() || null
+  const site = (formData.get('site') as string)?.trim() || null
+  const instagram = (formData.get('instagram') as string)?.trim() || null
 
   const { error } = await supabase
     .from('organizations')
-    .update({ nome_fantasia, cnpj, telefone, email, endereco })
+    .update({ nome_fantasia, cnpj, telefone, email, endereco, site, instagram })
     .eq('id', perfil.organization_id)
 
   if (error) throw new Error(`Erro ao salvar: ${error.message}`)
