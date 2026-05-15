@@ -114,10 +114,16 @@ export function FormOrcamento({ produtos, fornecedores, categorias, deals, conta
 
   function handleFornecedorChange(novoId: string | null) {
     const id = (!novoId || novoId === '__none__') ? '' : novoId
+    if (id === supplierId) return
     const temProdutoSelecionado = itens.some((i) => i.product_id)
-    if (temProdutoSelecionado && id !== supplierId) {
-      toast.error('Remova os produtos dos itens antes de trocar de fornecedor.')
-      return
+    if (temProdutoSelecionado) {
+      const confirmar = window.confirm(
+        'Trocar de fornecedor vai limpar os produtos selecionados nos itens. Continuar?'
+      )
+      if (!confirmar) return
+      setItens((prev) =>
+        prev.map((i) => ({ ...i, product_id: null, descricao: '', preco_unitario: 0 }))
+      )
     }
     setSupplierId(id)
     setCategoryId('')
