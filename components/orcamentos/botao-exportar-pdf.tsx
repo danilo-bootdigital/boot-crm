@@ -210,6 +210,20 @@ export function BotaoExportarPdf(props: Props) {
 
     y += clienteHeight + 6
 
+    // === FORNECEDOR ===
+    if (props.fornecedor) {
+      doc.setFillColor(...GREEN_LIGHT)
+      doc.rect(margin, y - 4, pageWidth - margin * 2, 12, 'F')
+      doc.setFontSize(8.5)
+      doc.setFont(undefined!, 'bold')
+      doc.setTextColor(...GREEN_DARK)
+      doc.text('FORNECEDOR:', margin + 4, y + 2)
+      doc.setFont(undefined!, 'normal')
+      doc.setTextColor(...DARK_TEXT)
+      doc.text(props.fornecedor, margin + 34, y + 2)
+      y += 14
+    }
+
     // === TABELA DE ITENS ===
     autoTable(doc, {
       startY: y,
