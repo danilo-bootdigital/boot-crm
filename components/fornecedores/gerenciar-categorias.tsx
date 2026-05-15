@@ -9,7 +9,8 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { criarCategoria, excluirCategoria, importarProdutosParaCategoria } from '@/app/(dashboard)/configuracoes/fornecedores/actions'
-import { Plus, Trash2, Upload, FileSpreadsheet, Check, FolderOpen } from 'lucide-react'
+import { editarProduto, excluirProduto, excluirProdutosEmLote } from '@/app/(dashboard)/configuracoes/produtos/actions'
+import { Plus, Trash2, Upload, FileSpreadsheet, Check, FolderOpen, Pencil, X } from 'lucide-react'
 import type { SupplierCategory, Product } from '@/types/database'
 
 type Props = {
@@ -282,31 +283,7 @@ export function GerenciarCategorias({ fornecedorId, categorias, produtos }: Prop
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b text-left text-slate-500">
-                    <th className="pb-1.5 pr-3">Produto</th>
-                    <th className="pb-1.5 pr-3">Preço</th>
-                    <th className="pb-1.5">Unidade</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {cat.produtos.slice(0, 10).map((p) => (
-                    <tr key={p.id} className="border-b last:border-0">
-                      <td className="py-1.5 pr-3 text-slate-700">{p.nome}</td>
-                      <td className="py-1.5 pr-3 text-slate-600">
-                        {p.preco_unitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                      </td>
-                      <td className="py-1.5 text-slate-500">{p.unidade}</td>
-                    </tr>
-                  ))}
-                  {cat.produtos.length > 10 && (
-                    <tr><td colSpan={3} className="py-1.5 text-slate-400">... e mais {cat.produtos.length - 10}</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <TabelaProdutosFornecedor produtos={cat.produtos} />
           </CardContent>
         </Card>
       ))}
@@ -317,34 +294,185 @@ export function GerenciarCategorias({ fornecedorId, categorias, produtos }: Prop
             <CardTitle className="text-sm text-slate-500">Sem categoria ({semCategoria.length} produtos)</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b text-left text-slate-500">
-                    <th className="pb-1.5 pr-3">Produto</th>
-                    <th className="pb-1.5 pr-3">Preço</th>
-                    <th className="pb-1.5">Unidade</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {semCategoria.slice(0, 10).map((p) => (
-                    <tr key={p.id} className="border-b last:border-0">
-                      <td className="py-1.5 pr-3 text-slate-700">{p.nome}</td>
-                      <td className="py-1.5 pr-3 text-slate-600">
-                        {p.preco_unitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                      </td>
-                      <td className="py-1.5 text-slate-500">{p.unidade}</td>
-                    </tr>
-                  ))}
-                  {semCategoria.length > 10 && (
-                    <tr><td colSpan={3} className="py-1.5 text-slate-400">... e mais {semCategoria.length - 10}</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <TabelaProdutosFornecedor produtos={semCategoria} />
           </CardContent>
         </Card>
       )}
+    </div>
+  )
+}
+
+function TabelaProdutosFornecedor({ produtos }: { produtos: Product[] }) {
+  const [editandoId, setEditandoId] = useState<string | null>(null)
+  const [editNome, setEditNome] = useState('')
+  const [editPreco, setEditPreco] = useState('')
+  const [editUnidade, setEditUnidade] = useState('')
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set())
+  const [isPending, startTransition] = useTransition()
+  const router = useRouter()
+
+  function toggleSelecionado(id: string) {
+    setSelecionados((prev) => {
+      const novo = new Set(prev)
+      if (novo.has(id)) novo.delete(id)
+      else novo.add(id)
+      return novo
+    })
+  }
+
+  function toggleTodos() {
+    if (selecionados.size === produtos.length) {
+      setSelecionados(new Set())
+    } else {
+      setSelecionados(new Set(produtos.map((p) => p.id)))
+    }
+  }
+
+  function iniciarEdicao(p: Product) {
+    setEditandoId(p.id)
+    setEditNome(p.nome)
+    setEditPreco(String(p.preco_unitario))
+    setEditUnidade(p.unidade ?? 'un')
+  }
+
+  function cancelarEdicao() {
+    setEditandoId(null)
+  }
+
+  function salvarEdicao(produtoId: string) {
+    startTransition(async () => {
+      try {
+        const formData = new FormData()
+        formData.set('nome', editNome)
+        formData.set('preco_unitario', editPreco)
+        formData.set('unidade', editUnidade)
+        formData.set('descricao', '')
+        formData.set('supplier_id', '')
+        formData.set('category_id', '')
+        formData.set('mg', '')
+        formData.set('ml', '')
+        await editarProduto(produtoId, formData)
+        toast.success('Produto atualizado.')
+        setEditandoId(null)
+        router.refresh()
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : 'Erro ao editar.')
+      }
+    })
+  }
+
+  function handleExcluir(produtoId: string, nome: string) {
+    if (!window.confirm(`Excluir "${nome}"? Esta ação não pode ser desfeita.`)) return
+    startTransition(async () => {
+      try {
+        await excluirProduto(produtoId)
+        toast.success('Produto excluído.')
+        router.refresh()
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : 'Erro ao excluir.')
+      }
+    })
+  }
+
+  function handleExcluirSelecionados() {
+    if (selecionados.size === 0) return
+    if (!window.confirm(`Excluir ${selecionados.size} produto(s)? Esta ação não pode ser desfeita.`)) return
+    startTransition(async () => {
+      try {
+        await excluirProdutosEmLote([...selecionados])
+        toast.success(`${selecionados.size} produto(s) excluído(s).`)
+        setSelecionados(new Set())
+        router.refresh()
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : 'Erro ao excluir.')
+      }
+    })
+  }
+
+  return (
+    <div className="space-y-2">
+      {selecionados.size > 0 && (
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-1 text-red-600 border-red-200 hover:bg-red-50" onClick={handleExcluirSelecionados} disabled={isPending}>
+            <Trash2 className="h-3.5 w-3.5" /> Excluir {selecionados.size} selecionado(s)
+          </Button>
+        </div>
+      )}
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b text-left text-slate-500">
+              <th className="pb-1.5 pr-2 w-8">
+                <input
+                  type="checkbox"
+                  checked={selecionados.size === produtos.length && produtos.length > 0}
+                  onChange={toggleTodos}
+                  className="rounded border-slate-300"
+                />
+              </th>
+              <th className="pb-1.5 pr-3">Produto</th>
+              <th className="pb-1.5 pr-3">Preço</th>
+              <th className="pb-1.5 pr-3">Unidade</th>
+              <th className="pb-1.5 w-20">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {produtos.map((p) => (
+              <tr key={p.id} className="border-b last:border-0">
+                <td className="py-1.5 pr-2">
+                  <input
+                    type="checkbox"
+                    checked={selecionados.has(p.id)}
+                    onChange={() => toggleSelecionado(p.id)}
+                    className="rounded border-slate-300"
+                  />
+                </td>
+                {editandoId === p.id ? (
+                  <>
+                    <td className="py-1 pr-2">
+                      <Input className="h-7 text-xs" value={editNome} onChange={(e) => setEditNome(e.target.value)} />
+                    </td>
+                    <td className="py-1 pr-2">
+                      <Input className="h-7 text-xs w-24" type="number" step="0.01" value={editPreco} onChange={(e) => setEditPreco(e.target.value)} />
+                    </td>
+                    <td className="py-1 pr-2">
+                      <Input className="h-7 text-xs w-16" value={editUnidade} onChange={(e) => setEditUnidade(e.target.value)} />
+                    </td>
+                    <td className="py-1">
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-green-600" onClick={() => salvarEdicao(p.id)} disabled={isPending}>
+                          <Check className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400" onClick={cancelarEdicao}>
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </td>
+                  </>
+                ) : (
+                  <>
+                    <td className="py-1.5 pr-3 text-slate-700">{p.nome}</td>
+                    <td className="py-1.5 pr-3 text-slate-600">
+                      {p.preco_unitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </td>
+                    <td className="py-1.5 pr-3 text-slate-500">{p.unidade}</td>
+                    <td className="py-1.5">
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:text-blue-600" onClick={() => iniciarEdicao(p)}>
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:text-red-600" onClick={() => handleExcluir(p.id, p.nome)} disabled={isPending}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </td>
+                  </>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
