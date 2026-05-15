@@ -126,7 +126,9 @@ export async function importarProdutosComFornecedor(produtos: ProdutoImportado[]
     // Criar categorias que não existem
     for (const chave of categoriasUnicas) {
       if (categoriaMap.has(chave.toLowerCase())) continue
-      const [fornecedorKey, catNome] = chave.split('::')
+      const idx = chave.indexOf('::')
+      const fornecedorKey = chave.slice(0, idx)
+      const catNome = chave.slice(idx + 2)
       const fornecedorId = fornecedorMap.get(fornecedorKey)
       if (!fornecedorId) continue
 
@@ -227,6 +229,23 @@ export async function importarProdutosParaCategoria(
   produtos: ProdutoImportadoCategoria[]
 ) {
   const { supabase, perfil } = await getAdminOuGestor()
+
+  const { data: fornecedor } = await supabase
+    .from('suppliers')
+    .select('id')
+    .eq('id', fornecedorId)
+    .eq('organization_id', perfil.organization_id)
+    .single()
+  if (!fornecedor) throw new Error('Fornecedor não encontrado.')
+
+  const { data: categoria } = await supabase
+    .from('supplier_categories')
+    .select('id')
+    .eq('id', categoriaId)
+    .eq('supplier_id', fornecedorId)
+    .eq('organization_id', perfil.organization_id)
+    .single()
+  if (!categoria) throw new Error('Categoria não encontrada.')
 
   if (!produtos || produtos.length === 0) throw new Error('Nenhum produto para importar.')
   if (produtos.length > 5000) throw new Error('Máximo de 5000 produtos por importação.')

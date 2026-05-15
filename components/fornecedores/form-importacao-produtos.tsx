@@ -174,6 +174,7 @@ export function FormImportacaoProdutos({ fornecedores }: Props) {
 
       for (const aba of abas) {
         const produtosAba = mapearProdutosAba(aba.headers, aba.rows, fornecedorNome, aba.nome)
+        if (produtosAba.length === 0) continue
         todosProdutos.push(...produtosAba)
         infos.push({ nome: aba.nome, qtd: produtosAba.length })
       }

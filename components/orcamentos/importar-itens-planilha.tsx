@@ -193,6 +193,7 @@ export function ImportarItensPlanilha({ produtos, onImportar, disabled }: Props)
               type="file"
               accept=".xlsx,.xls,.csv"
               onChange={handleUpload}
+              onClick={(e) => { (e.target as HTMLInputElement).value = '' }}
               className="hidden"
             />
           </label>

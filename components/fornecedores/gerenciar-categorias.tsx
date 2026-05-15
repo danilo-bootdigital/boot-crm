@@ -340,17 +340,18 @@ function TabelaProdutosFornecedor({ produtos }: { produtos: Product[] }) {
   }
 
   function salvarEdicao(produtoId: string) {
+    const produto = produtos.find((p) => p.id === produtoId)
     startTransition(async () => {
       try {
         const formData = new FormData()
         formData.set('nome', editNome)
         formData.set('preco_unitario', editPreco)
         formData.set('unidade', editUnidade)
-        formData.set('descricao', '')
-        formData.set('supplier_id', '')
-        formData.set('category_id', '')
-        formData.set('mg', '')
-        formData.set('ml', '')
+        formData.set('descricao', produto?.descricao ?? '')
+        formData.set('supplier_id', produto?.supplier_id ?? '')
+        formData.set('category_id', produto?.category_id ?? '')
+        formData.set('mg', produto?.composicao ?? '')
+        formData.set('ml', produto?.apresentacao ?? '')
         await editarProduto(produtoId, formData)
         toast.success('Produto atualizado.')
         setEditandoId(null)

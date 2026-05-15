@@ -102,6 +102,15 @@ export async function alternarAtivoProduto(produtoId: string, ativo: boolean) {
 export async function excluirProduto(produtoId: string) {
   const { supabase, perfil } = await getAdminOuGestor()
 
+  const { data: produto } = await supabase
+    .from('products')
+    .select('id')
+    .eq('id', produtoId)
+    .eq('organization_id', perfil.organization_id)
+    .single()
+
+  if (!produto) throw new Error('Produto não encontrado.')
+
   await supabase
     .from('quote_items')
     .update({ product_id: null })
@@ -122,15 +131,25 @@ export async function excluirProdutosEmLote(produtoIds: string[]) {
 
   if (produtoIds.length === 0) throw new Error('Nenhum produto selecionado.')
 
+  // Verificar que todos pertencem à organização
+  const { data: produtosValidos } = await supabase
+    .from('products')
+    .select('id')
+    .in('id', produtoIds)
+    .eq('organization_id', perfil.organization_id)
+
+  const idsValidos = (produtosValidos ?? []).map((p) => p.id)
+  if (idsValidos.length === 0) throw new Error('Nenhum produto encontrado.')
+
   await supabase
     .from('quote_items')
     .update({ product_id: null })
-    .in('product_id', produtoIds)
+    .in('product_id', idsValidos)
 
   const { error } = await supabase
     .from('products')
     .delete()
-    .in('id', produtoIds)
+    .in('id', idsValidos)
     .eq('organization_id', perfil.organization_id)
 
   if (error) throw new Error(`Erro ao excluir produtos: ${error.message}`)
