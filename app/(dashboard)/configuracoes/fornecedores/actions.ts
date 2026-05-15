@@ -68,6 +68,7 @@ type ProdutoImportado = {
   descricao: string | null
   preco_unitario: number
   unidade: string
+  categoria?: string
 }
 
 export async function importarProdutosComFornecedor(produtos: ProdutoImportado[]) {
@@ -101,20 +102,66 @@ export async function importarProdutosComFornecedor(produtos: ProdutoImportado[]
     }
   }
 
+  // Criar categorias se necessário
+  const categoriasUnicas = [...new Set(produtos.filter((p) => p.categoria).map((p) => `${p.fornecedor.trim().toLowerCase()}::${p.categoria!.trim()}`))]
+  const categoriaMap = new Map<string, string>()
+
+  if (categoriasUnicas.length > 0) {
+    // Buscar categorias existentes para cada fornecedor
+    for (const fornecedorNome of fornecedoresUnicos) {
+      const fornecedorId = fornecedorMap.get(fornecedorNome.toLowerCase())
+      if (!fornecedorId) continue
+
+      const { data: catsExistentes } = await supabase
+        .from('supplier_categories')
+        .select('id, nome')
+        .eq('supplier_id', fornecedorId)
+        .eq('organization_id', perfil.organization_id)
+
+      ;(catsExistentes ?? []).forEach((c) => {
+        categoriaMap.set(`${fornecedorNome.toLowerCase()}::${c.nome.toLowerCase()}`, c.id)
+      })
+    }
+
+    // Criar categorias que não existem
+    for (const chave of categoriasUnicas) {
+      if (categoriaMap.has(chave.toLowerCase())) continue
+      const [fornecedorKey, catNome] = chave.split('::')
+      const fornecedorId = fornecedorMap.get(fornecedorKey)
+      if (!fornecedorId) continue
+
+      const { data, error } = await supabase
+        .from('supplier_categories')
+        .insert({ organization_id: perfil.organization_id, supplier_id: fornecedorId, nome: catNome })
+        .select('id')
+        .single()
+      if (error) throw new Error(`Erro ao criar categoria "${catNome}": ${error.message}`)
+      categoriaMap.set(chave.toLowerCase(), data.id)
+    }
+  }
+
   // Inserir produtos em lotes
   const BATCH_SIZE = 500
   let importados = 0
 
   for (let i = 0; i < produtos.length; i += BATCH_SIZE) {
-    const lote = produtos.slice(i, i + BATCH_SIZE).map((p) => ({
-      organization_id: perfil.organization_id,
-      supplier_id: fornecedorMap.get(p.fornecedor.trim().toLowerCase()) ?? null,
-      nome: p.nome.trim(),
-      descricao: p.descricao || null,
-      preco_unitario: p.preco_unitario,
-      unidade: p.unidade || 'un',
-      ativo: true,
-    }))
+    const lote = produtos.slice(i, i + BATCH_SIZE).map((p) => {
+      const fornecedorId = fornecedorMap.get(p.fornecedor.trim().toLowerCase()) ?? null
+      const categoriaId = p.categoria
+        ? categoriaMap.get(`${p.fornecedor.trim().toLowerCase()}::${p.categoria.trim().toLowerCase()}`) ?? null
+        : null
+
+      return {
+        organization_id: perfil.organization_id,
+        supplier_id: fornecedorId,
+        category_id: categoriaId,
+        nome: p.nome.trim(),
+        descricao: p.descricao || null,
+        preco_unitario: p.preco_unitario,
+        unidade: p.unidade || 'un',
+        ativo: true,
+      }
+    })
 
     const { error } = await supabase.from('products').insert(lote)
     if (error) throw new Error(`Erro ao importar lote: ${error.message}`)

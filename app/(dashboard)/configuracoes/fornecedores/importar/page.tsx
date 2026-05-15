@@ -1,9 +1,30 @@
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
 import { FormImportacaoProdutos } from '@/components/fornecedores/form-importacao-produtos'
 
-export default function ImportarProdutosPage() {
+export default async function ImportarProdutosPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: perfil } = await supabase
+    .from('profiles')
+    .select('id, organization_id, cargo')
+    .eq('id', user.id)
+    .single()
+
+  if (!perfil) redirect('/login')
+  if (perfil.cargo !== 'admin' && perfil.cargo !== 'gestor') redirect('/painel')
+
+  const { data: fornecedores } = await supabase
+    .from('suppliers')
+    .select('id, nome')
+    .eq('organization_id', perfil.organization_id)
+    .order('nome')
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -19,7 +40,7 @@ export default function ImportarProdutosPage() {
           </p>
         </div>
       </div>
-      <FormImportacaoProdutos />
+      <FormImportacaoProdutos fornecedores={fornecedores ?? []} />
     </div>
   )
 }
