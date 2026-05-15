@@ -44,6 +44,7 @@ type Props = {
   categorias: SupplierCategory[]
   deals: Deal[]
   contatos: Contato[]
+  fretesFornecedores: { supplier_id: string; regiao: string; valor: number }[]
   orcamentoId?: string
   defaultValues?: {
     lead_id: string | null
@@ -63,7 +64,7 @@ function calcularSubtotal(item: ItemForm) {
   return item.quantidade * item.preco_unitario * (1 - item.desconto_item / 100)
 }
 
-export function FormOrcamento({ produtos, fornecedores, categorias, deals, contatos, orcamentoId, defaultValues }: Props) {
+export function FormOrcamento({ produtos, fornecedores, categorias, deals, contatos, fretesFornecedores, orcamentoId, defaultValues }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const editando = !!orcamentoId
@@ -517,18 +518,39 @@ export function FormOrcamento({ produtos, fornecedores, categorias, deals, conta
             </div>
             <div className="space-y-1">
               <Label>Frete</Label>
-              <div className="relative">
-                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-500">R$</span>
-                <Input
-                  type="number"
-                  min="0"
-                  max="99999"
-                  step="0.01"
-                  className="pl-8 w-32"
-                  value={frete}
-                  onChange={(e) => setFrete(parseFloat(e.target.value) || 0)}
-                />
-              </div>
+              {(() => {
+                const fretesDoFornecedor = fretesFornecedores.filter((f) => f.supplier_id === supplierId)
+                if (fretesDoFornecedor.length > 0) {
+                  return (
+                    <select
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      value={frete}
+                      onChange={(e) => setFrete(parseFloat(e.target.value) || 0)}
+                    >
+                      <option value="0">Sem frete</option>
+                      {fretesDoFornecedor.map((f) => (
+                        <option key={f.regiao} value={f.valor}>
+                          {f.regiao} — R$ {f.valor.toFixed(2)}
+                        </option>
+                      ))}
+                    </select>
+                  )
+                }
+                return (
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-500">R$</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="99999"
+                      step="0.01"
+                      className="pl-8 w-32"
+                      value={frete}
+                      onChange={(e) => setFrete(parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
+                )
+              })()}
             </div>
           </div>
           <div className="rounded-lg bg-slate-50 p-3 space-y-1">

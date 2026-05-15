@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
 import { GerenciarCategorias } from '@/components/fornecedores/gerenciar-categorias'
+import { TabelaFrete } from '@/components/fornecedores/tabela-frete'
 import type { SupplierCategory, Product } from '@/types/database'
 
 export default async function FornecedorDetalhePage({ params }: { params: Promise<{ id: string }> }) {
@@ -45,6 +46,14 @@ export default async function FornecedorDetalhePage({ params }: { params: Promis
     .eq('organization_id', perfil.organization_id)
     .order('nome') as { data: Product[] | null }
 
+  const { data: fretesRaw } = await supabase
+    .from('supplier_freight')
+    .select('regiao, valor')
+    .eq('supplier_id', id)
+    .eq('organization_id', perfil.organization_id)
+
+  const fretes = (fretesRaw ?? []) as { regiao: string; valor: number }[]
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -60,6 +69,8 @@ export default async function FornecedorDetalhePage({ params }: { params: Promis
           </p>
         </div>
       </div>
+
+      <TabelaFrete fornecedorId={id} fretes={fretes} />
 
       <GerenciarCategorias
         fornecedorId={id}

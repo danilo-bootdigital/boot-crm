@@ -73,6 +73,13 @@ export default async function EditarOrcamentoPage({ params }: { params: Promise<
     .eq('organization_id', perfil.organization_id)
     .order('nome')
 
+  const { data: fretesRaw } = await supabase
+    .from('supplier_freight')
+    .select('supplier_id, regiao, valor')
+    .eq('organization_id', perfil.organization_id)
+
+  const fretesFornecedores = (fretesRaw ?? []) as { supplier_id: string; regiao: string; valor: number }[]
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-slate-900">Editar Orçamento #{orcamento.id.slice(0, 8)}</h1>
@@ -82,6 +89,7 @@ export default async function EditarOrcamentoPage({ params }: { params: Promise<
         categorias={categorias ?? []}
         deals={(deals ?? []) as { id: string; titulo: string }[]}
         contatos={(contatos ?? []) as { id: string; nome: string; telefone: string | null; email: string | null; cpf_cnpj: string | null; endereco: string | null }[]}
+        fretesFornecedores={fretesFornecedores}
         orcamentoId={id}
         defaultValues={{
           lead_id: orcamento.lead_id,

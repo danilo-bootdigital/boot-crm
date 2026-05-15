@@ -289,3 +289,55 @@ export async function importarProdutosParaCategoria(
   revalidatePath('/configuracoes/produtos')
   return { importados }
 }
+
+// ── Frete por região ────────────────────────────────────────────
+
+export async function salvarFrete(fornecedorId: string, dados: { regiao: string; valor: number }[]) {
+  const { supabase, perfil } = await getAdminOuGestor()
+
+  // Verificar que o fornecedor pertence à org
+  const { count } = await supabase
+    .from('suppliers')
+    .select('id', { count: 'exact', head: true })
+    .eq('id', fornecedorId)
+    .eq('organization_id', perfil.organization_id)
+
+  if (!count) throw new Error('Fornecedor não encontrado.')
+
+  // Upsert de cada região
+  for (const item of dados) {
+    if (item.valor > 0) {
+      await supabase
+        .from('supplier_freight')
+        .upsert({
+          organization_id: perfil.organization_id,
+          supplier_id: fornecedorId,
+          regiao: item.regiao,
+          valor: item.valor,
+          atualizado_em: new Date().toISOString(),
+        }, { onConflict: 'supplier_id,regiao' })
+    } else {
+      // Remover frete zerado
+      await supabase
+        .from('supplier_freight')
+        .delete()
+        .eq('supplier_id', fornecedorId)
+        .eq('regiao', item.regiao)
+        .eq('organization_id', perfil.organization_id)
+    }
+  }
+
+  revalidatePath(`/configuracoes/fornecedores/${fornecedorId}`)
+}
+
+export async function buscarFreteFornecedor(fornecedorId: string) {
+  const { supabase, perfil } = await getAdminOuGestor()
+
+  const { data } = await supabase
+    .from('supplier_freight')
+    .select('regiao, valor')
+    .eq('supplier_id', fornecedorId)
+    .eq('organization_id', perfil.organization_id)
+
+  return (data ?? []) as { regiao: string; valor: number }[]
+}
