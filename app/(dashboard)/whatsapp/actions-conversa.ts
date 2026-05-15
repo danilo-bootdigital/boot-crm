@@ -299,7 +299,7 @@ export async function editarNomeConversa(conversaId: string, novoNome: string) {
   // Buscar conversa e lead vinculado
   const { data: conversa } = await supabase
     .from('conversations')
-    .select('id, lead_id')
+    .select('id, lead_id, telefone_externo')
     .eq('id', conversaId)
     .eq('organization_id', perfil.organization_id)
     .single()
@@ -307,12 +307,33 @@ export async function editarNomeConversa(conversaId: string, novoNome: string) {
   if (!conversa) throw new Error('Conversa não encontrada.')
 
   if (conversa.lead_id) {
-    // Atualizar nome do lead
+    // Atualizar nome do lead existente
     await supabase
       .from('leads')
       .update({ nome: novoNome.trim(), atualizado_em: new Date().toISOString() })
       .eq('id', conversa.lead_id)
       .eq('organization_id', perfil.organization_id)
+  } else {
+    // Criar lead e vincular à conversa
+    const { data: novoLead } = await supabase
+      .from('leads')
+      .insert({
+        organization_id: perfil.organization_id,
+        nome: novoNome.trim(),
+        telefone: conversa.telefone_externo,
+        origem: 'whatsapp',
+        status: 'novo',
+      })
+      .select('id')
+      .single()
+
+    if (novoLead) {
+      await supabase
+        .from('conversations')
+        .update({ lead_id: novoLead.id, atualizado_em: new Date().toISOString() })
+        .eq('id', conversaId)
+        .eq('organization_id', perfil.organization_id)
+    }
   }
 
   revalidatePath('/whatsapp')

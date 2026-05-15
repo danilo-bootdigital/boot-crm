@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
     const telefone = normalizarTelefone(remoteJid)
     const enviadoEm = new Date(messageTimestamp * 1000).toISOString()
 
-    // Checar deduplicação
+    // Checar deduplicação (unique index garante atomicidade, mas evita processamento desnecessário)
     if (messageIdExterno) {
       const { count } = await supabase
         .from('messages')
@@ -189,7 +189,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Criar conversa
-      const { data: novaConversa } = await supabase
+      const { data: novaConversa, error: errNovaConversa } = await supabase
         .from('conversations')
         .insert({
           organization_id: instancia.organization_id,
@@ -202,7 +202,24 @@ export async function POST(req: NextRequest) {
         })
         .select('id, lead_id, status, responsavel_id')
         .single()
-      conversaAtual = novaConversa
+
+      if (errNovaConversa) {
+        // Possível race condition — tentar buscar conversa que foi criada por outro request
+        const { data: conversaExistente } = await supabase
+          .from('conversations')
+          .select('id, lead_id, status, responsavel_id')
+          .eq('whatsapp_instance_id', instancia.id)
+          .eq('telefone_externo', telefone)
+          .single()
+
+        if (!conversaExistente) {
+          console.error('[webhook] Erro ao criar conversa:', errNovaConversa.message)
+          return NextResponse.json({ error: 'Internal' }, { status: 500 })
+        }
+        conversaAtual = conversaExistente
+      } else {
+        conversaAtual = novaConversa
+      }
     } else {
       // Atualizar conversa existente
       const updateData: Record<string, unknown> = {
@@ -392,7 +409,12 @@ export async function POST(req: NextRequest) {
       status: fromMe ? 'enviada' : 'entregue',
       enviado_em: enviadoEm,
     })
-    if (errMsg) console.error('[webhook] Falha ao inserir mensagem:', errMsg.message)
+    if (errMsg) {
+      // Ignorar erro de duplicata (unique constraint)
+      if (!errMsg.message.includes('duplicate') && !errMsg.code?.includes('23505')) {
+        console.error('[webhook] Falha ao inserir mensagem:', errMsg.message)
+      }
+    }
   }
 
   return NextResponse.json({ ok: true })

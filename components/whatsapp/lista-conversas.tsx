@@ -54,12 +54,38 @@ export function ListaConversas({ conversasIniciais, organizationId, usuarios, to
     const channel = supabase
       .channel('conversations-updates')
       .on('postgres_changes', {
-        event: '*',
+        event: 'INSERT',
         schema: 'public',
         table: 'conversations',
         filter: `organization_id=eq.${organizationId}`,
       }, () => {
+        // Nova conversa criada — refresh para buscar dados completos
         router.refresh()
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'conversations',
+        filter: `organization_id=eq.${organizationId}`,
+      }, (payload) => {
+        const updated = payload.new as Record<string, unknown>
+        const convId = updated.id as string
+
+        setConversas((prev) => {
+          const idx = prev.findIndex((c) => c.id === convId)
+          if (idx === -1) {
+            router.refresh()
+            return prev
+          }
+          const copy = [...prev]
+          copy[idx] = {
+            ...copy[idx],
+            status: (updated.status as ConversaStatus) ?? copy[idx].status,
+            responsavel_id: (updated.responsavel_id as string | null) ?? copy[idx].responsavel_id,
+            ultima_mensagem_em: (updated.ultima_mensagem_em as string | null) ?? copy[idx].ultima_mensagem_em,
+          }
+          return copy
+        })
       })
       .on('postgres_changes', {
         event: 'INSERT',
