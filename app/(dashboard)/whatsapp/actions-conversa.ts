@@ -205,6 +205,7 @@ export async function criarTemplate(nome: string, conteudo: string, categoria: s
       nome: nome.trim(),
       conteudo: conteudo.trim(),
       categoria: categoria?.trim() || null,
+      criado_por: perfil.id,
     })
     .select('id, nome, conteudo, categoria')
     .single()
