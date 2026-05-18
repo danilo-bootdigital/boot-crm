@@ -1,6 +1,7 @@
 'use client'
 
 import { BadgePerfil } from './badge-perfil'
+import { ModalAlterarSenha } from './modal-alterar-senha'
 import { Button } from '@/components/ui/button'
 import { alternarStatusUsuario } from '@/app/(dashboard)/configuracoes/usuarios/actions'
 import { format } from 'date-fns'
@@ -60,11 +61,14 @@ export function ListaUsuarios({ usuarios }: { usuarios: Usuario[] }) {
                 </span>
               </td>
               <td className="px-4 py-3">
-                <form action={alternarStatusUsuario.bind(null, usuario.id, !usuario.ativo)}>
-                  <Button type="submit" variant="outline" size="sm">
-                    {usuario.ativo ? 'Desativar' : 'Ativar'}
-                  </Button>
-                </form>
+                <div className="flex items-center gap-2">
+                  <ModalAlterarSenha usuarioId={usuario.id} nomeUsuario={usuario.nome} />
+                  <form action={alternarStatusUsuario.bind(null, usuario.id, !usuario.ativo)}>
+                    <Button type="submit" variant="outline" size="sm">
+                      {usuario.ativo ? 'Desativar' : 'Ativar'}
+                    </Button>
+                  </form>
+                </div>
               </td>
             </tr>
           ))}

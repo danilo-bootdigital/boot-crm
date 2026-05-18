@@ -56,6 +56,44 @@ export async function criarUsuario(formData: FormData) {
   revalidatePath('/configuracoes/usuarios')
 }
 
+export async function alterarSenhaUsuario(usuarioId: string, novaSenha: string) {
+  const supabase = await createClient()
+
+  const { data: { user: usuarioAtual } } = await supabase.auth.getUser()
+  const { data: perfilAtual } = await supabase
+    .from('profiles')
+    .select('cargo, organization_id')
+    .eq('id', usuarioAtual?.id ?? '')
+    .single()
+
+  if (perfilAtual?.cargo !== 'admin') {
+    throw new Error('Apenas administradores podem alterar senhas.')
+  }
+
+  const { data: perfilAlvo } = await supabase
+    .from('profiles')
+    .select('organization_id')
+    .eq('id', usuarioId)
+    .single()
+
+  if (perfilAlvo?.organization_id !== perfilAtual.organization_id) {
+    throw new Error('Usuário não pertence à sua organização.')
+  }
+
+  if (!novaSenha || novaSenha.length < 6) {
+    throw new Error('A senha deve ter no mínimo 6 caracteres.')
+  }
+
+  const adminClient = createAdminClient()
+  const { error } = await adminClient.auth.admin.updateUserById(usuarioId, {
+    password: novaSenha,
+  })
+
+  if (error) {
+    throw new Error(`Erro ao alterar senha: ${error.message}`)
+  }
+}
+
 export async function alternarStatusUsuario(usuarioId: string, ativo: boolean) {
   const supabase = await createClient()
 
