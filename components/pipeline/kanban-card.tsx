@@ -4,7 +4,8 @@ import { useDraggable } from '@dnd-kit/core'
 import { cn } from '@/lib/utils'
 import { format, formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Calendar, DollarSign, Phone, MessageSquare } from 'lucide-react'
+import { Calendar, DollarSign, Phone, MessageSquare, MessageCircle } from 'lucide-react'
+import Link from 'next/link'
 import { BadgeOrigem } from '@/components/leads/badge-origem'
 
 export type DealCard = {
@@ -29,6 +30,7 @@ export type DealCard = {
   ultima_mensagem: string | null
   ultima_mensagem_em: string | null
   status_conversa: string | null
+  conversa_id: string | null
   tags: { id: string; nome: string; cor: string }[]
 }
 
@@ -162,6 +164,21 @@ export function KanbanCard({ deal, podeArrastar, onDoubleClick }: Props) {
       {deal.status_conversa && (
         <div className="mt-2">
           <StatusBadge status={deal.status_conversa} />
+        </div>
+      )}
+
+      {/* Botão WhatsApp */}
+      {deal.conversa_id && (
+        <div className="mt-2">
+          <Link
+            href={`/whatsapp/${deal.conversa_id}`}
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="inline-flex items-center gap-1 rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 transition-colors hover:bg-green-100"
+          >
+            <MessageCircle className="h-3.5 w-3.5" />
+            WhatsApp
+          </Link>
         </div>
       )}
     </div>

@@ -122,7 +122,7 @@ export default async function PipelinePage() {
     : { data: [] }
 
   // Mapear por lead_id
-  const conversaPorLead = new Map<string, { ultima_mensagem: string | null; ultima_mensagem_em: string | null; status_conversa: string; tags: { id: string; nome: string; cor: string }[] }>()
+  const conversaPorLead = new Map<string, { conversa_id: string; ultima_mensagem: string | null; ultima_mensagem_em: string | null; status_conversa: string; tags: { id: string; nome: string; cor: string }[] }>()
   for (const conv of conversasRaw ?? []) {
     if (!conv.lead_id || conversaPorLead.has(conv.lead_id)) continue
     const msg = ultimasMensagens.find((m) => m.conversation_id === conv.id)
@@ -134,6 +134,7 @@ export default async function PipelinePage() {
       })
       .filter(Boolean)
     conversaPorLead.set(conv.lead_id, {
+      conversa_id: conv.id,
       ultima_mensagem: msg?.conteudo ?? null,
       ultima_mensagem_em: msg?.enviado_em ?? conv.ultima_mensagem_em,
       status_conversa: conv.status,
@@ -166,6 +167,7 @@ export default async function PipelinePage() {
       ultima_mensagem: conversaInfo?.ultima_mensagem ?? null,
       ultima_mensagem_em: conversaInfo?.ultima_mensagem_em ?? null,
       status_conversa: conversaInfo?.status_conversa ?? null,
+      conversa_id: conversaInfo?.conversa_id ?? null,
       tags: conversaInfo?.tags ?? [],
     }
   })
