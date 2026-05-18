@@ -192,6 +192,58 @@ export async function listarTemplates() {
   return (data ?? []) as { id: string; nome: string; conteudo: string; categoria: string | null }[]
 }
 
+export async function criarTemplate(nome: string, conteudo: string, categoria: string | null) {
+  if (!nome.trim()) throw new Error('Nome é obrigatório.')
+  if (!conteudo.trim()) throw new Error('Conteúdo é obrigatório.')
+
+  const { supabase, perfil } = await getPerfilAutenticado()
+
+  const { data, error } = await supabase
+    .from('message_templates')
+    .insert({
+      organization_id: perfil.organization_id,
+      nome: nome.trim(),
+      conteudo: conteudo.trim(),
+      categoria: categoria?.trim() || null,
+    })
+    .select('id, nome, conteudo, categoria')
+    .single()
+
+  if (error) throw new Error(`Erro ao criar modelo: ${error.message}`)
+  return data as { id: string; nome: string; conteudo: string; categoria: string | null }
+}
+
+export async function editarTemplate(id: string, nome: string, conteudo: string, categoria: string | null) {
+  if (!nome.trim()) throw new Error('Nome é obrigatório.')
+  if (!conteudo.trim()) throw new Error('Conteúdo é obrigatório.')
+
+  const { supabase, perfil } = await getPerfilAutenticado()
+
+  const { error } = await supabase
+    .from('message_templates')
+    .update({
+      nome: nome.trim(),
+      conteudo: conteudo.trim(),
+      categoria: categoria?.trim() || null,
+    })
+    .eq('id', id)
+    .eq('organization_id', perfil.organization_id)
+
+  if (error) throw new Error(`Erro ao editar modelo: ${error.message}`)
+}
+
+export async function excluirTemplate(id: string) {
+  const { supabase, perfil } = await getPerfilAutenticado()
+
+  const { error } = await supabase
+    .from('message_templates')
+    .delete()
+    .eq('id', id)
+    .eq('organization_id', perfil.organization_id)
+
+  if (error) throw new Error(`Erro ao excluir modelo: ${error.message}`)
+}
+
 // ── Anotações internas ──────────────────────────────────────────
 
 export async function criarAnotacao(conversaId: string, conteudo: string) {
