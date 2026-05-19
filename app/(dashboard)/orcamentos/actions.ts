@@ -84,6 +84,8 @@ export async function criarOrcamento(dados: {
   forma_pagamento: string | null
   desconto_geral: number
   frete: number
+  carrier_id: string | null
+  frete_regiao: string | null
   itens: ItemInput[]
 }) {
   const { supabase, perfil } = await getUsuarioEOrg()
@@ -109,6 +111,8 @@ export async function criarOrcamento(dados: {
       forma_pagamento: dados.forma_pagamento || null,
       desconto_geral: dados.desconto_geral,
       frete: dados.frete || 0,
+      carrier_id: dados.carrier_id || null,
+      frete_regiao: dados.frete_regiao || null,
       valor_subtotal: valorSubtotal,
       valor_total: valorTotal,
       status: 'rascunho' as QuoteStatus,
@@ -145,6 +149,8 @@ export async function editarOrcamento(orcamentoId: string, dados: {
   forma_pagamento?: string | null
   desconto_geral: number
   frete?: number
+  carrier_id?: string | null
+  frete_regiao?: string | null
   itens: ItemInput[]
 }) {
   const { supabase, perfil } = await getUsuarioEOrg()
@@ -184,6 +190,8 @@ export async function editarOrcamento(orcamentoId: string, dados: {
       forma_pagamento: dados.forma_pagamento ?? null,
       desconto_geral: dados.desconto_geral,
       frete: dados.frete ?? 0,
+      carrier_id: dados.carrier_id ?? null,
+      frete_regiao: dados.frete_regiao ?? null,
       valor_subtotal: valorSubtotal,
       valor_total: valorTotal,
       status: 'rascunho' as QuoteStatus,

@@ -82,6 +82,17 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
   const aprovador = Array.isArray(orcamento.aprovador) ? orcamento.aprovador[0] : orcamento.aprovador
   const fornecedor = Array.isArray(orcamento.fornecedor) ? orcamento.fornecedor[0] : orcamento.fornecedor
 
+  // Buscar nome da transportadora do frete
+  let transportadoraNome: string | null = null
+  if (orcamento.carrier_id) {
+    const { data: carrier } = await supabase
+      .from('freight_carriers')
+      .select('nome')
+      .eq('id', orcamento.carrier_id)
+      .single()
+    transportadoraNome = carrier?.nome ?? null
+  }
+
   // Se não encontrou contato via deal, buscar pelo telefone ou nome do lead
   if (!contato && lead) {
     let contatoEncontrado = null
@@ -166,6 +177,8 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
             valorSubtotal={orcamento.valor_subtotal}
             descontoGeral={orcamento.desconto_geral}
             frete={orcamento.frete ?? 0}
+            transportadora={transportadoraNome}
+            freteRegiao={orcamento.frete_regiao ?? null}
             valorTotal={orcamento.valor_total}
             formaPagamento={orcamento.forma_pagamento ?? null}
             observacoes={orcamento.observacoes}

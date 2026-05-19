@@ -81,6 +81,7 @@ export function FormOrcamento({ produtos, fornecedores, categorias, deals, conta
   const [descontoGeral, setDescontoGeral] = useState(defaultValues?.desconto_geral ?? 0)
   const [frete, setFrete] = useState(defaultValues?.frete ?? 0)
   const [carrierId, setCarrierId] = useState('')
+  const [freteRegiao, setFreteRegiao] = useState('')
   const [itens, setItens] = useState<ItemForm[]>(
     defaultValues?.itens.map((item, i) => ({ ...item, unidade: item.unidade ?? 'un', key: `item-${i}` })) ?? [
       { key: 'item-0', product_id: null, descricao: '', unidade: 'un', quantidade: 1, preco_unitario: 0, desconto_item: 0 },
@@ -131,6 +132,7 @@ export function FormOrcamento({ produtos, fornecedores, categorias, deals, conta
     setSupplierId(id)
     setCategoryId('')
     setCarrierId('')
+    setFreteRegiao('')
     setFrete(0)
   }
 
@@ -218,6 +220,8 @@ export function FormOrcamento({ produtos, fornecedores, categorias, deals, conta
           forma_pagamento: formaPagamento || null,
           desconto_geral: Math.min(Math.max(descontoGeral, 0), 100),
           frete,
+          carrier_id: carrierId || null,
+          frete_regiao: freteRegiao || null,
           itens: itens.map(({ product_id, descricao, unidade, quantidade, preco_unitario, desconto_item }) => ({
             product_id,
             descricao,
@@ -531,7 +535,7 @@ export function FormOrcamento({ produtos, fornecedores, categorias, deals, conta
                       <select
                         className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         value={carrierId}
-                        onChange={(e) => { setCarrierId(e.target.value); setFrete(0) }}
+                        onChange={(e) => { setCarrierId(e.target.value); setFrete(0); setFreteRegiao('') }}
                       >
                         <option value="">Selecionar transportadora...</option>
                         {transportadorasDoFornecedor.map((t) => (
@@ -541,12 +545,17 @@ export function FormOrcamento({ produtos, fornecedores, categorias, deals, conta
                       {carrierId && fretesDoCarrier.length > 0 && (
                         <select
                           className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                          value={frete}
-                          onChange={(e) => setFrete(parseFloat(e.target.value) || 0)}
+                          value={freteRegiao}
+                          onChange={(e) => {
+                            const regiao = e.target.value
+                            setFreteRegiao(regiao)
+                            const freteItem = fretesDoCarrier.find((f) => f.regiao === regiao)
+                            setFrete(freteItem?.valor ?? 0)
+                          }}
                         >
-                          <option value="0">Selecionar região...</option>
+                          <option value="">Selecionar região...</option>
                           {fretesDoCarrier.map((f) => (
-                            <option key={f.regiao} value={f.valor}>
+                            <option key={f.regiao} value={f.regiao}>
                               {f.regiao} — R$ {f.valor.toFixed(2)}
                             </option>
                           ))}

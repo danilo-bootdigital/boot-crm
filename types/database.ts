@@ -299,6 +299,8 @@ export type Quote = {
   valor_subtotal: number
   desconto_geral: number
   frete: number
+  carrier_id: string | null
+  frete_regiao: string | null
   endereco_entrega: string | null
   forma_pagamento: string | null
   valor_total: number

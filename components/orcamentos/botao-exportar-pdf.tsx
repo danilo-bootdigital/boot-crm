@@ -38,6 +38,8 @@ type Props = {
   valorSubtotal: number
   descontoGeral: number
   frete: number
+  transportadora: string | null
+  freteRegiao: string | null
   valorTotal: number
   formaPagamento: string | null
   observacoes: string | null
@@ -234,6 +236,23 @@ export function BotaoExportarPdf(props: Props) {
       doc.setFont(undefined!, 'normal')
       doc.setTextColor(...DARK_TEXT)
       doc.text(props.fornecedor, margin + 34, y + 2)
+      y += 14
+    }
+
+    // === FRETE (transportadora + localidade) ===
+    if (props.transportadora || props.freteRegiao) {
+      doc.setFillColor(...GREEN_LIGHT)
+      doc.rect(margin, y - 4, pageWidth - margin * 2, 12, 'F')
+      doc.setFontSize(8.5)
+      doc.setFont(undefined!, 'bold')
+      doc.setTextColor(...GREEN_DARK)
+      doc.text('FRETE:', margin + 4, y + 2)
+      doc.setFont(undefined!, 'normal')
+      doc.setTextColor(...DARK_TEXT)
+      const partesFrete: string[] = []
+      if (props.transportadora) partesFrete.push(props.transportadora)
+      if (props.freteRegiao) partesFrete.push(props.freteRegiao)
+      doc.text(partesFrete.join(' — '), margin + 22, y + 2)
       y += 14
     }
 
