@@ -48,11 +48,20 @@ export default async function FornecedorDetalhePage({ params }: { params: Promis
 
   const { data: fretesRaw } = await supabase
     .from('supplier_freight')
-    .select('regiao, valor')
+    .select('carrier_id, regiao, valor')
     .eq('supplier_id', id)
     .eq('organization_id', perfil.organization_id)
 
-  const fretes = (fretesRaw ?? []) as { regiao: string; valor: number }[]
+  const fretes = (fretesRaw ?? []) as { carrier_id: string; regiao: string; valor: number }[]
+
+  const { data: transportadorasRaw } = await supabase
+    .from('freight_carriers')
+    .select('id, nome')
+    .eq('supplier_id', id)
+    .eq('organization_id', perfil.organization_id)
+    .order('criado_em')
+
+  const transportadoras = (transportadorasRaw ?? []) as { id: string; nome: string }[]
 
   return (
     <div className="space-y-6">
@@ -70,7 +79,7 @@ export default async function FornecedorDetalhePage({ params }: { params: Promis
         </div>
       </div>
 
-      <TabelaFrete fornecedorId={id} fretes={fretes} />
+      <TabelaFrete fornecedorId={id} transportadoras={transportadoras} fretes={fretes} />
 
       <GerenciarCategorias
         fornecedorId={id}

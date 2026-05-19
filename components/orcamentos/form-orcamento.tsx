@@ -44,7 +44,8 @@ type Props = {
   categorias: SupplierCategory[]
   deals: Deal[]
   contatos: Contato[]
-  fretesFornecedores: { supplier_id: string; regiao: string; valor: number }[]
+  fretesFornecedores: { supplier_id: string; carrier_id: string; regiao: string; valor: number }[]
+  transportadoras: { id: string; supplier_id: string; nome: string }[]
   orcamentoId?: string
   defaultValues?: {
     lead_id: string | null
@@ -64,7 +65,7 @@ function calcularSubtotal(item: ItemForm) {
   return item.quantidade * item.preco_unitario * (1 - item.desconto_item / 100)
 }
 
-export function FormOrcamento({ produtos, fornecedores, categorias, deals, contatos, fretesFornecedores, orcamentoId, defaultValues }: Props) {
+export function FormOrcamento({ produtos, fornecedores, categorias, deals, contatos, fretesFornecedores, transportadoras, orcamentoId, defaultValues }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const editando = !!orcamentoId
@@ -79,6 +80,7 @@ export function FormOrcamento({ produtos, fornecedores, categorias, deals, conta
   const [formaPagamento, setFormaPagamento] = useState(defaultValues?.forma_pagamento ?? '')
   const [descontoGeral, setDescontoGeral] = useState(defaultValues?.desconto_geral ?? 0)
   const [frete, setFrete] = useState(defaultValues?.frete ?? 0)
+  const [carrierId, setCarrierId] = useState('')
   const [itens, setItens] = useState<ItemForm[]>(
     defaultValues?.itens.map((item, i) => ({ ...item, unidade: item.unidade ?? 'un', key: `item-${i}` })) ?? [
       { key: 'item-0', product_id: null, descricao: '', unidade: 'un', quantidade: 1, preco_unitario: 0, desconto_item: 0 },
@@ -128,6 +130,8 @@ export function FormOrcamento({ produtos, fornecedores, categorias, deals, conta
     }
     setSupplierId(id)
     setCategoryId('')
+    setCarrierId('')
+    setFrete(0)
   }
 
   function adicionarItem() {
@@ -519,21 +523,36 @@ export function FormOrcamento({ produtos, fornecedores, categorias, deals, conta
             <div className="space-y-1">
               <Label>Frete</Label>
               {(() => {
-                const fretesDoFornecedor = fretesFornecedores.filter((f) => f.supplier_id === supplierId)
-                if (fretesDoFornecedor.length > 0) {
+                const transportadorasDoFornecedor = transportadoras.filter((t) => t.supplier_id === supplierId)
+                if (transportadorasDoFornecedor.length > 0) {
+                  const fretesDoCarrier = fretesFornecedores.filter((f) => f.carrier_id === carrierId)
                   return (
-                    <select
-                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                      value={frete}
-                      onChange={(e) => setFrete(parseFloat(e.target.value) || 0)}
-                    >
-                      <option value="0">Sem frete</option>
-                      {fretesDoFornecedor.map((f) => (
-                        <option key={f.regiao} value={f.valor}>
-                          {f.regiao} — R$ {f.valor.toFixed(2)}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="space-y-2">
+                      <select
+                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        value={carrierId}
+                        onChange={(e) => { setCarrierId(e.target.value); setFrete(0) }}
+                      >
+                        <option value="">Selecionar transportadora...</option>
+                        {transportadorasDoFornecedor.map((t) => (
+                          <option key={t.id} value={t.id}>{t.nome}</option>
+                        ))}
+                      </select>
+                      {carrierId && fretesDoCarrier.length > 0 && (
+                        <select
+                          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          value={frete}
+                          onChange={(e) => setFrete(parseFloat(e.target.value) || 0)}
+                        >
+                          <option value="0">Selecionar região...</option>
+                          {fretesDoCarrier.map((f) => (
+                            <option key={f.regiao} value={f.valor}>
+                              {f.regiao} — R$ {f.valor.toFixed(2)}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
                   )
                 }
                 return (

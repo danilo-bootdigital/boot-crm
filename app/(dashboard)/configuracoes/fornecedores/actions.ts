@@ -290,12 +290,17 @@ export async function importarProdutosParaCategoria(
   return { importados }
 }
 
-// ── Frete por região ────────────────────────────────────────────
+// ── Transportadoras e Frete ────────────────────────────────────────────
 
-export async function salvarFrete(fornecedorId: string, dados: { regiao: string; valor: number }[]) {
+type DadosTransportadora = {
+  id: string | null
+  nome: string
+  fretes: { regiao: string; valor: number }[]
+}
+
+export async function salvarTransportadoras(fornecedorId: string, dados: DadosTransportadora[]) {
   const { supabase, perfil } = await getAdminOuGestor()
 
-  // Verificar que o fornecedor pertence à org
   const { count } = await supabase
     .from('suppliers')
     .select('id', { count: 'exact', head: true })
@@ -304,40 +309,76 @@ export async function salvarFrete(fornecedorId: string, dados: { regiao: string;
 
   if (!count) throw new Error('Fornecedor não encontrado.')
 
-  // Upsert de cada região
+  // Buscar transportadoras existentes
+  const { data: existentes } = await supabase
+    .from('freight_carriers')
+    .select('id')
+    .eq('supplier_id', fornecedorId)
+    .eq('organization_id', perfil.organization_id)
+
+  const idsExistentes = (existentes ?? []).map((e) => e.id)
+  const idsEnviados = dados.filter((d) => d.id).map((d) => d.id!)
+  const idsParaRemover = idsExistentes.filter((id) => !idsEnviados.includes(id))
+
+  // Remover transportadoras que não estão mais na lista (cascade remove fretes)
+  if (idsParaRemover.length > 0) {
+    await supabase
+      .from('freight_carriers')
+      .delete()
+      .in('id', idsParaRemover)
+      .eq('organization_id', perfil.organization_id)
+  }
+
+  // Criar/atualizar transportadoras e seus fretes
   for (const item of dados) {
-    if (item.valor > 0) {
+    let carrierId: string
+
+    if (item.id) {
+      // Atualizar nome
       await supabase
-        .from('supplier_freight')
-        .upsert({
+        .from('freight_carriers')
+        .update({ nome: item.nome })
+        .eq('id', item.id)
+        .eq('organization_id', perfil.organization_id)
+      carrierId = item.id
+    } else {
+      // Criar nova
+      const { data: nova, error } = await supabase
+        .from('freight_carriers')
+        .insert({
           organization_id: perfil.organization_id,
           supplier_id: fornecedorId,
-          regiao: item.regiao,
-          valor: item.valor,
-          atualizado_em: new Date().toISOString(),
-        }, { onConflict: 'supplier_id,regiao' })
-    } else {
-      // Remover frete zerado
-      await supabase
-        .from('supplier_freight')
-        .delete()
-        .eq('supplier_id', fornecedorId)
-        .eq('regiao', item.regiao)
-        .eq('organization_id', perfil.organization_id)
+          nome: item.nome,
+        })
+        .select('id')
+        .single()
+      if (error || !nova) throw new Error('Erro ao criar transportadora.')
+      carrierId = nova.id
+    }
+
+    // Limpar fretes antigos desta transportadora
+    await supabase
+      .from('supplier_freight')
+      .delete()
+      .eq('carrier_id', carrierId)
+      .eq('organization_id', perfil.organization_id)
+
+    // Inserir novos fretes
+    const fretesParaInserir = item.fretes
+      .filter((f) => f.valor > 0)
+      .map((f) => ({
+        organization_id: perfil.organization_id,
+        supplier_id: fornecedorId,
+        carrier_id: carrierId,
+        regiao: f.regiao,
+        valor: f.valor,
+        atualizado_em: new Date().toISOString(),
+      }))
+
+    if (fretesParaInserir.length > 0) {
+      await supabase.from('supplier_freight').insert(fretesParaInserir)
     }
   }
 
   revalidatePath(`/configuracoes/fornecedores/${fornecedorId}`)
-}
-
-export async function buscarFreteFornecedor(fornecedorId: string) {
-  const { supabase, perfil } = await getAdminOuGestor()
-
-  const { data } = await supabase
-    .from('supplier_freight')
-    .select('regiao, valor')
-    .eq('supplier_id', fornecedorId)
-    .eq('organization_id', perfil.organization_id)
-
-  return (data ?? []) as { regiao: string; valor: number }[]
 }
