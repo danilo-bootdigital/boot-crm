@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Package } from 'lucide-react'
 import { BadgeStatusPedido } from '@/components/pedidos/badge-status-pedido'
+import { BotaoExcluirPedido } from '@/components/pedidos/botao-excluir-pedido'
 
 export default async function PedidosPage() {
   const supabase = await createClient()
@@ -64,6 +65,7 @@ export default async function PedidosPage() {
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Responsável</th>
                 <th className="px-4 py-3">Data</th>
+                <th className="px-4 py-3">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -93,6 +95,9 @@ export default async function PedidosPage() {
                     <td className="px-4 py-3 text-slate-600">{responsavel?.nome ?? '—'}</td>
                     <td className="px-4 py-3 text-slate-500 text-xs">
                       {new Date(pedido.criado_em).toLocaleDateString('pt-BR')}
+                    </td>
+                    <td className="px-4 py-3">
+                      <BotaoExcluirPedido pedidoId={pedido.id} numero={pedido.numero} />
                     </td>
                   </tr>
                 )
