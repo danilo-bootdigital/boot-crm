@@ -286,6 +286,7 @@ export function KanbanBoard({ pipelineId, etapas, dealsIniciais, cargo, organiza
         deal={dealDetalhe}
         aberto={dealDetalhe !== null}
         onFechar={() => setDealDetalhe(null)}
+        estagios={etapas}
       />
     </>
   )

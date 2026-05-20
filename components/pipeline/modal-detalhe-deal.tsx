@@ -9,9 +9,9 @@ import { toast } from 'sonner'
 import { formatarMoeda } from '@/lib/utils'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Calendar, DollarSign, User, Contact, Plus, MessageSquare, MessageCircle, Globe } from 'lucide-react'
+import { Calendar, DollarSign, User, Contact, Plus, MessageSquare, MessageCircle, Globe, XCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { adicionarObservacaoDeal } from '@/app/(dashboard)/pipeline/actions'
+import { adicionarObservacaoDeal, moverDeal } from '@/app/(dashboard)/pipeline/actions'
 import { BadgeOrigem } from '@/components/leads/badge-origem'
 import Link from 'next/link'
 import type { DealCard } from './kanban-card'
@@ -27,13 +27,15 @@ type Props = {
   deal: DealCard | null
   aberto: boolean
   onFechar: () => void
+  estagios?: { id: string; tipo_especial: 'fechado' | 'perdido' | null }[]
 }
 
-export function ModalDetalheDeal({ deal, aberto, onFechar }: Props) {
+export function ModalDetalheDeal({ deal, aberto, onFechar, estagios }: Props) {
   const [observacoes, setObservacoes] = useState<Observacao[]>([])
   const [mostrarForm, setMostrarForm] = useState(false)
   const [texto, setTexto] = useState('')
   const [isPending, startTransition] = useTransition()
+  const [marcandoPerdido, setMarcandoPerdido] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -55,6 +57,29 @@ export function ModalDetalheDeal({ deal, aberto, onFechar }: Props) {
         setObservacoes((data ?? []) as unknown as Observacao[])
       })
   }, [deal, aberto])
+
+  function handleMarcarPerdido() {
+    if (!deal || !estagios) return
+    const estagioPerdido = estagios.find((e) => e.tipo_especial === 'perdido')
+    if (!estagioPerdido) {
+      toast.error('Estágio "perdido" não configurado no pipeline.')
+      return
+    }
+
+    setMarcandoPerdido(true)
+    startTransition(async () => {
+      try {
+        await moverDeal(deal.id, estagioPerdido.id, { motivo_perda: 'Cliente não retornou' })
+        toast.success('Negociação marcada como perdida.')
+        onFechar()
+        router.refresh()
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : 'Erro ao registrar perda.')
+      } finally {
+        setMarcandoPerdido(false)
+      }
+    })
+  }
 
   function handleAdicionar() {
     if (!deal || !texto.trim()) return
@@ -192,6 +217,22 @@ export function ModalDetalheDeal({ deal, aberto, onFechar }: Props) {
             <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
               <p className="font-medium">Negociação perdida</p>
               {deal.motivo_perda && <p className="mt-1 text-xs">{deal.motivo_perda}</p>}
+            </div>
+          )}
+
+          {/* Botão venda perdida */}
+          {deal.ganho === null && estagios && (
+            <div className="border-t pt-4">
+              <Button
+                variant="destructive"
+                size="sm"
+                className="gap-1.5"
+                onClick={handleMarcarPerdido}
+                disabled={marcandoPerdido || isPending}
+              >
+                <XCircle className="h-4 w-4" />
+                {marcandoPerdido ? 'Registrando...' : 'Venda perdida, cliente não retornou'}
+              </Button>
             </div>
           )}
 
