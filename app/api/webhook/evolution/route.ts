@@ -175,7 +175,7 @@ export async function POST(req: NextRequest) {
       if (!leadId) {
         // Prioridade de nome: contato cadastrado > pushName > genérico
         const nomeLead = contatoExistente?.nome?.trim() || pushName?.trim() || 'Contato WhatsApp'
-        const { data: novoLead } = await supabase
+        const { data: novoLead, error: errLead } = await supabase
           .from('leads')
           .insert({
             organization_id: instancia.organization_id,
@@ -187,7 +187,20 @@ export async function POST(req: NextRequest) {
           })
           .select('id')
           .single()
-        leadId = (novoLead?.id as string) ?? null
+
+        if (errLead && (errLead.message.includes('duplicate') || errLead.code?.includes('23505'))) {
+          // Lead já existe (race condition) — buscar o existente
+          const { data: leadExistente2 } = await supabase
+            .from('leads')
+            .select('id')
+            .eq('organization_id', instancia.organization_id)
+            .eq('telefone', telefone)
+            .limit(1)
+            .single()
+          leadId = (leadExistente2?.id as string) ?? null
+        } else {
+          leadId = (novoLead?.id as string) ?? null
+        }
 
         if (leadId) {
           const { data: adminPerfil } = await supabase
@@ -472,6 +485,36 @@ export async function POST(req: NextRequest) {
       if (!errMsg.message.includes('duplicate') && !errMsg.code?.includes('23505')) {
         console.error('[webhook] Falha ao inserir mensagem:', errMsg.message)
       }
+    }
+  }
+
+  // ── messages.update (status de entrega) ───────────────────────
+  if (event === 'messages.update') {
+    const updates = Array.isArray(data) ? data : [data]
+    for (const update of updates) {
+      const key = (update as Record<string, unknown>)?.key as Record<string, unknown> | undefined
+      const status = (update as Record<string, unknown>)?.status as number | undefined
+      if (!key?.id || !status) continue
+
+      const messageIdExterno = key.id as string
+
+      // Status codes da Evolution/Baileys: 2=enviada, 3=entregue, 4=lida
+      const statusMap: Record<number, { status: string; campo: string }> = {
+        3: { status: 'entregue', campo: 'entregue_em' },
+        4: { status: 'lida', campo: 'lida_em' },
+      }
+
+      const mapeado = statusMap[status]
+      if (!mapeado) continue
+
+      await supabase
+        .from('messages')
+        .update({
+          status: mapeado.status,
+          [mapeado.campo]: new Date().toISOString(),
+        })
+        .eq('message_id_externo', messageIdExterno)
+        .eq('organization_id', instancia.organization_id)
     }
   }
 

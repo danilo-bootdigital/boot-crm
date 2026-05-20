@@ -202,8 +202,6 @@ export async function editarOrcamento(orcamentoId: string, dados: {
 
   if (updateError) throw new Error(`Erro ao atualizar orçamento: ${updateError.message}`)
 
-  await supabase.from('quote_items').delete().eq('quote_id', orcamentoId)
-
   const itensParaInserir = dados.itens.map((item, i) => ({
     quote_id: orcamentoId,
     product_id: item.product_id || null,
@@ -214,8 +212,22 @@ export async function editarOrcamento(orcamentoId: string, dados: {
     subtotal: subtotais[i],
   }))
 
+  // Buscar IDs dos itens antigos antes de inserir novos
+  const { data: itensAntigos } = await supabase
+    .from('quote_items')
+    .select('id')
+    .eq('quote_id', orcamentoId)
+
+  const idsAntigos = (itensAntigos ?? []).map(i => i.id)
+
+  // Inserir novos itens primeiro (se falhar, os antigos permanecem intactos)
   const { error: errItens } = await supabase.from('quote_items').insert(itensParaInserir)
   if (errItens) throw new Error(`Erro ao atualizar itens: ${errItens.message}`)
+
+  // Só agora deletar os antigos (novos já estão salvos)
+  if (idsAntigos.length > 0) {
+    await supabase.from('quote_items').delete().in('id', idsAntigos)
+  }
 
   revalidatePath('/orcamentos')
   revalidatePath(`/orcamentos/${orcamentoId}`)
@@ -392,7 +404,12 @@ export async function marcarAprovadoCliente(orcamentoId: string) {
       desconto_item: item.desconto_item,
       subtotal: item.subtotal,
     }))
-    await supabase.from('order_items').insert(itensParaInserir)
+    const { error: errItens } = await supabase.from('order_items').insert(itensParaInserir)
+    if (errItens) {
+      // Rollback: deletar pedido criado sem itens
+      await supabase.from('orders').delete().eq('id', pedido.id)
+      throw new Error(`Erro ao copiar itens para o pedido: ${errItens.message}`)
+    }
   }
 
   // 5. Registrar histórico de status do pedido

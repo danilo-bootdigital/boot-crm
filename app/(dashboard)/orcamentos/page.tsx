@@ -3,11 +3,19 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { TabelaOrcamentos } from '@/components/orcamentos/tabela-orcamentos'
+import { Paginacao } from '@/components/ui/paginacao'
 import { Plus } from 'lucide-react'
 import type { QuoteStatus } from '@/types/database'
 
-export default async function OrcamentosPage() {
+type SearchParams = Promise<{
+  pagina?: string
+}>
+
+const POR_PAGINA = 50
+
+export default async function OrcamentosPage({ searchParams }: { searchParams: SearchParams }) {
   const supabase = await createClient()
+  const params = await searchParams
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
@@ -19,6 +27,10 @@ export default async function OrcamentosPage() {
 
   if (!perfil) redirect('/login')
 
+  const pagina = Math.max(1, parseInt(params.pagina ?? '1', 10) || 1)
+  const from = (pagina - 1) * POR_PAGINA
+  const to = from + POR_PAGINA - 1
+
   let query = supabase
     .from('quotes')
     .select(`
@@ -26,15 +38,16 @@ export default async function OrcamentosPage() {
       responsavel:profiles!responsavel_id(nome),
       lead:leads!lead_id(nome),
       deal:deals!deal_id(titulo)
-    `)
+    `, { count: 'exact' })
     .eq('organization_id', perfil.organization_id)
     .order('criado_em', { ascending: false })
+    .range(from, to)
 
   if (perfil.cargo === 'vendedor') {
     query = query.eq('responsavel_id', perfil.id)
   }
 
-  const { data: orcamentosRaw } = await query
+  const { data: orcamentosRaw, count } = await query
 
   // Buscar nomes dos contatos vinculados
   const contatoIds = (orcamentosRaw ?? [])
@@ -86,6 +99,14 @@ export default async function OrcamentosPage() {
         )}
       </div>
       <TabelaOrcamentos orcamentos={orcamentos} />
+
+      <Paginacao
+        paginaAtual={pagina}
+        totalRegistros={count ?? 0}
+        porPagina={POR_PAGINA}
+        baseUrl="/orcamentos"
+        searchParams={params as Record<string, string | undefined>}
+      />
     </div>
   )
 }

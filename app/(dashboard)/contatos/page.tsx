@@ -3,12 +3,20 @@ import { redirect } from 'next/navigation'
 import { TabelaContatos } from '@/components/contatos/tabela-contatos'
 import { ModalNovoContato } from '@/components/contatos/modal-novo-contato'
 import { BotaoImportarExportar } from '@/components/contatos/botao-importar-exportar'
+import { Paginacao } from '@/components/ui/paginacao'
 import type { Contact, Company } from '@/types/database'
 
 type ContatoComEmpresa = Contact & { empresa: Pick<Company, 'id' | 'nome'> | null }
 
-export default async function ContatosPage() {
+type SearchParams = Promise<{
+  pagina?: string
+}>
+
+const POR_PAGINA = 50
+
+export default async function ContatosPage({ searchParams }: { searchParams: SearchParams }) {
   const supabase = await createClient()
+  const params = await searchParams
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -21,11 +29,16 @@ export default async function ContatosPage() {
 
   if (!perfil) redirect('/login')
 
-  const { data: contatos } = await supabase
+  const pagina = Math.max(1, parseInt(params.pagina ?? '1', 10) || 1)
+  const from = (pagina - 1) * POR_PAGINA
+  const to = from + POR_PAGINA - 1
+
+  const { data: contatos, count } = await supabase
     .from('contacts')
-    .select('*, empresa:companies!empresa_id(id, nome)')
+    .select('*, empresa:companies!empresa_id(id, nome)', { count: 'exact' })
     .eq('organization_id', perfil.organization_id)
-    .order('nome') as { data: ContatoComEmpresa[] | null }
+    .order('nome')
+    .range(from, to) as { data: ContatoComEmpresa[] | null; count: number | null }
 
   return (
     <div className="space-y-6">
@@ -43,6 +56,14 @@ export default async function ContatosPage() {
       </div>
 
       <TabelaContatos contatos={contatos ?? []} isAdmin={perfil.cargo === 'admin'} />
+
+      <Paginacao
+        paginaAtual={pagina}
+        totalRegistros={count ?? 0}
+        porPagina={POR_PAGINA}
+        baseUrl="/contatos"
+        searchParams={params as Record<string, string | undefined>}
+      />
     </div>
   )
 }

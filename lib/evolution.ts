@@ -16,6 +16,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${baseUrl}${path}`, {
     ...options,
     headers: { ...apiHeaders(), ...options?.headers },
+    signal: options?.signal ?? AbortSignal.timeout(15000),
   })
   if (!res.ok) {
     const text = await res.text()

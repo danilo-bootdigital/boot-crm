@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { TabelaLeads } from '@/components/leads/tabela-leads'
 import { ModalNovoLead } from '@/components/leads/modal-novo-lead'
+import { Paginacao } from '@/components/ui/paginacao'
 import type { Lead, Profile } from '@/types/database'
 
 type SearchParams = Promise<{
@@ -9,7 +10,10 @@ type SearchParams = Promise<{
   status?: string
   origem?: string
   responsavel?: string
+  pagina?: string
 }>
+
+const POR_PAGINA = 50
 
 export default async function LeadsPage({ searchParams }: { searchParams: SearchParams }) {
   const supabase = await createClient()
@@ -26,11 +30,16 @@ export default async function LeadsPage({ searchParams }: { searchParams: Search
 
   if (!perfil) redirect('/login')
 
+  const pagina = Math.max(1, parseInt(params.pagina ?? '1', 10) || 1)
+  const from = (pagina - 1) * POR_PAGINA
+  const to = from + POR_PAGINA - 1
+
   let query = supabase
     .from('leads')
-    .select('*, responsavel:profiles!responsavel_id(id, nome)')
+    .select('*, responsavel:profiles!responsavel_id(id, nome)', { count: 'exact' })
     .eq('organization_id', perfil.organization_id)
     .order('criado_em', { ascending: false })
+    .range(from, to)
 
   if (perfil.cargo === 'vendedor') query = query.eq('responsavel_id', perfil.id)
   if (params.status) query = query.eq('status', params.status)
@@ -43,7 +52,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Search
     )
   }
 
-  const { data: leads } = await query as { data: (Lead & { responsavel: Pick<Profile, 'id' | 'nome'> | null })[] | null }
+  const { data: leads, count } = await query as { data: (Lead & { responsavel: Pick<Profile, 'id' | 'nome'> | null })[] | null; count: number | null }
 
   const { data: responsaveis } = await supabase
     .from('profiles')
@@ -65,6 +74,14 @@ export default async function LeadsPage({ searchParams }: { searchParams: Search
       </div>
 
       <TabelaLeads leads={leads ?? []} responsaveis={responsaveis ?? []} />
+
+      <Paginacao
+        paginaAtual={pagina}
+        totalRegistros={count ?? 0}
+        porPagina={POR_PAGINA}
+        baseUrl="/leads"
+        searchParams={params as Record<string, string | undefined>}
+      />
     </div>
   )
 }
