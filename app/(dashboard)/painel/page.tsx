@@ -65,6 +65,14 @@ export default async function PainelPage() {
     .gte('atualizado_em', inicio)
   if (isVendedor) queryDealsGanhos = queryDealsGanhos.eq('responsavel_id', perfil.id)
 
+  let queryPedidosMes = supabase
+    .from('orders')
+    .select('id')
+    .eq('organization_id', orgId)
+    .neq('status', 'cancelado')
+    .gte('criado_em', inicio)
+  if (isVendedor) queryPedidosMes = queryPedidosMes.eq('responsavel_id', perfil.id)
+
   const queryTarefasPendentes = supabase
     .from('tasks')
     .select('id', { count: 'exact', head: true })
@@ -94,6 +102,7 @@ export default async function PainelPage() {
     { count: tarefasPendentes },
     { count: tarefasAtrasadas },
     { data: leadsOrigem },
+    { data: pedidosMes },
   ] = await Promise.all([
     queryLeadsMes,
     queryLeadsQualificados,
@@ -101,14 +110,25 @@ export default async function PainelPage() {
     queryTarefasPendentes,
     queryTarefasAtrasadas,
     queryOrigem,
+    queryPedidosMes,
   ])
 
   const taxaConversao = (leadsNovos ?? 0) > 0
     ? Math.round(((leadsQualificados ?? 0) / (leadsNovos ?? 1)) * 100)
     : 0
 
-  const totalDealsGanhos = dealsGanhos?.length ?? 0
-  const receitaMes = dealsGanhos?.reduce((acc, d) => acc + (d.valor_estimado ?? 0), 0) ?? 0
+  const totalPedidosMes = pedidosMes?.length ?? 0
+
+  // Receita = soma dos subtotais dos itens dos pedidos (sem frete)
+  const pedidoIds = (pedidosMes ?? []).map((p) => p.id)
+  let receitaMes = 0
+  if (pedidoIds.length > 0) {
+    const { data: itensPedidos } = await supabase
+      .from('order_items')
+      .select('subtotal')
+      .in('order_id', pedidoIds)
+    receitaMes = (itensPedidos ?? []).reduce((acc, item) => acc + Number(item.subtotal ?? 0), 0)
+  }
 
   const origemMap = new Map<string, number>()
   leadsOrigem?.forEach((l) => {
@@ -159,31 +179,46 @@ export default async function PainelPage() {
     }
   }
 
-  // Grafico - Vendas mensais (6 meses)
+  // Grafico - Vendas mensais (6 meses) baseado em pedidos
   let dadosMensais: { mes: string; valor: number }[] = []
   if (!isAtendimento) {
-    let queryVendasMensais = supabase
-      .from('deals')
-      .select('atualizado_em, valor_estimado')
+    let queryPedidosMensais = supabase
+      .from('orders')
+      .select('id, criado_em')
       .eq('organization_id', orgId)
-      .eq('ganho', true)
-      .gte('atualizado_em', seisMeses)
-    if (isVendedor) queryVendasMensais = queryVendasMensais.eq('responsavel_id', perfil.id)
+      .neq('status', 'cancelado')
+      .gte('criado_em', seisMeses)
+    if (isVendedor) queryPedidosMensais = queryPedidosMensais.eq('responsavel_id', perfil.id)
 
-    const { data: vendasMensais } = await queryVendasMensais
+    const { data: pedidosMensais } = await queryPedidosMensais
 
-    const mesMap = new Map<string, number>()
-    vendasMensais?.forEach((d) => {
-      const date = new Date(d.atualizado_em)
-      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-      mesMap.set(key, (mesMap.get(key) ?? 0) + (d.valor_estimado ?? 0))
-    })
+    // Buscar subtotais dos itens desses pedidos
+    const pedidosMensaisIds = (pedidosMensais ?? []).map((p) => p.id)
+    let itensMensaisMap = new Map<string, number>()
+    if (pedidosMensaisIds.length > 0) {
+      const { data: itensMensais } = await supabase
+        .from('order_items')
+        .select('order_id, subtotal')
+        .in('order_id', pedidosMensaisIds)
+
+      const subtotalPorPedido = new Map<string, number>()
+      itensMensais?.forEach((item) => {
+        subtotalPorPedido.set(item.order_id, (subtotalPorPedido.get(item.order_id) ?? 0) + Number(item.subtotal ?? 0))
+      })
+
+      // Agrupar por mês
+      pedidosMensais?.forEach((p) => {
+        const date = new Date(p.criado_em)
+        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+        itensMensaisMap.set(key, (itensMensaisMap.get(key) ?? 0) + (subtotalPorPedido.get(p.id) ?? 0))
+      })
+    }
 
     const agora = new Date()
     for (let i = 5; i >= 0; i--) {
       const d = new Date(agora.getFullYear(), agora.getMonth() - i, 1)
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-      dadosMensais.push({ mes: MESES_PT[d.getMonth()], valor: mesMap.get(key) ?? 0 })
+      dadosMensais.push({ mes: MESES_PT[d.getMonth()], valor: itensMensaisMap.get(key) ?? 0 })
     }
   }
 
@@ -198,20 +233,32 @@ export default async function PainelPage() {
       .in('cargo', ['vendedor', 'gestor'])
 
     if (vendedores && vendedores.length > 0) {
-      const { data: dealsVendedores } = await supabase
-        .from('deals')
-        .select('responsavel_id, valor_estimado')
+      const { data: pedidosVendedores } = await supabase
+        .from('orders')
+        .select('id, responsavel_id')
         .eq('organization_id', orgId)
-        .eq('ganho', true)
-        .gte('atualizado_em', inicio)
+        .neq('status', 'cancelado')
+        .gte('criado_em', inicio)
+
+      const pedidosVendedoresIds = (pedidosVendedores ?? []).map((p) => p.id)
+      const subtotalPorPedido = new Map<string, number>()
+      if (pedidosVendedoresIds.length > 0) {
+        const { data: itensVend } = await supabase
+          .from('order_items')
+          .select('order_id, subtotal')
+          .in('order_id', pedidosVendedoresIds)
+        itensVend?.forEach((item) => {
+          subtotalPorPedido.set(item.order_id, (subtotalPorPedido.get(item.order_id) ?? 0) + Number(item.subtotal ?? 0))
+        })
+      }
 
       const mapVendedor = new Map<string, { ganhos: number; valor: number }>()
-      dealsVendedores?.forEach((d) => {
-        if (!d.responsavel_id) return
-        const atual = mapVendedor.get(d.responsavel_id) ?? { ganhos: 0, valor: 0 }
+      pedidosVendedores?.forEach((p) => {
+        if (!p.responsavel_id) return
+        const atual = mapVendedor.get(p.responsavel_id) ?? { ganhos: 0, valor: 0 }
         atual.ganhos++
-        atual.valor += d.valor_estimado ?? 0
-        mapVendedor.set(d.responsavel_id, atual)
+        atual.valor += subtotalPorPedido.get(p.id) ?? 0
+        mapVendedor.set(p.responsavel_id, atual)
       })
 
       dadosDesempenho = vendedores
@@ -231,7 +278,7 @@ export default async function PainelPage() {
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
         <CardKPI label="Leads novos" valor={leadsNovos ?? 0} icone={Users} descricao="Este mês" />
         <CardKPI label="Conversão" valor={`${taxaConversao}%`} icone={TrendingUp} descricao="Qualificados / total" />
-        <CardKPI label="Deals ganhos" valor={totalDealsGanhos} icone={Trophy} descricao="Este mês" />
+        <CardKPI label="Pedidos" valor={totalPedidosMes} icone={Trophy} descricao="Este mês" />
         <CardKPI label="Receita" valor={formatarMoeda(receitaMes)} icone={DollarSign} descricao="Este mês" />
         <CardKPI label="Tarefas pendentes" valor={tarefasPendentes ?? 0} icone={CheckSquare} descricao="Suas tarefas" />
         <CardKPI label="Atrasadas" valor={tarefasAtrasadas ?? 0} icone={AlertTriangle} descricao="Vencidas" />
