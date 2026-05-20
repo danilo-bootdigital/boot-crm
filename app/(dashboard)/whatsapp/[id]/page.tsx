@@ -20,15 +20,23 @@ export default async function ConversaPage({ params }: { params: Promise<{ id: s
 
   const { data: conversa } = await supabase
     .from('conversations')
-    .select(`
-      id, telefone_externo, status, responsavel_id, deal_id, lead_id,
-      instancia:whatsapp_instances!whatsapp_instance_id(nome, status_conexao)
-    `)
+    .select('id, telefone_externo, status, responsavel_id, deal_id, lead_id, whatsapp_instance_id')
     .eq('id', id)
     .eq('organization_id', perfil.organization_id)
     .single()
 
   if (!conversa) notFound()
+
+  // Instância (busca separada)
+  let instancia: { nome: string; status_conexao: string } | null = null
+  if (conversa.whatsapp_instance_id) {
+    const { data: instRaw } = await supabase
+      .from('whatsapp_instances')
+      .select('nome, status_conexao')
+      .eq('id', conversa.whatsapp_instance_id as string)
+      .single()
+    instancia = instRaw ?? null
+  }
 
   // Lead (busca separada para não crashar se lead foi excluído)
   let leadData: { id: string; nome: string | null } | null = null
@@ -41,14 +49,25 @@ export default async function ConversaPage({ params }: { params: Promise<{ id: s
     leadData = leadRaw ?? null
   }
 
-  // Mensagens
+  // Mensagens (sem join no responsavel para evitar crash)
   const { data: mensagensRaw } = await supabase
     .from('messages')
-    .select('id, direcao, conteudo, tipo_midia, url_midia, enviado_em, responsavel:profiles!responsavel_id(nome)')
+    .select('id, direcao, conteudo, tipo_midia, url_midia, enviado_em, responsavel_id')
     .eq('conversation_id', id)
     .eq('organization_id', perfil.organization_id)
     .order('enviado_em', { ascending: true })
     .limit(200)
+
+  // Usuários da org (para transferência e nomes nas mensagens)
+  const { data: usuariosRaw } = await supabase
+    .from('profiles')
+    .select('id, nome')
+    .eq('organization_id', perfil.organization_id)
+    .eq('ativo', true)
+    .order('nome')
+
+  const usuarios = (usuariosRaw ?? []) as { id: string; nome: string }[]
+  const usuariosMap = new Map(usuarios.map((u) => [u.id, u.nome]))
 
   const mensagens = (mensagensRaw ?? []).map((m) => ({
     id: m.id as string,
@@ -57,7 +76,7 @@ export default async function ConversaPage({ params }: { params: Promise<{ id: s
     tipo_midia: (m.tipo_midia as string) ?? 'texto',
     url_midia: m.url_midia as string | null,
     enviado_em: m.enviado_em as string,
-    responsavel: (Array.isArray(m.responsavel) ? m.responsavel[0] : m.responsavel) as { nome: string } | null,
+    responsavel: m.responsavel_id ? { nome: usuariosMap.get(m.responsavel_id as string) ?? 'Desconhecido' } : null,
   }))
 
   // Tags da conversa
@@ -67,9 +86,9 @@ export default async function ConversaPage({ params }: { params: Promise<{ id: s
     .eq('conversation_id', id)
 
   const tags = (tagLinksRaw ?? []).map((l) => {
-    const t = (Array.isArray(l.tag) ? l.tag[0] : l.tag) as { id: string; nome: string; cor: string }
+    const t = (Array.isArray(l.tag) ? l.tag[0] : l.tag) as { id: string; nome: string; cor: string } | null
     return t
-  }).filter(Boolean)
+  }).filter(Boolean) as { id: string; nome: string; cor: string }[]
 
   // Todas as tags da org
   const { data: todasTagsRaw } = await supabase
@@ -80,10 +99,10 @@ export default async function ConversaPage({ params }: { params: Promise<{ id: s
 
   const todasTags = (todasTagsRaw ?? []) as { id: string; nome: string; cor: string }[]
 
-  // Anotações
+  // Anotações (sem join no autor para evitar crash)
   const { data: notasRaw } = await supabase
     .from('conversation_notes')
-    .select('id, conteudo, criado_em, autor:profiles!autor_id(nome)')
+    .select('id, conteudo, criado_em, autor_id')
     .eq('conversation_id', id)
     .eq('organization_id', perfil.organization_id)
     .order('criado_em', { ascending: false })
@@ -93,18 +112,8 @@ export default async function ConversaPage({ params }: { params: Promise<{ id: s
     id: n.id as string,
     conteudo: n.conteudo as string,
     criado_em: n.criado_em as string,
-    autor_nome: ((Array.isArray(n.autor) ? n.autor[0] : n.autor) as { nome: string } | null)?.nome ?? 'Desconhecido',
+    autor_nome: usuariosMap.get(n.autor_id as string) ?? 'Desconhecido',
   }))
-
-  // Usuários da org (para transferência)
-  const { data: usuariosRaw } = await supabase
-    .from('profiles')
-    .select('id, nome')
-    .eq('organization_id', perfil.organization_id)
-    .eq('ativo', true)
-    .order('nome')
-
-  const usuarios = (usuariosRaw ?? []) as { id: string; nome: string }[]
 
   // Deal vinculado (busca separada para não crashar se deal/estágio foi excluído)
   let dealVinculado: { id: string; titulo: string; valor_estimado: number | null; estagio_nome: string } | null = null
@@ -140,7 +149,6 @@ export default async function ConversaPage({ params }: { params: Promise<{ id: s
     responsavel = usuarios.find((u) => u.id === (conversa.responsavel_id as string)) ?? null
   }
 
-  const instancia = (Array.isArray(conversa.instancia) ? conversa.instancia[0] : conversa.instancia) as { nome: string; status_conexao: string } | null
   const titulo = nomeExibicao(leadData?.nome ?? null, (conversa.telefone_externo as string) ?? '')
 
   return (
