@@ -19,6 +19,9 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   })
   if (!res.ok) {
     const text = await res.text()
+    if (res.status === 400 && text.includes('"exists":false')) {
+      throw new Error('Este número não possui WhatsApp.')
+    }
     throw new Error(`Evolution API ${res.status}: ${text}`)
   }
   return res.json() as Promise<T>

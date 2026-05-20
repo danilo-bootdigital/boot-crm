@@ -70,6 +70,13 @@ export async function excluirInstancia(instanceId: string) {
     try { await deletarInstancia(instancia.evolution_instance_name) } catch { /* ignorar se não existir na API */ }
   }
 
+  // Desvincular conversas antes de excluir (evita foreign key constraint)
+  await supabase
+    .from('conversations')
+    .update({ whatsapp_instance_id: null })
+    .eq('whatsapp_instance_id', instanceId)
+    .eq('organization_id', perfil.organization_id)
+
   const { error } = await supabase
     .from('whatsapp_instances')
     .delete()
