@@ -9,9 +9,11 @@ import { toast } from 'sonner'
 import { formatarMoeda } from '@/lib/utils'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Calendar, DollarSign, User, Contact, Plus, MessageSquare } from 'lucide-react'
+import { Calendar, DollarSign, User, Contact, Plus, MessageSquare, MessageCircle, Globe } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { adicionarObservacaoDeal } from '@/app/(dashboard)/pipeline/actions'
+import { BadgeOrigem } from '@/components/leads/badge-origem'
+import Link from 'next/link'
 import type { DealCard } from './kanban-card'
 
 type Observacao = {
@@ -119,6 +121,66 @@ export function ModalDetalheDeal({ deal, aberto, onFechar }: Props) {
               </div>
             )}
           </div>
+
+          {/* Origem do lead */}
+          {deal.lead && (
+            <div className="flex items-center gap-2">
+              <Globe className="h-4 w-4 text-slate-400" />
+              <span className="text-sm text-slate-600">Origem:</span>
+              <BadgeOrigem origem={deal.lead.origem as any} />
+            </div>
+          )}
+
+          {/* Últimas mensagens do WhatsApp */}
+          {deal.ultimas_mensagens && deal.ultimas_mensagens.length > 0 && (
+            <div className="border-t pt-4">
+              <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-1.5 mb-3">
+                <MessageCircle className="h-4 w-4" />
+                Últimas mensagens
+              </h3>
+              <div className="space-y-2">
+                {deal.ultimas_mensagens.map((msg, i) => (
+                  <div
+                    key={i}
+                    className={`rounded-md px-3 py-2 text-sm ${
+                      msg.direcao === 'enviada'
+                        ? 'bg-green-50 text-green-800 ml-4'
+                        : 'bg-slate-50 text-slate-700 mr-4'
+                    }`}
+                  >
+                    <p className="line-clamp-2">{msg.conteudo || '[mídia]'}</p>
+                    <p className="mt-0.5 text-xs text-slate-400">
+                      {format(new Date(msg.enviado_em), "dd/MM HH:mm", { locale: ptBR })}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              {deal.conversa_id && (
+                <div className="mt-3">
+                  <Link
+                    href={`/whatsapp/${deal.conversa_id}`}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-green-700"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    Ir para conversa
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Botão WhatsApp (quando não há mensagens mas há conversa) */}
+          {deal.conversa_id && (!deal.ultimas_mensagens || deal.ultimas_mensagens.length === 0) && (
+            <div className="border-t pt-4">
+              <Link
+                href={`/whatsapp/${deal.conversa_id}`}
+                className="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-green-700"
+              >
+                <MessageCircle className="h-4 w-4" />
+                Ir para conversa no WhatsApp
+              </Link>
+            </div>
+          )}
 
           {deal.ganho === true && (
             <div className="rounded-md bg-green-50 px-3 py-2 text-sm font-medium text-green-700">

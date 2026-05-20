@@ -29,6 +29,7 @@ export type DealCard = {
   } | null
   ultima_mensagem: string | null
   ultima_mensagem_em: string | null
+  ultimas_mensagens: { conteudo: string | null; direcao: string; enviado_em: string }[]
   status_conversa: string | null
   conversa_id: string | null
   tags: { id: string; nome: string; cor: string }[]

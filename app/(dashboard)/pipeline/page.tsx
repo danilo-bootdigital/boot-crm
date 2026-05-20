@@ -93,23 +93,28 @@ export default async function PipelinePage() {
         .order('ultima_mensagem_em', { ascending: false })
     : { data: [] }
 
-  // Buscar última mensagem de cada conversa (apenas 1 por conversa)
+  // Buscar últimas 3 mensagens de cada conversa
   const conversaIds = (conversasRaw ?? []).map((c) => c.id)
-  const ultimasMensagens: { conversation_id: string; conteudo: string | null; enviado_em: string }[] = []
+  const ultimasMensagensMap = new Map<string, { conteudo: string | null; direcao: string; enviado_em: string }[]>()
   if (conversaIds.length > 0) {
-    // Buscar a última mensagem de cada conversa individualmente (máx ~20-30 deals ativos)
     const promises = conversaIds.map((cId) =>
       supabase
         .from('messages')
-        .select('conversation_id, conteudo, enviado_em')
+        .select('conversation_id, conteudo, direcao, enviado_em')
         .eq('conversation_id', cId)
         .order('enviado_em', { ascending: false })
-        .limit(1)
-        .single()
+        .limit(3)
     )
     const results = await Promise.all(promises)
     for (const { data } of results) {
-      if (data) ultimasMensagens.push(data)
+      if (data && data.length > 0) {
+        const cId = data[0].conversation_id as string
+        ultimasMensagensMap.set(cId, data.map((m) => ({
+          conteudo: m.conteudo as string | null,
+          direcao: m.direcao as string,
+          enviado_em: m.enviado_em as string,
+        })).reverse())
+      }
     }
   }
 
@@ -122,10 +127,11 @@ export default async function PipelinePage() {
     : { data: [] }
 
   // Mapear por lead_id
-  const conversaPorLead = new Map<string, { conversa_id: string; ultima_mensagem: string | null; ultima_mensagem_em: string | null; status_conversa: string; tags: { id: string; nome: string; cor: string }[] }>()
+  const conversaPorLead = new Map<string, { conversa_id: string; ultima_mensagem: string | null; ultima_mensagem_em: string | null; ultimas_mensagens: { conteudo: string | null; direcao: string; enviado_em: string }[]; status_conversa: string; tags: { id: string; nome: string; cor: string }[] }>()
   for (const conv of conversasRaw ?? []) {
     if (!conv.lead_id || conversaPorLead.has(conv.lead_id)) continue
-    const msg = ultimasMensagens.find((m) => m.conversation_id === conv.id)
+    const msgs = ultimasMensagensMap.get(conv.id) ?? []
+    const ultimaMsg = msgs.length > 0 ? msgs[msgs.length - 1] : null
     const tags = (tagsLinks ?? [])
       .filter((t) => t.conversation_id === conv.id)
       .map((t) => {
@@ -135,8 +141,9 @@ export default async function PipelinePage() {
       .filter(Boolean)
     conversaPorLead.set(conv.lead_id, {
       conversa_id: conv.id,
-      ultima_mensagem: msg?.conteudo ?? null,
-      ultima_mensagem_em: msg?.enviado_em ?? conv.ultima_mensagem_em,
+      ultima_mensagem: ultimaMsg?.conteudo ?? null,
+      ultima_mensagem_em: ultimaMsg?.enviado_em ?? conv.ultima_mensagem_em,
+      ultimas_mensagens: msgs,
       status_conversa: conv.status,
       tags,
     })
@@ -166,6 +173,7 @@ export default async function PipelinePage() {
       } : null,
       ultima_mensagem: conversaInfo?.ultima_mensagem ?? null,
       ultima_mensagem_em: conversaInfo?.ultima_mensagem_em ?? null,
+      ultimas_mensagens: conversaInfo?.ultimas_mensagens ?? [],
       status_conversa: conversaInfo?.status_conversa ?? null,
       conversa_id: conversaInfo?.conversa_id ?? null,
       tags: conversaInfo?.tags ?? [],
