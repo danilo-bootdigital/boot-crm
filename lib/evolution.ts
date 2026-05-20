@@ -44,13 +44,17 @@ export async function criarInstancia(instanceName: string, webhookUrl: string): 
   })
 }
 
-export async function obterQRCode(instanceName: string): Promise<string | null> {
+export async function obterQRCode(instanceName: string): Promise<string | null | 'not_found'> {
   try {
     const data = await apiFetch<{ base64?: string }>(
       `/instance/connect/${instanceName}`
     )
     return data.base64 ?? null
   } catch (err) {
+    const msg = err instanceof Error ? err.message : ''
+    if (msg.includes('404') && msg.includes('does not exist')) {
+      return 'not_found'
+    }
     console.error('[evolution] obterQRCode:', err)
     return null
   }

@@ -89,7 +89,7 @@ export async function excluirInstancia(instanceId: string) {
 }
 
 export async function verificarQRCode(instanceId: string): Promise<
-  { estado: 'conectado' } | { estado: 'qr'; base64: string } | { estado: 'aguardando' }
+  { estado: 'conectado' } | { estado: 'qr'; base64: string } | { estado: 'aguardando' } | { estado: 'erro'; mensagem: string }
 > {
   const { supabase, perfil } = await getSoAdmin()
 
@@ -104,7 +104,24 @@ export async function verificarQRCode(instanceId: string): Promise<
 
   if (instancia.status_conexao === 'conectado') return { estado: 'conectado' }
 
-  const base64 = await obterQRCode(instancia.evolution_instance_name)
-  if (base64) return { estado: 'qr', base64 }
+  const resultado = await obterQRCode(instancia.evolution_instance_name)
+
+  if (resultado === 'not_found') {
+    // Instância não existe mais na Evolution — recriar automaticamente
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL
+    const webhookSecret = process.env.EVOLUTION_WEBHOOK_SECRET
+    if (!appUrl || !webhookSecret) {
+      return { estado: 'erro', mensagem: 'Configuração do servidor incompleta. Contate o suporte.' }
+    }
+    const webhookUrl = `${appUrl}/api/webhook/evolution?secret=${webhookSecret}`
+    try {
+      await criarInstancia(instancia.evolution_instance_name, webhookUrl)
+      return { estado: 'aguardando' }
+    } catch {
+      return { estado: 'erro', mensagem: 'Não foi possível recriar a instância. Exclua e crie uma nova.' }
+    }
+  }
+
+  if (resultado) return { estado: 'qr', base64: resultado }
   return { estado: 'aguardando' }
 }

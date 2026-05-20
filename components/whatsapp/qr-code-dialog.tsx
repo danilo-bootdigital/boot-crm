@@ -15,7 +15,8 @@ type Props = {
 
 export function QrCodeDialog({ instanceId, aberto, onConectado, onFechar }: Props) {
   const [qrBase64, setQrBase64] = useState<string | null>(null)
-  const [estado, setEstado] = useState<'carregando' | 'qr' | 'conectado'>('carregando')
+  const [estado, setEstado] = useState<'carregando' | 'qr' | 'conectado' | 'erro'>('carregando')
+  const [mensagemErro, setMensagemErro] = useState<string | null>(null)
 
   const onConectadoRef = useRef(onConectado)
   useEffect(() => {
@@ -30,6 +31,9 @@ export function QrCodeDialog({ instanceId, aberto, onConectado, onFechar }: Prop
     } else if (resultado.estado === 'qr') {
       setQrBase64(resultado.base64)
       setEstado('qr')
+    } else if (resultado.estado === 'erro') {
+      setEstado('erro')
+      setMensagemErro(resultado.mensagem)
     }
   }, [instanceId])
 
@@ -37,8 +41,15 @@ export function QrCodeDialog({ instanceId, aberto, onConectado, onFechar }: Prop
     if (!aberto) return
     setEstado('carregando')
     setQrBase64(null)
+    setMensagemErro(null)
     poll()
-    const interval = setInterval(poll, 4000)
+    const interval = setInterval(() => {
+      setEstado((current) => {
+        if (current === 'erro' || current === 'conectado') return current
+        poll()
+        return current
+      })
+    }, 4000)
     return () => clearInterval(interval)
   }, [aberto, poll])
 
@@ -54,6 +65,15 @@ export function QrCodeDialog({ instanceId, aberto, onConectado, onFechar }: Prop
             <p className="text-4xl">✅</p>
             <p className="text-center text-sm font-medium text-green-700">WhatsApp conectado com sucesso!</p>
             <Button onClick={onFechar}>Fechar</Button>
+          </div>
+        ) : estado === 'erro' ? (
+          <div className="flex flex-col items-center gap-3 py-6">
+            <p className="text-4xl">⚠️</p>
+            <p className="text-center text-sm text-slate-600">{mensagemErro}</p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => { setEstado('carregando'); poll() }}>Tentar novamente</Button>
+              <Button onClick={onFechar}>Fechar</Button>
+            </div>
           </div>
         ) : estado === 'qr' && qrBase64 ? (
           <div className="flex flex-col items-center gap-3 py-2">
