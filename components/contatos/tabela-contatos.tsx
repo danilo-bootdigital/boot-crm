@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Trash2 } from 'lucide-react'
+import { Trash2, Search } from 'lucide-react'
 import { excluirContatosEmLote } from '@/app/(dashboard)/contatos/actions'
 import type { Contact, Company } from '@/types/database'
 
@@ -21,14 +21,25 @@ export function TabelaContatos({ contatos, isAdmin }: Props) {
   const router = useRouter()
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set())
   const [isPending, startTransition] = useTransition()
+  const [busca, setBusca] = useState('')
 
-  const todosSelecionados = contatos.length > 0 && selecionados.size === contatos.length
+  const contatosFiltrados = useMemo(() => {
+    if (!busca.trim()) return contatos
+    const termo = busca.toLowerCase().trim()
+    return contatos.filter((c) =>
+      c.nome.toLowerCase().includes(termo) ||
+      c.cpf_cnpj?.toLowerCase().includes(termo) ||
+      c.telefone?.toLowerCase().includes(termo)
+    )
+  }, [contatos, busca])
+
+  const todosSelecionados = contatosFiltrados.length > 0 && selecionados.size === contatosFiltrados.length
 
   function toggleTodos() {
     if (todosSelecionados) {
       setSelecionados(new Set())
     } else {
-      setSelecionados(new Set(contatos.map((c) => c.id)))
+      setSelecionados(new Set(contatosFiltrados.map((c) => c.id)))
     }
   }
 
@@ -71,7 +82,19 @@ export function TabelaContatos({ contatos, isAdmin }: Props) {
 
   return (
     <div className="space-y-3">
-      {isAdmin && (selecionados.size > 0 || contatos.length > 0) && (
+      {/* Campo de busca */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <input
+          type="text"
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar por nome, CPF/CNPJ ou telefone..."
+          className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      {isAdmin && (selecionados.size > 0 || contatosFiltrados.length > 0) && (
         <div className="flex items-center gap-3">
           {selecionados.size > 0 && (
             <Button
@@ -123,14 +146,14 @@ export function TabelaContatos({ contatos, isAdmin }: Props) {
             </tr>
           </thead>
           <tbody>
-            {contatos.length === 0 && (
+            {contatosFiltrados.length === 0 && (
               <tr>
                 <td colSpan={isAdmin ? 7 : 6} className="px-4 py-8 text-center text-slate-400">
                   Nenhum contato encontrado.
                 </td>
               </tr>
             )}
-            {contatos.map((contato) => (
+            {contatosFiltrados.map((contato) => (
               <tr
                 key={contato.id}
                 className="border-b last:border-0 hover:bg-slate-50 cursor-pointer"

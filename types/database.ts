@@ -103,6 +103,12 @@ export type Contact = {
   responsavel_id: string | null
   foto_perfil_url: string | null
   endereco: string | null
+  endereco_numero: string | null
+  endereco_complemento: string | null
+  endereco_bairro: string | null
+  endereco_cep: string | null
+  endereco_cidade: string | null
+  endereco_estado: string | null
   observacoes: string | null
   criado_em: string
   atualizado_em: string

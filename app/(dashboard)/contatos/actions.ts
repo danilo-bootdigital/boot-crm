@@ -54,6 +54,14 @@ export async function criarContato(formData: FormData) {
   const cargo = formData.get('cargo') as string | null
   const cpf_cnpj = formData.get('cpf_cnpj') as string | null
   const empresa_nome = formData.get('empresa_nome') as string | null
+  const endereco = formData.get('endereco') as string | null
+  const endereco_numero = formData.get('endereco_numero') as string | null
+  const endereco_complemento = formData.get('endereco_complemento') as string | null
+  const endereco_bairro = formData.get('endereco_bairro') as string | null
+  const endereco_cep = formData.get('endereco_cep') as string | null
+  const endereco_cidade = formData.get('endereco_cidade') as string | null
+  const endereco_estado = formData.get('endereco_estado') as string | null
+  const observacoes = formData.get('observacoes') as string | null
 
   const empresa_id = await resolverEmpresa(supabase, perfil.organization_id, empresa_nome)
 
@@ -68,6 +76,14 @@ export async function criarContato(formData: FormData) {
       cpf_cnpj: cpf_cnpj || null,
       empresa_id,
       responsavel_id: perfil.id,
+      endereco: endereco || null,
+      endereco_numero: endereco_numero || null,
+      endereco_complemento: endereco_complemento || null,
+      endereco_bairro: endereco_bairro || null,
+      endereco_cep: endereco_cep || null,
+      endereco_cidade: endereco_cidade || null,
+      endereco_estado: endereco_estado || null,
+      observacoes: observacoes || null,
     })
     .select('id')
     .single()
