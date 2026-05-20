@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
-import { ChevronRight, X } from 'lucide-react'
-import { avancarStatus, cancelarPedido } from '@/app/(dashboard)/pedidos/actions'
+import { ChevronRight, X, Trash2 } from 'lucide-react'
+import { avancarStatus, cancelarPedido, excluirPedido } from '@/app/(dashboard)/pedidos/actions'
 import { toast } from 'sonner'
 
 const PROXIMO_LABEL: Record<string, string> = {
@@ -17,7 +17,9 @@ const PROXIMO_LABEL: Record<string, string> = {
 export function BotoesPedido({ pedidoId, status }: { pedidoId: string; status: string }) {
   const [isPending, startTransition] = useTransition()
   const [showCancelar, setShowCancelar] = useState(false)
+  const [showExcluir, setShowExcluir] = useState(false)
   const [motivo, setMotivo] = useState('')
+  const [senhaAdmin, setSenhaAdmin] = useState('')
 
   const podeAvancar = status in PROXIMO_LABEL
   const podeCancelar = status !== 'cancelado' && status !== 'concluido'
@@ -49,11 +51,44 @@ export function BotoesPedido({ pedidoId, status }: { pedidoId: string; status: s
     })
   }
 
-  if (!podeAvancar && !podeCancelar) return null
+  function handleExcluir() {
+    if (!senhaAdmin.trim()) {
+      toast.error('Informe a senha de administrador.')
+      return
+    }
+    startTransition(async () => {
+      try {
+        await excluirPedido(pedidoId, senhaAdmin)
+        toast.success('Pedido excluído.')
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : 'Erro ao excluir.')
+        setSenhaAdmin('')
+      }
+    })
+  }
+
+  if (!podeAvancar && !podeCancelar && !showExcluir) return null
 
   return (
-    <div className="flex items-center gap-2">
-      {showCancelar ? (
+    <div className="flex items-center gap-2 flex-wrap">
+      {showExcluir ? (
+        <div className="flex items-center gap-2">
+          <input
+            type="password"
+            value={senhaAdmin}
+            onChange={(e) => setSenhaAdmin(e.target.value)}
+            placeholder="Senha de administrador..."
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm w-56"
+            autoFocus
+          />
+          <Button size="sm" variant="destructive" onClick={handleExcluir} disabled={isPending}>
+            Confirmar Exclusão
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => { setShowExcluir(false); setSenhaAdmin('') }} disabled={isPending}>
+            Voltar
+          </Button>
+        </div>
+      ) : showCancelar ? (
         <div className="flex items-center gap-2">
           <input
             type="text"
@@ -84,6 +119,10 @@ export function BotoesPedido({ pedidoId, status }: { pedidoId: string; status: s
               Cancelar
             </Button>
           )}
+          <Button size="sm" variant="outline" onClick={() => setShowExcluir(true)} disabled={isPending} className="gap-1 text-red-600 border-red-200 hover:bg-red-50">
+            <Trash2 className="h-4 w-4" />
+            Excluir Pedido
+          </Button>
         </>
       )}
     </div>

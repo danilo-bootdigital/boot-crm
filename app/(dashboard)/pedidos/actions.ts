@@ -139,3 +139,52 @@ export async function cancelarPedido(orderId: string, motivo: string) {
   revalidatePath('/pedidos')
   revalidatePath(`/pedidos/${orderId}`)
 }
+
+export async function excluirPedido(orderId: string, senhaAdmin: string) {
+  if (!senhaAdmin?.trim()) throw new Error('Senha de administrador é obrigatória.')
+
+  const { supabase, perfil } = await getUsuarioEOrg()
+
+  if (perfil.cargo !== 'admin') {
+    throw new Error('Apenas administradores podem excluir pedidos.')
+  }
+
+  const { error: authError } = await supabase.auth.signInWithPassword({
+    email: (await supabase.auth.getUser()).data.user!.email!,
+    password: senhaAdmin,
+  })
+
+  if (authError) {
+    throw new Error('Senha incorreta.')
+  }
+
+  const { data: pedido } = await supabase
+    .from('orders')
+    .select('id, numero')
+    .eq('id', orderId)
+    .eq('organization_id', perfil.organization_id)
+    .single()
+
+  if (!pedido) throw new Error('Pedido não encontrado.')
+
+  await supabase.from('order_items').delete().eq('order_id', orderId)
+  await supabase.from('order_status_history').delete().eq('order_id', orderId)
+
+  const { error } = await supabase
+    .from('orders')
+    .delete()
+    .eq('id', orderId)
+    .eq('organization_id', perfil.organization_id)
+
+  if (error) throw new Error(`Erro ao excluir pedido: ${error.message}`)
+
+  await supabase.from('activities').insert({
+    organization_id: perfil.organization_id,
+    tipo: 'pedido_excluido',
+    descricao: `Pedido #${pedido.numero} excluído permanentemente.`,
+    autor_id: perfil.id,
+  })
+
+  revalidatePath('/pedidos')
+  redirect('/pedidos')
+}
