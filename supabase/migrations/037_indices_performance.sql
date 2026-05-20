@@ -33,8 +33,8 @@ CREATE INDEX IF NOT EXISTS idx_quotes_responsavel_id ON quotes(responsavel_id);
 -- quote_items (CASCADE performance)
 CREATE INDEX IF NOT EXISTS idx_quote_items_quote_id ON quote_items(quote_id);
 
--- order_items
-CREATE INDEX IF NOT EXISTS idx_order_items_product_id ON order_items(product_id);
+-- order_items (coluna product_id não existe nesta tabela)
+-- CREATE INDEX IF NOT EXISTS idx_order_items_product_id ON order_items(product_id);
 
 -- whatsapp_instances
 CREATE INDEX IF NOT EXISTS idx_whatsapp_instances_organization_id ON whatsapp_instances(organization_id);
