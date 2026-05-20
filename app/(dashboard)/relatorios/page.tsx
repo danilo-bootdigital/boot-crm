@@ -106,6 +106,14 @@ export default async function RelatoriosPage({
     .gte('atualizado_em', inicio)
     .lte('atualizado_em', fim)
 
+  let queryPedidosReceita = supabase
+    .from('orders')
+    .select('id, responsavel_id')
+    .eq('organization_id', orgId)
+    .neq('status', 'cancelado')
+    .gte('criado_em', inicio)
+    .lte('criado_em', fim)
+
   let queryLeadsSemana = supabase
     .from('leads')
     .select('criado_em')
@@ -130,6 +138,7 @@ export default async function RelatoriosPage({
     queryDealsPerdidos = queryDealsPerdidos.eq('responsavel_id', responsavelFiltro)
     queryLeadsSemana = queryLeadsSemana.eq('responsavel_id', responsavelFiltro)
     queryVendasVendedor = queryVendasVendedor.eq('responsavel_id', responsavelFiltro)
+    queryPedidosReceita = queryPedidosReceita.eq('responsavel_id', responsavelFiltro)
   }
 
   // Pipeline para funil
@@ -148,6 +157,7 @@ export default async function RelatoriosPage({
     { data: leadsSemana },
     { data: vendasVendedor },
     { data: pipeline },
+    { data: pedidosReceita },
   ] = await Promise.all([
     queryLeadsNovos,
     queryLeadsQualificados,
@@ -156,11 +166,23 @@ export default async function RelatoriosPage({
     queryLeadsSemana,
     queryVendasVendedor,
     queryPipeline,
+    queryPedidosReceita,
   ])
 
   // Métricas
-  const totalDealsGanhos = dealsGanhos?.length ?? 0
-  const receitaTotal = dealsGanhos?.reduce((acc, d) => acc + (d.valor_estimado ?? 0), 0) ?? 0
+  const totalDealsGanhos = pedidosReceita?.length ?? 0
+
+  // Buscar subtotais dos itens dos pedidos (receita sem frete)
+  const pedidoIds = (pedidosReceita ?? []).map((p) => p.id)
+  let receitaTotal = 0
+  if (pedidoIds.length > 0) {
+    const { data: itensPedidos } = await supabase
+      .from('order_items')
+      .select('subtotal')
+      .in('order_id', pedidoIds)
+    receitaTotal = (itensPedidos ?? []).reduce((acc, item) => acc + Number(item.subtotal ?? 0), 0)
+  }
+
   const ticketMedio = totalDealsGanhos > 0 ? receitaTotal / totalDealsGanhos : 0
   const taxaConversao = (leadsNovos ?? 0) > 0
     ? Math.round(((leadsQualificados ?? 0) / (leadsNovos ?? 1)) * 100)
@@ -293,7 +315,7 @@ export default async function RelatoriosPage({
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
         <CardMetrica label="Leads novos" valor={String(leadsNovos ?? 0)} />
         <CardMetrica label="Taxa de conversão" valor={`${taxaConversao}%`} subtexto="Qualificados / Total" />
-        <CardMetrica label="Deals ganhos" valor={String(totalDealsGanhos)} />
+        <CardMetrica label="Pedidos" valor={String(totalDealsGanhos)} />
         <CardMetrica label="Receita" valor={formatarMoeda(receitaTotal)} />
         <CardMetrica label="Ticket médio" valor={formatarMoeda(ticketMedio)} subtexto={`${dealsPerdidos ?? 0} perdidos`} />
       </div>
