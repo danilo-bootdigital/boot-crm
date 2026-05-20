@@ -3,32 +3,37 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { distribuirLead } from '@/lib/distribuicao'
 import { criarDealParaLead } from '@/lib/pipeline-lead'
 import { baixarMidia } from '@/lib/evolution'
-import { telefonesIguais } from '@/lib/telefone'
 
 function normalizarTelefone(jid: string): string {
   return jid.replace(/@.*$/, '').replace(/:\d+$/, '')
 }
 
-// Busca contato por telefone normalizado (considera variações de formato)
+// Busca contato por telefone normalizado usando índice do banco
 async function buscarContatoPorTelefone(
   supabase: ReturnType<typeof createAdminClient>,
   organizationId: string,
   telefone: string
 ): Promise<{ id: string; nome: string } | null> {
-  const { data: contatos } = await supabase
-    .from('contacts')
-    .select('id, nome, telefone')
-    .eq('organization_id', organizationId)
-    .not('telefone', 'is', null)
+  const digits = telefone.replace(/\D/g, '')
+  const semPais = digits.startsWith('55') && digits.length >= 12 ? digits.slice(2) : digits
 
-  if (!contatos || contatos.length === 0) return null
-
-  for (const c of contatos) {
-    if (!c.telefone) continue
-    if (telefonesIguais(telefone, c.telefone)) {
-      return { id: c.id, nome: c.nome }
-    }
+  // Buscar com variações: com e sem nono dígito
+  const variacoes = [semPais]
+  if (semPais.length === 11) {
+    variacoes.push(semPais.slice(0, 2) + semPais.slice(3))
+  } else if (semPais.length === 10) {
+    variacoes.push(semPais.slice(0, 2) + '9' + semPais.slice(2))
   }
+
+  const { data } = await supabase
+    .from('contacts')
+    .select('id, nome')
+    .eq('organization_id', organizationId)
+    .or(variacoes.map(v => `telefone.ilike.%${v}%`).join(','))
+    .limit(1)
+    .single()
+
+  if (data?.nome) return { id: data.id, nome: data.nome }
   return null
 }
 
