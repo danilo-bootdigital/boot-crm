@@ -21,8 +21,7 @@ export default async function ConversaPage({ params }: { params: Promise<{ id: s
   const { data: conversa } = await supabase
     .from('conversations')
     .select(`
-      id, telefone_externo, status, responsavel_id, deal_id,
-      lead:leads!lead_id(id, nome),
+      id, telefone_externo, status, responsavel_id, deal_id, lead_id,
       instancia:whatsapp_instances!whatsapp_instance_id(nome, status_conexao)
     `)
     .eq('id', id)
@@ -30,6 +29,17 @@ export default async function ConversaPage({ params }: { params: Promise<{ id: s
     .single()
 
   if (!conversa) notFound()
+
+  // Lead (busca separada para não crashar se lead foi excluído)
+  let leadData: { id: string; nome: string | null } | null = null
+  if (conversa.lead_id) {
+    const { data: leadRaw } = await supabase
+      .from('leads')
+      .select('id, nome')
+      .eq('id', conversa.lead_id as string)
+      .single()
+    leadData = leadRaw ?? null
+  }
 
   // Mensagens
   const { data: mensagensRaw } = await supabase
@@ -96,22 +106,30 @@ export default async function ConversaPage({ params }: { params: Promise<{ id: s
 
   const usuarios = (usuariosRaw ?? []) as { id: string; nome: string }[]
 
-  // Deal vinculado
+  // Deal vinculado (busca separada para não crashar se deal/estágio foi excluído)
   let dealVinculado: { id: string; titulo: string; valor_estimado: number | null; estagio_nome: string } | null = null
   if (conversa.deal_id) {
     const { data: dealRaw } = await supabase
       .from('deals')
-      .select('id, titulo, valor_estimado, estagio:pipeline_stages!estagio_id(nome)')
+      .select('id, titulo, valor_estimado, estagio_id')
       .eq('id', conversa.deal_id as string)
       .eq('organization_id', perfil.organization_id)
       .single()
     if (dealRaw) {
-      const estagio = (Array.isArray(dealRaw.estagio) ? dealRaw.estagio[0] : dealRaw.estagio) as { nome: string } | null
+      let estagioNome = ''
+      if (dealRaw.estagio_id) {
+        const { data: estagioRaw } = await supabase
+          .from('pipeline_stages')
+          .select('nome')
+          .eq('id', dealRaw.estagio_id)
+          .single()
+        estagioNome = estagioRaw?.nome ?? ''
+      }
       dealVinculado = {
         id: dealRaw.id as string,
         titulo: dealRaw.titulo as string,
         valor_estimado: dealRaw.valor_estimado as number | null,
-        estagio_nome: estagio?.nome ?? '',
+        estagio_nome: estagioNome,
       }
     }
   }
@@ -122,18 +140,17 @@ export default async function ConversaPage({ params }: { params: Promise<{ id: s
     responsavel = usuarios.find((u) => u.id === (conversa.responsavel_id as string)) ?? null
   }
 
-  const lead = (Array.isArray(conversa.lead) ? conversa.lead[0] : conversa.lead) as { id: string; nome: string | null } | null
   const instancia = (Array.isArray(conversa.instancia) ? conversa.instancia[0] : conversa.instancia) as { nome: string; status_conexao: string } | null
-  const titulo = nomeExibicao(lead?.nome, conversa.telefone_externo as string)
+  const titulo = nomeExibicao(leadData?.nome ?? null, (conversa.telefone_externo as string) ?? '')
 
   return (
     <ConversaLayout
       conversaId={id}
       titulo={titulo}
-      telefone={conversa.telefone_externo as string}
+      telefone={(conversa.telefone_externo as string) ?? ''}
       instanciaNome={instancia?.nome ?? null}
       instanciaConectada={instancia?.status_conexao === 'conectado'}
-      leadId={lead?.id ?? null}
+      leadId={leadData?.id ?? null}
       status={(conversa.status as 'nao_atendida' | 'em_atendimento' | 'aguardando_cliente' | 'finalizada') ?? 'nao_atendida'}
       responsavel={responsavel}
       tags={tags}
