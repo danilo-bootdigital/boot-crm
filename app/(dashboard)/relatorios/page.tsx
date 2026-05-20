@@ -108,7 +108,7 @@ export default async function RelatoriosPage({
 
   let queryPedidosReceita = supabase
     .from('orders')
-    .select('id, responsavel_id')
+    .select('id, responsavel_id, valor_total, frete')
     .eq('organization_id', orgId)
     .neq('status', 'cancelado')
     .gte('criado_em', inicio)
@@ -172,16 +172,8 @@ export default async function RelatoriosPage({
   // Métricas
   const totalDealsGanhos = pedidosReceita?.length ?? 0
 
-  // Buscar subtotais dos itens dos pedidos (receita sem frete)
-  const pedidoIds = (pedidosReceita ?? []).map((p) => p.id)
-  let receitaTotal = 0
-  if (pedidoIds.length > 0) {
-    const { data: itensPedidos } = await supabase
-      .from('order_items')
-      .select('subtotal')
-      .in('order_id', pedidoIds)
-    receitaTotal = (itensPedidos ?? []).reduce((acc, item) => acc + Number(item.subtotal ?? 0), 0)
-  }
+  // Total de Vendas = soma de (valor_total - frete) dos pedidos no período
+  const receitaTotal = (pedidosReceita ?? []).reduce((acc, p) => acc + (Number(p.valor_total ?? 0) - Number(p.frete ?? 0)), 0)
 
   const ticketMedio = totalDealsGanhos > 0 ? receitaTotal / totalDealsGanhos : 0
   const taxaConversao = (leadsNovos ?? 0) > 0
@@ -316,7 +308,7 @@ export default async function RelatoriosPage({
         <CardMetrica label="Leads novos" valor={String(leadsNovos ?? 0)} />
         <CardMetrica label="Taxa de conversão" valor={`${taxaConversao}%`} subtexto="Qualificados / Total" />
         <CardMetrica label="Pedidos" valor={String(totalDealsGanhos)} />
-        <CardMetrica label="Receita" valor={formatarMoeda(receitaTotal)} />
+        <CardMetrica label="Total de Vendas" valor={formatarMoeda(receitaTotal)} />
         <CardMetrica label="Ticket médio" valor={formatarMoeda(ticketMedio)} subtexto={`${dealsPerdidos ?? 0} perdidos`} />
       </div>
 
