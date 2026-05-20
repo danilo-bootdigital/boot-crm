@@ -9,7 +9,7 @@ import { toast } from 'sonner'
 import { formatarMoeda } from '@/lib/utils'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Calendar, DollarSign, User, Contact, Plus, MessageSquare, MessageCircle, Globe, XCircle } from 'lucide-react'
+import { Calendar, DollarSign, User, Contact, Plus, MessageSquare, MessageCircle, Globe, XCircle, ArrowRightLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { adicionarObservacaoDeal, moverDeal } from '@/app/(dashboard)/pipeline/actions'
 import { BadgeOrigem } from '@/components/leads/badge-origem'
@@ -27,7 +27,7 @@ type Props = {
   deal: DealCard | null
   aberto: boolean
   onFechar: () => void
-  estagios?: { id: string; tipo_especial: 'fechado' | 'perdido' | null }[]
+  estagios?: { id: string; nome: string; tipo_especial: 'fechado' | 'perdido' | null }[]
 }
 
 export function ModalDetalheDeal({ deal, aberto, onFechar, estagios }: Props) {
@@ -77,6 +77,25 @@ export function ModalDetalheDeal({ deal, aberto, onFechar, estagios }: Props) {
         toast.error(e instanceof Error ? e.message : 'Erro ao registrar perda.')
       } finally {
         setMarcandoPerdido(false)
+      }
+    })
+  }
+
+  function handleMudarEtapa(novoEstagioId: string) {
+    if (!deal || novoEstagioId === deal.estagio_id) return
+    const etapa = estagios?.find((e) => e.id === novoEstagioId)
+    if (etapa?.tipo_especial === 'perdido') {
+      handleMarcarPerdido()
+      return
+    }
+
+    startTransition(async () => {
+      try {
+        await moverDeal(deal.id, novoEstagioId)
+        toast.success('Etapa atualizada.')
+        router.refresh()
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : 'Erro ao mover negociação.')
       }
     })
   }
@@ -153,6 +172,26 @@ export function ModalDetalheDeal({ deal, aberto, onFechar, estagios }: Props) {
               <Globe className="h-4 w-4 text-slate-400" />
               <span className="text-sm text-slate-600">Origem:</span>
               <BadgeOrigem origem={deal.lead.origem as any} />
+            </div>
+          )}
+
+          {/* Mudança de etapa */}
+          {deal.ganho === null && estagios && estagios.length > 0 && (
+            <div className="flex items-center gap-2">
+              <ArrowRightLeft className="h-4 w-4 text-slate-400" />
+              <span className="text-sm text-slate-600">Etapa:</span>
+              <select
+                value={deal.estagio_id}
+                onChange={(e) => handleMudarEtapa(e.target.value)}
+                disabled={isPending}
+                className="rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {estagios.map((etapa) => (
+                  <option key={etapa.id} value={etapa.id}>
+                    {etapa.nome}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
 
