@@ -1,14 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
-import { Zap, X, Search, Plus, Send, Pencil, Trash2, ArrowLeft } from 'lucide-react'
+import { Zap, X, Search, Plus, Send, Pencil, Trash2, ArrowLeft, Paperclip, FileText, Image as ImageIcon, Mic } from 'lucide-react'
 import {
   listarTemplates,
   criarTemplate,
   editarTemplate,
   excluirTemplate,
 } from '@/app/(dashboard)/whatsapp/actions-conversa'
+import { toast } from 'sonner'
 
 type Template = {
   id: string
@@ -27,6 +28,7 @@ type Variaveis = {
 type Props = {
   variaveis: Variaveis
   onSelecionar: (texto: string) => void
+  onEnviarComArquivo?: (texto: string, arquivo: File | null) => void
 }
 
 type Tela = 'lista' | 'criar' | 'editar'
@@ -39,7 +41,13 @@ function substituirVariaveis(conteudo: string, variaveis: Variaveis): string {
     .replace(/\{\{telefone\}\}/gi, variaveis.telefone || '{{telefone}}')
 }
 
-export function SeletorRespostaRapida({ variaveis, onSelecionar }: Props) {
+function IconeArquivo({ tipo }: { tipo: string }) {
+  if (tipo.startsWith('image/')) return <ImageIcon className="h-4 w-4 text-blue-500" />
+  if (tipo.startsWith('audio/')) return <Mic className="h-4 w-4 text-purple-500" />
+  return <FileText className="h-4 w-4 text-red-500" />
+}
+
+export function SeletorRespostaRapida({ variaveis, onSelecionar, onEnviarComArquivo }: Props) {
   const [aberto, setAberto] = useState(false)
   const [templates, setTemplates] = useState<Template[]>([])
   const [busca, setBusca] = useState('')
@@ -48,6 +56,9 @@ export function SeletorRespostaRapida({ variaveis, onSelecionar }: Props) {
   const [editando, setEditando] = useState<Template | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
+  const [arquivoAnexo, setArquivoAnexo] = useState<File | null>(null)
+  const [previewAnexo, setPreviewAnexo] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Form fields
   const [formNome, setFormNome] = useState('')
@@ -71,7 +82,11 @@ export function SeletorRespostaRapida({ variaveis, onSelecionar }: Props) {
 
   function handleSelecionar(template: Template) {
     const texto = substituirVariaveis(template.conteudo, variaveis)
-    onSelecionar(texto)
+    if (onEnviarComArquivo) {
+      onEnviarComArquivo(texto, arquivoAnexo)
+    } else {
+      onSelecionar(texto)
+    }
     fechar()
   }
 
@@ -81,6 +96,29 @@ export function SeletorRespostaRapida({ variaveis, onSelecionar }: Props) {
     setTela('lista')
     setEditando(null)
     setErro(null)
+    limparAnexo()
+  }
+
+  function limparAnexo() {
+    if (previewAnexo) URL.revokeObjectURL(previewAnexo)
+    setArquivoAnexo(null)
+    setPreviewAnexo(null)
+  }
+
+  function handleAnexoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 16 * 1024 * 1024) {
+      toast.error('Arquivo muito grande (máximo 16MB).')
+      return
+    }
+    setArquivoAnexo(file)
+    if (file.type.startsWith('image/')) {
+      setPreviewAnexo(URL.createObjectURL(file))
+    } else {
+      setPreviewAnexo(null)
+    }
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   function abrirCriar() {
@@ -175,6 +213,13 @@ export function SeletorRespostaRapida({ variaveis, onSelecionar }: Props) {
               placeholder="Buscar modelo..."
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && filtrados.length > 0) {
+                  e.preventDefault()
+                  handleSelecionar(filtrados[0])
+                }
+                if (e.key === 'Escape') fechar()
+              }}
               className="flex-1 text-sm outline-none placeholder:text-slate-400"
               autoFocus
             />
@@ -259,6 +304,41 @@ export function SeletorRespostaRapida({ variaveis, onSelecionar }: Props) {
           <div className="border-t px-3 py-1.5">
             <p className="text-[11px] text-slate-400">
               Variáveis: {'{{nome}}'} {'{{vendedor}}'} {'{{empresa}}'} {'{{telefone}}'}
+            </p>
+          </div>
+
+          {/* Anexo para enviar junto */}
+          <div className="border-t px-3 py-2 space-y-1.5">
+            {arquivoAnexo ? (
+              <div className="flex items-center gap-2 rounded-md bg-slate-50 border border-slate-200 px-2 py-1.5">
+                {previewAnexo ? (
+                  <img src={previewAnexo} alt="Preview" className="h-8 w-8 rounded object-cover" />
+                ) : (
+                  <IconeArquivo tipo={arquivoAnexo.type} />
+                )}
+                <span className="flex-1 text-[11px] text-slate-700 truncate">{arquivoAnexo.name}</span>
+                <button onClick={limparAnexo} className="text-slate-400 hover:text-slate-600">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1.5 text-[11px] text-slate-500 hover:text-blue-600 transition-colors"
+              >
+                <Paperclip className="h-3.5 w-3.5" />
+                Anexar arquivo para enviar junto
+              </button>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx"
+              onChange={handleAnexoChange}
+              className="hidden"
+            />
+            <p className="text-[11px] text-slate-400">
+              Selecione um modelo e pressione Enter ou clique em &quot;Usar&quot; para enviar direto.
             </p>
           </div>
         </>
