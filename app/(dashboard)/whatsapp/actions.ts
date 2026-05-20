@@ -146,13 +146,13 @@ export async function iniciarConversa(params: IniciarConversaParams): Promise<st
     }
   }
 
-  // Buscar conversa existente pelo telefone + instância
+  // Buscar conversa existente pelo telefone na org (independente da instância)
   const { data: conversaExistente } = await supabase
     .from('conversations')
-    .select('id')
+    .select('id, whatsapp_instance_id')
     .eq('organization_id', perfil.organization_id)
-    .eq('whatsapp_instance_id', instanciaId)
     .eq('telefone_externo', formatado)
+    .order('ultima_mensagem_em', { ascending: false })
     .limit(1)
     .single()
 
@@ -214,6 +214,14 @@ export async function iniciarConversa(params: IniciarConversaParams): Promise<st
 
   if (conversaExistente) {
     conversaId = conversaExistente.id
+    // Atualizar instância se mudou
+    if (conversaExistente.whatsapp_instance_id !== instanciaId) {
+      await supabase
+        .from('conversations')
+        .update({ whatsapp_instance_id: instanciaId, atualizado_em: new Date().toISOString() })
+        .eq('id', conversaId)
+        .eq('organization_id', perfil.organization_id)
+    }
     // Vincular lead se conversa não tem
     if (leadIdFinal) {
       await supabase

@@ -126,13 +126,18 @@ export async function POST(req: NextRequest) {
       if ((count ?? 0) > 0) return NextResponse.json({ ok: true })
     }
 
-    // Buscar ou criar conversa
-    const { data: conversa, error: errConversa } = await supabase
+    // Buscar ou criar conversa — busca por telefone na org inteira (independente da instância)
+    // para evitar duplicatas quando o usuário reconecta com outra instância
+    let conversaQuery = supabase
       .from('conversations')
-      .select('id, lead_id, status, responsavel_id')
-      .eq('whatsapp_instance_id', instancia.id)
+      .select('id, lead_id, status, responsavel_id, whatsapp_instance_id')
+      .eq('organization_id', instancia.organization_id)
       .eq('telefone_externo', telefone)
+      .order('ultima_mensagem_em', { ascending: false })
+      .limit(1)
       .single()
+
+    const { data: conversa, error: errConversa } = await conversaQuery
 
     if (errConversa && errConversa.code !== 'PGRST116') {
       console.error('[webhook] Erro ao buscar conversa:', errConversa.message)
@@ -140,6 +145,14 @@ export async function POST(req: NextRequest) {
     }
 
     let conversaAtual = conversa
+
+    // Se a conversa existe mas está vinculada a outra instância, atualizar para a instância atual
+    if (conversaAtual && conversaAtual.whatsapp_instance_id !== instancia.id) {
+      await supabase
+        .from('conversations')
+        .update({ whatsapp_instance_id: instancia.id, atualizado_em: new Date().toISOString() })
+        .eq('id', conversaAtual.id)
+    }
 
     let leadId: string | null = (conversaAtual?.lead_id as string) ?? null
 
@@ -228,16 +241,18 @@ export async function POST(req: NextRequest) {
           status: fromMe ? 'em_atendimento' : 'nao_atendida',
           responsavel_id: instancia.vendedor_id ?? null,
         })
-        .select('id, lead_id, status, responsavel_id')
+        .select('id, lead_id, status, responsavel_id, whatsapp_instance_id')
         .single()
 
       if (errNovaConversa) {
         // Possível race condition — tentar buscar conversa que foi criada por outro request
         const { data: conversaExistente } = await supabase
           .from('conversations')
-          .select('id, lead_id, status, responsavel_id')
-          .eq('whatsapp_instance_id', instancia.id)
+          .select('id, lead_id, status, responsavel_id, whatsapp_instance_id')
+          .eq('organization_id', instancia.organization_id)
           .eq('telefone_externo', telefone)
+          .order('ultima_mensagem_em', { ascending: false })
+          .limit(1)
           .single()
 
         if (!conversaExistente) {
