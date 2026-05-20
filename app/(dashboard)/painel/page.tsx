@@ -67,10 +67,9 @@ export default async function PainelPage() {
 
   let queryPedidosMes = supabase
     .from('orders')
-    .select('id')
+    .select('id, criado_em')
     .eq('organization_id', orgId)
     .neq('status', 'cancelado')
-    .gte('criado_em', inicio)
   if (isVendedor) queryPedidosMes = queryPedidosMes.eq('responsavel_id', perfil.id)
 
   const queryTarefasPendentes = supabase
@@ -117,9 +116,9 @@ export default async function PainelPage() {
     ? Math.round(((leadsQualificados ?? 0) / (leadsNovos ?? 1)) * 100)
     : 0
 
-  const totalPedidosMes = pedidosMes?.length ?? 0
+  const totalPedidosMes = (pedidosMes ?? []).filter((p) => p.criado_em >= inicio).length
 
-  // Receita = soma dos subtotais dos itens dos pedidos (sem frete)
+  // Receita = soma dos subtotais dos itens de TODOS os pedidos (total de vendas)
   const pedidoIds = (pedidosMes ?? []).map((p) => p.id)
   let receitaMes = 0
   if (pedidoIds.length > 0) {
@@ -279,7 +278,7 @@ export default async function PainelPage() {
         <CardKPI label="Leads novos" valor={leadsNovos ?? 0} icone={Users} descricao="Este mês" />
         <CardKPI label="Conversão" valor={`${taxaConversao}%`} icone={TrendingUp} descricao="Qualificados / total" />
         <CardKPI label="Pedidos" valor={totalPedidosMes} icone={Trophy} descricao="Este mês" />
-        <CardKPI label="Receita" valor={formatarMoeda(receitaMes)} icone={DollarSign} descricao="Este mês" />
+        <CardKPI label="Total de Vendas" valor={formatarMoeda(receitaMes)} icone={DollarSign} descricao="Acumulado" />
         <CardKPI label="Tarefas pendentes" valor={tarefasPendentes ?? 0} icone={CheckSquare} descricao="Suas tarefas" />
         <CardKPI label="Atrasadas" valor={tarefasAtrasadas ?? 0} icone={AlertTriangle} descricao="Vencidas" />
       </div>
