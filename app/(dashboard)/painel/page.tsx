@@ -67,7 +67,7 @@ export default async function PainelPage() {
 
   let queryPedidosMes = supabase
     .from('orders')
-    .select('id, criado_em')
+    .select('id, criado_em, valor_total, frete')
     .eq('organization_id', orgId)
     .neq('status', 'cancelado')
   if (isVendedor) queryPedidosMes = queryPedidosMes.eq('responsavel_id', perfil.id)
@@ -118,16 +118,8 @@ export default async function PainelPage() {
 
   const totalPedidosMes = (pedidosMes ?? []).filter((p) => p.criado_em >= inicio).length
 
-  // Receita = soma dos subtotais dos itens de TODOS os pedidos (total de vendas)
-  const pedidoIds = (pedidosMes ?? []).map((p) => p.id)
-  let receitaMes = 0
-  if (pedidoIds.length > 0) {
-    const { data: itensPedidos } = await supabase
-      .from('order_items')
-      .select('subtotal')
-      .in('order_id', pedidoIds)
-    receitaMes = (itensPedidos ?? []).reduce((acc, item) => acc + Number(item.subtotal ?? 0), 0)
-  }
+  // Total de Vendas = soma de (valor_total - frete) de todos os pedidos
+  const receitaMes = (pedidosMes ?? []).reduce((acc, p) => acc + (Number(p.valor_total ?? 0) - Number(p.frete ?? 0)), 0)
 
   const origemMap = new Map<string, number>()
   leadsOrigem?.forEach((l) => {
