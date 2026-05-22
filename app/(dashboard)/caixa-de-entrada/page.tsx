@@ -18,8 +18,11 @@ export default async function CaixaDeEntradaPage() {
   const orgId = perfil.organization_id
   const isVendedor = perfil.cargo === 'vendedor'
   const isAtendimento = perfil.cargo === 'atendimento'
-  const hoje = new Date().toISOString()
-  const ontem = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+
+  // Calcular datas de forma pura
+  const agora = new Date()
+  const hoje = agora.toISOString()
+  const ontem = new Date(agora.getTime() - 24 * 60 * 60 * 1000).toISOString()
 
   // Query 1: Mensagens não respondidas (RPC)
   const queryMensagens = supabase.rpc('mensagens_nao_respondidas', {

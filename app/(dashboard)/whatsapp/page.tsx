@@ -144,9 +144,9 @@ export default async function WhatsappPage() {
         <div className="flex items-center gap-2">
           <ModalNovaConversa instancias={instancias} />
           {['admin', 'gestor'].includes(perfil.cargo) && (
-            <a href="/whatsapp/relatorios" className="rounded-md border px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+            <Link href="/whatsapp/relatorios" className="rounded-md border px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
               Relatórios
-            </a>
+            </Link>
           )}
         </div>
       </div>
