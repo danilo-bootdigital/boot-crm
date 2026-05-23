@@ -9,6 +9,45 @@ import { validarTelefone } from '@/lib/utils'
 import { criarDealParaLead } from '@/lib/pipeline-lead'
 import { telefonesIguais } from '@/lib/telefone'
 
+// ── Helper: validar/fallback de instância WhatsApp ──────────────
+
+async function getValidInstance(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  instanceId: string | null,
+  organizationId: string
+): Promise<{ id: string; name: string }> {
+  // Tentar a instância atual da conversa primeiro
+  if (instanceId) {
+    const { data: inst } = await supabase
+      .from('whatsapp_instances')
+      .select('id, evolution_instance_name, status_conexao')
+      .eq('id', instanceId)
+      .eq('organization_id', organizationId)
+      .maybeSingle()
+
+    if (inst?.status_conexao === 'conectado' && inst.evolution_instance_name) {
+      return { id: inst.id as string, name: inst.evolution_instance_name }
+    }
+  }
+
+  // Fallback: qualquer instância conectada da organização
+  const { data: fallback } = await supabase
+    .from('whatsapp_instances')
+    .select('id, evolution_instance_name')
+    .eq('organization_id', organizationId)
+    .eq('status_conexao', 'conectado')
+    .limit(1)
+    .maybeSingle()
+
+  if (fallback?.evolution_instance_name) {
+    return { id: fallback.id as string, name: fallback.evolution_instance_name }
+  }
+
+  throw new Error('Nenhuma instância de WhatsApp conectada disponível para envio.')
+}
+
+// ── Enviar mensagem de texto ─────────────────────────────────────
+
 export async function enviarMensagem(conversaId: string, texto: string) {
   if (!texto.trim()) throw new Error('Mensagem não pode estar vazia.')
   if (texto.length > 4096) throw new Error('Mensagem muito longa (máximo 4096 caracteres).')
@@ -34,21 +73,19 @@ export async function enviarMensagem(conversaId: string, texto: string) {
 
   if (!conversa) throw new Error('Conversa não encontrada.')
 
-  const { data: instancia } = await supabase
-    .from('whatsapp_instances')
-    .select('evolution_instance_name, status_conexao')
-    .eq('id', conversa.whatsapp_instance_id)
-    .eq('organization_id', perfil.organization_id)
-    .single()
+  // Validar instância com fallback automático
+  const instancia = await getValidInstance(supabase, conversa.whatsapp_instance_id, perfil.organization_id)
 
-  if (!instancia?.evolution_instance_name) throw new Error('Instância não configurada.')
-  if (instancia.status_conexao !== 'conectado') throw new Error('WhatsApp desconectado. Reconecte a instância.')
+  // Atualizar conversa se a instância mudou (fallback)
+  if (conversa.whatsapp_instance_id !== instancia.id) {
+    await supabase
+      .from('conversations')
+      .update({ whatsapp_instance_id: instancia.id, atualizado_em: new Date().toISOString() })
+      .eq('id', conversaId)
+      .eq('organization_id', perfil.organization_id)
+  }
 
-  const messageIdExterno = await enviarTexto(
-    instancia.evolution_instance_name,
-    conversa.telefone_externo,
-    texto.trim()
-  )
+  const messageIdExterno = await enviarTexto(instancia.name, conversa.telefone_externo, texto.trim())
 
   const agora = new Date().toISOString()
 
@@ -154,7 +191,7 @@ export async function iniciarConversa(params: IniciarConversaParams): Promise<st
     .eq('telefone_externo', formatado)
     .order('ultima_mensagem_em', { ascending: false })
     .limit(1)
-    .single()
+    .maybeSingle()
 
   let conversaId: string
 
@@ -169,7 +206,7 @@ export async function iniciarConversa(params: IniciarConversaParams): Promise<st
       .eq('organization_id', perfil.organization_id)
       .eq('telefone', formatado)
       .limit(1)
-      .single()
+      .maybeSingle()
 
     if (leadExistente) {
       leadIdFinal = leadExistente.id
@@ -253,11 +290,7 @@ export async function iniciarConversa(params: IniciarConversaParams): Promise<st
   }
 
   // Enviar mensagem via Evolution API
-  const messageIdExterno = await enviarTexto(
-    instancia.evolution_instance_name!,
-    formatado,
-    texto.trim()
-  )
+  const messageIdExterno = await enviarTexto(instancia.evolution_instance_name!, formatado, texto.trim())
 
   const agora = new Date().toISOString()
 
@@ -285,13 +318,10 @@ export async function iniciarConversa(params: IniciarConversaParams): Promise<st
     })
     .eq('id', conversaId)
 
-  // Atualizar última interação do lead
+  // Atualizar última interação do lead - apenas para prospecção
+  // Prospecção não deve gerar novas interações
   if (leadIdFinal) {
-    await supabase
-      .from('leads')
-      .update({ ultima_interacao_em: agora })
-      .eq('id', leadIdFinal)
-      .eq('organization_id', perfil.organization_id)
+    // Não atualizar última interação do lead para prospecção
 
     // Criar deal no pipeline se não existir
     const { data: dealExistente } = await supabase
@@ -300,7 +330,7 @@ export async function iniciarConversa(params: IniciarConversaParams): Promise<st
       .eq('lead_id', leadIdFinal)
       .is('ganho', null)
       .limit(1)
-      .single()
+      .maybeSingle()
 
     if (!dealExistente) {
       const { data: leadData } = await supabase
@@ -436,15 +466,17 @@ export async function enviarMidia(conversaId: string, formData: FormData) {
 
   if (!conversa) throw new Error('Conversa não encontrada.')
 
-  const { data: instancia } = await supabase
-    .from('whatsapp_instances')
-    .select('evolution_instance_name, status_conexao')
-    .eq('id', conversa.whatsapp_instance_id)
-    .eq('organization_id', perfil.organization_id)
-    .single()
+  // Validar instância com fallback automático
+  const instancia = await getValidInstance(supabase, conversa.whatsapp_instance_id, perfil.organization_id)
 
-  if (!instancia?.evolution_instance_name) throw new Error('Instância não configurada.')
-  if (instancia.status_conexao !== 'conectado') throw new Error('WhatsApp desconectado. Reconecte a instância.')
+  // Atualizar conversa se a instância mudou (fallback)
+  if (conversa.whatsapp_instance_id !== instancia.id) {
+    await supabase
+      .from('conversations')
+      .update({ whatsapp_instance_id: instancia.id, atualizado_em: new Date().toISOString() })
+      .eq('id', conversaId)
+      .eq('organization_id', perfil.organization_id)
+  }
 
   const buffer = Buffer.from(await file.arrayBuffer())
   const base64 = buffer.toString('base64')
@@ -456,30 +488,13 @@ export async function enviarMidia(conversaId: string, formData: FormData) {
   if (mimeType.startsWith('image/')) {
     tipoMidia = 'imagem'
     const caption = (formData.get('caption') as string)?.trim() || ''
-    messageIdExterno = await enviarImagem(
-      instancia.evolution_instance_name,
-      conversa.telefone_externo,
-      base64,
-      mimeType,
-      caption
-    )
+    messageIdExterno = await enviarImagem(instancia.name, conversa.telefone_externo, base64, mimeType, caption)
   } else if (mimeType.startsWith('audio/')) {
     tipoMidia = 'audio'
-    messageIdExterno = await enviarAudio(
-      instancia.evolution_instance_name,
-      conversa.telefone_externo,
-      base64,
-      mimeType
-    )
+    messageIdExterno = await enviarAudio(instancia.name, conversa.telefone_externo, base64, mimeType)
   } else {
     tipoMidia = 'documento'
-    messageIdExterno = await enviarDocumento(
-      instancia.evolution_instance_name,
-      conversa.telefone_externo,
-      base64,
-      mimeType,
-      file.name
-    )
+    messageIdExterno = await enviarDocumento(instancia.name, conversa.telefone_externo, base64, mimeType, file.name)
   }
 
   // Upload para Storage
@@ -507,7 +522,11 @@ export async function enviarMidia(conversaId: string, formData: FormData) {
     message_id_externo: messageIdExterno,
     direcao: 'enviada',
     tipo_midia: tipoMidia,
-    conteudo: tipoMidia === 'imagem' ? ((formData.get('caption') as string)?.trim() || '[Imagem]') : tipoMidia === 'audio' ? '[Áudio]' : `[${file.name}]`,
+    conteudo: tipoMidia === 'imagem'
+      ? ((formData.get('caption') as string)?.trim() || '[Imagem]')
+      : tipoMidia === 'audio'
+        ? '[Áudio]'
+        : `[${file.name}]`,
     url_midia: urlMidia,
     responsavel_id: perfil.id,
     status: 'enviada',

@@ -162,124 +162,151 @@ export async function POST(req: NextRequest) {
     let leadId: string | null = (conversaAtual?.lead_id as string) ?? null
 
     if (!conversaAtual) {
-      // Checar se lead já existe com este telefone
-      const { data: leadExistente } = await supabase
-        .from('leads')
-        .select('id')
-        .eq('organization_id', instancia.organization_id)
-        .eq('telefone', telefone)
-        .limit(1)
-        .single()
-
-      leadId = (leadExistente?.id as string) ?? null
-
-      // Checar se existe contato cadastrado com este telefone
-      const contatoExistente = await buscarContatoPorTelefone(supabase, instancia.organization_id, telefone)
-
-      // Criar lead para qualquer nova conversa (recebida ou enviada pelo celular)
-      if (!leadId) {
-        // Prioridade de nome: contato cadastrado > pushName > genérico
-        const nomeLead = contatoExistente?.nome?.trim() || pushName?.trim() || 'Contato WhatsApp'
-        const { data: novoLead, error: errLead } = await supabase
-          .from('leads')
+      if (fromMe) {
+        // Mensagem enviada pelo vendedor (prospecção) — NÃO criar lead nem card
+        const { data: novaConversa, error: errNovaConversa } = await supabase
+          .from('conversations')
           .insert({
             organization_id: instancia.organization_id,
-            nome: nomeLead,
-            telefone,
-            origem: 'whatsapp',
-            status: 'novo',
             whatsapp_instance_id: instancia.id,
+            telefone_externo: telefone,
+            ultima_mensagem_em: enviadoEm,
+            status: 'aguardando_resposta',
+            responsavel_id: instancia.vendedor_id ?? null,
           })
-          .select('id')
+          .select('id, lead_id, status, responsavel_id, whatsapp_instance_id')
           .single()
 
-        if (errLead && (errLead.message.includes('duplicate') || errLead.code?.includes('23505'))) {
-          // Lead já existe (race condition) — buscar o existente
-          const { data: leadExistente2 } = await supabase
-            .from('leads')
-            .select('id')
+        if (errNovaConversa) {
+          const { data: conversaExistente } = await supabase
+            .from('conversations')
+            .select('id, lead_id, status, responsavel_id, whatsapp_instance_id')
             .eq('organization_id', instancia.organization_id)
-            .eq('telefone', telefone)
+            .eq('telefone_externo', telefone)
+            .order('ultima_mensagem_em', { ascending: false })
             .limit(1)
             .single()
-          leadId = (leadExistente2?.id as string) ?? null
-        } else {
-          leadId = (novoLead?.id as string) ?? null
-        }
-
-        if (leadId) {
-          const { data: adminPerfil } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('organization_id', instancia.organization_id)
-            .eq('cargo', 'admin')
-            .eq('ativo', true)
-            .limit(1)
-            .single()
-
-          if (adminPerfil) {
-            await supabase.from('activities').insert({
-              organization_id: instancia.organization_id,
-              tipo: 'lead_criado',
-              descricao: `Lead criado via WhatsApp: ${telefone}${pushName ? ` (${pushName})` : ''}.`,
-              lead_id: leadId,
-              autor_id: adminPerfil.id,
-            })
-            await distribuirLead(supabase, leadId, instancia.organization_id, adminPerfil.id)
-
-            // Buscar responsável atualizado após distribuição
-            const { data: leadAtualizado } = await supabase
-              .from('leads')
-              .select('responsavel_id')
-              .eq('id', leadId)
-              .single()
-
-            await criarDealParaLead(supabase, {
-              organization_id: instancia.organization_id,
-              lead_id: leadId,
-              lead_nome: nomeLead,
-              lead_telefone: telefone,
-              responsavel_id: leadAtualizado?.responsavel_id ?? instancia.vendedor_id ?? null,
-              origem: 'whatsapp',
-              autor_id: adminPerfil.id,
-            })
+          if (!conversaExistente) {
+            console.error('[webhook] Erro ao criar conversa de prospecção:', errNovaConversa.message)
+            return NextResponse.json({ error: 'Internal' }, { status: 500 })
           }
+          conversaAtual = conversaExistente
+        } else {
+          conversaAtual = novaConversa
         }
-      }
-
-      // Criar conversa
-      const { data: novaConversa, error: errNovaConversa } = await supabase
-        .from('conversations')
-        .insert({
-          organization_id: instancia.organization_id,
-          whatsapp_instance_id: instancia.id,
-          lead_id: leadId,
-          telefone_externo: telefone,
-          ultima_mensagem_em: enviadoEm,
-          status: fromMe ? 'em_atendimento' : 'nao_atendida',
-          responsavel_id: instancia.vendedor_id ?? null,
-        })
-        .select('id, lead_id, status, responsavel_id, whatsapp_instance_id')
-        .single()
-
-      if (errNovaConversa) {
-        // Possível race condition — tentar buscar conversa que foi criada por outro request
-        const { data: conversaExistente } = await supabase
-          .from('conversations')
-          .select('id, lead_id, status, responsavel_id, whatsapp_instance_id')
+      } else {
+        // Mensagem recebida do cliente — criar lead e card no pipeline
+        const { data: leadExistente } = await supabase
+          .from('leads')
+          .select('id')
           .eq('organization_id', instancia.organization_id)
-          .eq('telefone_externo', telefone)
-          .order('ultima_mensagem_em', { ascending: false })
+          .eq('telefone', telefone)
           .limit(1)
           .single()
 
-        if (!conversaExistente) {
-          console.error('[webhook] Erro ao criar conversa:', errNovaConversa.message)
-          return NextResponse.json({ error: 'Internal' }, { status: 500 })
+        leadId = (leadExistente?.id as string) ?? null
+        const contatoExistente = await buscarContatoPorTelefone(supabase, instancia.organization_id, telefone)
+
+        if (!leadId) {
+          const nomeLead = contatoExistente?.nome?.trim() || pushName?.trim() || 'Contato WhatsApp'
+          const { data: novoLead, error: errLead } = await supabase
+            .from('leads')
+            .insert({
+              organization_id: instancia.organization_id,
+              nome: nomeLead,
+              telefone,
+              origem: 'whatsapp',
+              status: 'novo',
+              whatsapp_instance_id: instancia.id,
+            })
+            .select('id')
+            .single()
+
+          if (errLead && (errLead.message.includes('duplicate') || errLead.code?.includes('23505'))) {
+            const { data: leadExistente2 } = await supabase
+              .from('leads')
+              .select('id')
+              .eq('organization_id', instancia.organization_id)
+              .eq('telefone', telefone)
+              .limit(1)
+              .single()
+            leadId = (leadExistente2?.id as string) ?? null
+          } else {
+            leadId = (novoLead?.id as string) ?? null
+          }
+
+          if (leadId) {
+            const { data: adminPerfil } = await supabase
+              .from('profiles')
+              .select('id')
+              .eq('organization_id', instancia.organization_id)
+              .eq('cargo', 'admin')
+              .eq('ativo', true)
+              .limit(1)
+              .single()
+
+            if (adminPerfil) {
+              await supabase.from('activities').insert({
+                organization_id: instancia.organization_id,
+                tipo: 'lead_criado',
+                descricao: `Lead criado por resposta via WhatsApp: ${telefone}${pushName ? ` (${pushName})` : ''}.`,
+                lead_id: leadId,
+                autor_id: adminPerfil.id,
+              })
+              await distribuirLead(supabase, leadId, instancia.organization_id, adminPerfil.id)
+
+              const { data: leadAtualizado } = await supabase
+                .from('leads')
+                .select('responsavel_id')
+                .eq('id', leadId)
+                .single()
+
+              await criarDealParaLead(supabase, {
+                organization_id: instancia.organization_id,
+                lead_id: leadId,
+                lead_nome: nomeLead,
+                lead_telefone: telefone,
+                responsavel_id: leadAtualizado?.responsavel_id ?? instancia.vendedor_id ?? null,
+                origem: 'whatsapp',
+                autor_id: adminPerfil.id,
+              })
+            }
+          }
         }
-        conversaAtual = conversaExistente
-      } else {
-        conversaAtual = novaConversa
+
+        // Criar conversa para mensagem recebida
+        const { data: novaConversa, error: errNovaConversa } = await supabase
+          .from('conversations')
+          .insert({
+            organization_id: instancia.organization_id,
+            whatsapp_instance_id: instancia.id,
+            lead_id: leadId,
+            telefone_externo: telefone,
+            ultima_mensagem_em: enviadoEm,
+            status: 'nao_atendida',
+            responsavel_id: instancia.vendedor_id ?? null,
+          })
+          .select('id, lead_id, status, responsavel_id, whatsapp_instance_id')
+          .single()
+
+        if (errNovaConversa) {
+          const { data: conversaExistente } = await supabase
+            .from('conversations')
+            .select('id, lead_id, status, responsavel_id, whatsapp_instance_id')
+            .eq('organization_id', instancia.organization_id)
+            .eq('telefone_externo', telefone)
+            .order('ultima_mensagem_em', { ascending: false })
+            .limit(1)
+            .single()
+
+          if (!conversaExistente) {
+            console.error('[webhook] Erro ao criar conversa:', errNovaConversa.message)
+            return NextResponse.json({ error: 'Internal' }, { status: 500 })
+          }
+          conversaAtual = conversaExistente
+        } else {
+          conversaAtual = novaConversa
+        }
       }
     } else {
       // Atualizar conversa existente
