@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { ListaConversas } from '@/components/whatsapp/lista-conversas'
 import { ModalNovaConversa } from '@/components/whatsapp/modal-nova-conversa'
+import Link from 'next/link'
 
 export default async function WhatsappPage() {
   const supabase = await createClient()
