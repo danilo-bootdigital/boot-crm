@@ -15,6 +15,8 @@ import Link from 'next/link'
 import { BadgeOrigem } from '@/components/leads/badge-origem'
 import { cn } from '@/lib/utils'
 
+import type { LeadOrigem } from '@/types/database'
+
 export type DealCard = {
   id: string
   titulo: string
@@ -31,7 +33,7 @@ export type DealCard = {
     nome: string | null
     telefone: string | null
     foto_perfil_url: string | null
-    origem: string
+    origem: LeadOrigem
     status: string
   } | null
   ultima_mensagem: string | null
@@ -160,9 +162,9 @@ export function KanbanCard({ deal, podeArrastar, onDoubleClick }: Props) {
         )}
       </div>
 
-      {deal.origem_lead && (
+      {deal.lead?.origem && (
         <div className="mt-2">
-          <BadgeOrigem origem={deal.origem_lead} />
+          <BadgeOrigem origem={deal.lead.origem} />
         </div>
       )}
 

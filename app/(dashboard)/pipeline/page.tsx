@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Settings } from 'lucide-react'
 import { KanbanBoard } from '@/components/pipeline/kanban-board'
-import type { UserRole } from '@/types/database'
+import type { UserRole, LeadOrigem } from '@/types/database'
 
 export default async function PipelinePage() {
   const supabase = await createClient()
@@ -150,7 +150,7 @@ export default async function PipelinePage() {
   }
 
   const deals = (dealsRaw ?? []).map((d) => {
-    const lead = Array.isArray(d.lead) ? d.lead[0] ?? null : d.lead as { id: string; nome: string; telefone: string | null; foto_perfil_url: string | null; origem: string; status: string } | null
+    const lead = Array.isArray(d.lead) ? d.lead[0] ?? null : d.lead as { id: string; nome: string; telefone: string | null; foto_perfil_url: string | null; origem: LeadOrigem; status: string } | null
     const conversaInfo = lead ? conversaPorLead.get(lead.id) ?? null : null
     return {
       id: d.id as string,
@@ -168,7 +168,7 @@ export default async function PipelinePage() {
         nome: lead.nome,
         telefone: lead.telefone,
         foto_perfil_url: lead.foto_perfil_url,
-        origem: lead.origem,
+        origem: lead.origem as LeadOrigem,
         status: lead.status,
       } : null,
       ultima_mensagem: conversaInfo?.ultima_mensagem ?? null,
