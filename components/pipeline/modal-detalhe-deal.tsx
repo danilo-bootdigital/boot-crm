@@ -9,7 +9,6 @@ import {
   Calendar,
   DollarSign,
   User,
-  Plus,
   MessageSquare,
   MessageCircle,
   Globe,
