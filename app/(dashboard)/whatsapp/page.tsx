@@ -120,10 +120,11 @@ export default async function WhatsappPage() {
 
   const conversas = (conversasRaw ?? []).map((c) => {
     const resp = (Array.isArray(c.responsavel) ? c.responsavel[0] : c.responsavel) as { nome: string } | null
+    const lead = Array.isArray(c.lead) ? c.lead[0] : c.lead
     const cid = c.id as string
     return {
       id: cid,
-      nome_contato: (c.lead?.nome as string) || null,
+      nome_contato: (lead?.nome as string) || null,
       telefone: c.telefone_externo as string,
       ultima_mensagem: ultimasMensagens[cid] ?? null,
       ultima_mensagem_em: c.ultima_mensagem_em as string | null,
