@@ -152,9 +152,6 @@ export default async function WhatsappPage() {
       <div className="flex-1 overflow-hidden">
         <ListaConversas
           conversasIniciais={conversas}
-          organizationId={perfil.organization_id}
-          usuarios={usuarios}
-          todasTags={todasTags}
         />
       </div>
     </div>
