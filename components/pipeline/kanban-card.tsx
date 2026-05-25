@@ -160,9 +160,9 @@ export function KanbanCard({ deal, podeArrastar, onDoubleClick }: Props) {
         )}
       </div>
 
-      {deal.lead && (
+      {deal.origem_lead && (
         <div className="mt-2">
-          <BadgeOrigem origem={deal.lead.origem} />
+          <BadgeOrigem origem={deal.origem_lead} />
         </div>
       )}
 
