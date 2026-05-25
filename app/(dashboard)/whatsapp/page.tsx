@@ -123,15 +123,12 @@ export default async function WhatsappPage() {
     const cid = c.id as string
     return {
       id: cid,
-      telefone_externo: c.telefone_externo as string,
-      ultima_mensagem_em: c.ultima_mensagem_em as string | null,
-      status: (c.status as 'nao_atendida' | 'em_atendimento' | 'aguardando_cliente' | 'finalizada') ?? 'nao_atendida',
-      responsavel_id: (c.responsavel_id as string) ?? null,
-      responsavel_nome: resp?.nome ?? null,
-      lead: (Array.isArray(c.lead) ? c.lead[0] : c.lead) as { id: string; nome: string | null } | null,
-      instancia: (Array.isArray(c.instancia) ? c.instancia[0] : c.instancia) as { nome: string } | null,
+      nome_contato: (c.lead?.nome as string) || null,
+      telefone: c.telefone_externo as string,
       ultima_mensagem: ultimasMensagens[cid] ?? null,
-      tags: tagsMap[cid] ?? [],
+      ultima_mensagem_em: c.ultima_mensagem_em as string | null,
+      nao_lidas: 0, // Valor padrão, pode ser ajustado se necessário
+      status: (c.status as 'nao_atendida' | 'em_atendimento' | 'aguardando_cliente' | 'finalizada') ?? 'nao_atendida',
     }
   })
 
