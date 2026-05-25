@@ -39,7 +39,7 @@ export function ModalFechado({ deal, aberto, onConfirmar, onCancelar }: Props) {
         </DialogHeader>
         <p className="text-sm text-slate-600">
           Informe o valor final para fechar{' '}
-          <span className="font-medium">"{deal.titulo}"</span>.
+          <span className="font-medium">{"\""}{deal.titulo}{"\""}</span>.
         </p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">

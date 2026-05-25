@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { listarAuditLog } from '@/app/(dashboard)/whatsapp/actions-conversa'
 import { History } from 'lucide-react'
 
@@ -17,6 +17,8 @@ type Props = {
 }
 
 const ACAO_LABELS: Record<string, string> = {
+  lead_criado: 'Lead criado',
+  deal_criado: 'Oportunidade criada',
   conversa_status_alterado: 'Alterou status',
   conversa_transferida: 'Transferiu conversa',
   conversa_deal_vinculado: 'Vinculou oportunidade',
@@ -26,20 +28,48 @@ const ACAO_LABELS: Record<string, string> = {
 export function SecaoHistoricoAuditoria({ conversaId }: Props) {
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [aberto, setAberto] = useState(false)
-  const [carregando, setCarregando] = useState(false)
+  const [status, setStatus] = useState<'idle' | 'carregando' | 'carregado'>('idle')
+
+  const carregando = status === 'carregando'
+
+  function handleToggleAberto() {
+    setAberto((atual) => {
+      const novoAberto = !atual
+
+      if (novoAberto) {
+        setStatus('carregando')
+      }
+
+      return novoAberto
+    })
+  }
 
   useEffect(() => {
-    if (!aberto) return
-    setCarregando(true)
+    if (status !== 'carregando') return
+
+    let cancelado = false
+
     listarAuditLog(conversaId)
-      .then(setLogs)
-      .finally(() => setCarregando(false))
-  }, [aberto, conversaId])
+      .then((resultado) => {
+        if (!cancelado) {
+          setLogs(resultado)
+        }
+      })
+      .finally(() => {
+        if (!cancelado) {
+          setStatus('carregado')
+        }
+      })
+
+    return () => {
+      cancelado = true
+    }
+  }, [status, conversaId])
 
   return (
     <section>
       <button
-        onClick={() => setAberto(!aberto)}
+        onClick={handleToggleAberto}
         className="flex items-center gap-1 text-xs font-medium text-slate-500 uppercase mb-2 hover:text-slate-700"
       >
         <History className="h-3.5 w-3.5" />
@@ -63,13 +93,20 @@ export function SecaoHistoricoAuditoria({ conversaId }: Props) {
                     {ACAO_LABELS[log.acao] ?? log.acao}
                   </span>
                   <span className="text-[12px] text-slate-400">
-                    {new Date(log.criado_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    {new Date(log.criado_em).toLocaleString('pt-BR', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
                   </span>
                 </div>
                 <p className="text-[12px] text-slate-500">
                   por {log.usuario_nome}
                   {log.dados_novos?.status ? ` → ${String(log.dados_novos.status)}` : null}
-                  {log.dados_novos?.para_usuario_id && log.dados_novos?.motivo ? ` (${String(log.dados_novos.motivo)})` : null}
+                  {log.dados_novos?.para_usuario_id && log.dados_novos?.motivo
+                    ? ` (${String(log.dados_novos.motivo)})`
+                    : null}
                 </p>
               </div>
             ))

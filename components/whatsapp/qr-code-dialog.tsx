@@ -37,12 +37,20 @@ export function QrCodeDialog({ instanceId, aberto, onConectado, onFechar }: Prop
     }
   }, [instanceId])
 
+  // Detecta transição de aberto=false → true para resetar estado
+  const abertoAnterior = useRef(aberto)
+  useEffect(() => {
+    if (aberto && !abertoAnterior.current) {
+      setEstado('carregando')
+      setQrBase64(null)
+      setMensagemErro(null)
+      poll()
+    }
+    abertoAnterior.current = aberto
+  }, [aberto, poll])
+
   useEffect(() => {
     if (!aberto) return
-    setEstado('carregando')
-    setQrBase64(null)
-    setMensagemErro(null)
-    poll()
     const interval = setInterval(() => {
       setEstado((current) => {
         if (current === 'erro' || current === 'conectado') return current

@@ -399,18 +399,18 @@ export async function listarAuditLog(conversaId: string) {
   const { supabase, perfil } = await getPerfilAutenticado()
 
   const { data } = await supabase
-    .from('audit_logs')
-    .select('id, acao, dados_novos, criado_em, usuario:profiles!usuario_id(nome)')
+    .from('activities')
+    .select('id, tipo, descricao, criado_em, autor:profiles!autor_id(nome)')
     .eq('organization_id', perfil.organization_id)
-    .eq('registro_id', conversaId)
+    .or(`lead_id.eq.${conversaId},deal_id.eq.${conversaId}`)
     .order('criado_em', { ascending: false })
     .limit(30)
 
   return (data ?? []).map((l) => ({
     id: l.id as string,
-    acao: l.acao as string,
-    dados_novos: l.dados_novos as Record<string, unknown> | null,
+    acao: l.tipo as string,
+    dados_novos: { descricao: l.descricao } as Record<string, unknown> | null,
     criado_em: l.criado_em as string,
-    usuario_nome: ((Array.isArray(l.usuario) ? l.usuario[0] : l.usuario) as { nome: string } | null)?.nome ?? 'Sistema',
+    usuario_nome: ((Array.isArray(l.autor) ? l.autor[0] : l.autor) as { nome: string } | null)?.nome ?? 'Sistema',
   }))
 }

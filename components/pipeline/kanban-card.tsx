@@ -1,12 +1,19 @@
 'use client'
 
 import { useDraggable } from '@dnd-kit/core'
-import { cn } from '@/lib/utils'
 import { format, formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Calendar, DollarSign, Phone, MessageSquare, MessageCircle } from 'lucide-react'
+import {
+  Calendar,
+  DollarSign,
+  MessageCircle,
+  MessageSquare,
+  Phone,
+} from 'lucide-react'
 import Link from 'next/link'
+
 import { BadgeOrigem } from '@/components/leads/badge-origem'
+import { cn } from '@/lib/utils'
 
 export type DealCard = {
   id: string
@@ -29,7 +36,11 @@ export type DealCard = {
   } | null
   ultima_mensagem: string | null
   ultima_mensagem_em: string | null
-  ultimas_mensagens: { conteudo: string | null; direcao: string; enviado_em: string }[]
+  ultimas_mensagens: {
+    conteudo: string | null
+    direcao: string
+    enviado_em: string
+  }[]
   status_conversa: string | null
   conversa_id: string | null
   tags: { id: string; nome: string; cor: string }[]
@@ -42,19 +53,29 @@ type Props = {
 }
 
 export function KanbanCard({ deal, podeArrastar, onDoubleClick }: Props) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: deal.id,
-    data: { deal },
-    disabled: !podeArrastar,
-  })
+  const { attributes, listeners, setNodeRef, transform, isDragging } =
+    useDraggable({
+      id: deal.id,
+      data: { deal },
+      disabled: !podeArrastar,
+    })
 
   const style = transform
-    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
+    ? {
+        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+      }
     : undefined
 
-  const nomeExibido = deal.lead?.nome || deal.contato?.nome || deal.titulo
+  const nomeExibido =
+    deal.lead?.nome?.trim() ||
+    deal.contato?.nome?.trim() ||
+    deal.titulo?.trim() ||
+    'Sem nome'
+
+  const inicial = nomeExibido.charAt(0).toUpperCase()
   const telefone = deal.lead?.telefone
   const fotoUrl = deal.lead?.foto_perfil_url
+  const tags = deal.tags ?? []
 
   return (
     <div
@@ -64,26 +85,29 @@ export function KanbanCard({ deal, podeArrastar, onDoubleClick }: Props) {
       {...attributes}
       onDoubleClick={onDoubleClick}
       className={cn(
-        'rounded-lg border bg-white p-3 shadow-sm transition-shadow select-none',
-        podeArrastar && 'cursor-grab active:cursor-grabbing hover:shadow-md',
+        'select-none rounded-lg border bg-white p-3 shadow-sm transition-shadow',
+        podeArrastar && 'cursor-grab hover:shadow-md active:cursor-grabbing',
         isDragging && 'opacity-40',
       )}
     >
-      {/* Header: foto + nome */}
       <div className="flex items-start gap-2">
         {fotoUrl ? (
           <img
             src={fotoUrl}
-            alt=""
+            alt={nomeExibido}
             className="h-8 w-8 shrink-0 rounded-full object-cover"
           />
         ) : (
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">
-            {nomeExibido.charAt(0).toUpperCase()}
+            {inicial}
           </div>
         )}
+
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-slate-900 truncate">{nomeExibido}</p>
+          <p className="truncate text-sm font-medium text-slate-900">
+            {nomeExibido}
+          </p>
+
           {telefone && (
             <p className="flex items-center gap-1 text-xs text-slate-500">
               <Phone className="h-3 w-3 shrink-0" />
@@ -93,15 +117,15 @@ export function KanbanCard({ deal, podeArrastar, onDoubleClick }: Props) {
         </div>
       </div>
 
-      {/* Última mensagem */}
       {deal.ultima_mensagem && (
         <div className="mt-2 flex items-start gap-1.5">
           <MessageSquare className="mt-0.5 h-3 w-3 shrink-0 text-slate-400" />
-          <p className="text-xs text-slate-500 line-clamp-2">{deal.ultima_mensagem}</p>
+          <p className="line-clamp-2 text-xs text-slate-500">
+            {deal.ultima_mensagem}
+          </p>
         </div>
       )}
 
-      {/* Metadados */}
       <div className="mt-2 flex flex-wrap items-center gap-2">
         {deal.valor_estimado !== null && deal.valor_estimado > 0 && (
           <span className="flex items-center gap-1 text-xs font-medium text-slate-700">
@@ -113,31 +137,38 @@ export function KanbanCard({ deal, podeArrastar, onDoubleClick }: Props) {
             })}
           </span>
         )}
+
         {deal.ultima_mensagem_em && (
           <span className="flex items-center gap-1 text-xs text-slate-400">
             <Calendar className="h-3 w-3 shrink-0" />
-            {formatDistanceToNow(new Date(deal.ultima_mensagem_em), { addSuffix: true, locale: ptBR })}
+            {formatDistanceToNow(new Date(deal.ultima_mensagem_em), {
+              addSuffix: true,
+              locale: ptBR,
+            })}
           </span>
         )}
+
         {!deal.ultima_mensagem_em && deal.data_fechamento_prevista && (
           <span className="flex items-center gap-1 text-xs text-slate-400">
             <Calendar className="h-3 w-3 shrink-0" />
-            {format(new Date(deal.data_fechamento_prevista + 'T12:00:00'), 'dd/MM', { locale: ptBR })}
+            {format(
+              new Date(`${deal.data_fechamento_prevista}T12:00:00`),
+              'dd/MM',
+              { locale: ptBR },
+            )}
           </span>
         )}
       </div>
 
-      {/* Origem do lead */}
       {deal.lead && (
         <div className="mt-2">
-          <BadgeOrigem origem={deal.lead.origem as any} />
+          <BadgeOrigem origem={deal.lead.origem} />
         </div>
       )}
 
-      {/* Tags */}
-      {deal.tags.length > 0 && (
+      {tags.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
-          {deal.tags.map((tag) => (
+          {tags.map((tag) => (
             <span
               key={tag.id}
               className="rounded-full px-2 py-0.5 text-[12px] font-medium text-white"
@@ -149,26 +180,24 @@ export function KanbanCard({ deal, podeArrastar, onDoubleClick }: Props) {
         </div>
       )}
 
-      {/* Responsável */}
       {deal.responsavel && (
         <div className="mt-2 flex items-center gap-1.5">
           <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[12px] font-semibold text-slate-600">
             {deal.responsavel.nome.charAt(0).toUpperCase()}
           </div>
-          <span className="text-xs text-slate-500 truncate">
+
+          <span className="truncate text-xs text-slate-500">
             {deal.responsavel.nome.split(' ')[0]}
           </span>
         </div>
       )}
 
-      {/* Status do atendimento */}
       {deal.status_conversa && (
         <div className="mt-2">
           <StatusBadge status={deal.status_conversa} />
         </div>
       )}
 
-      {/* Botão WhatsApp */}
       {deal.conversa_id && (
         <div className="mt-2">
           <Link
@@ -188,15 +217,37 @@ export function KanbanCard({ deal, podeArrastar, onDoubleClick }: Props) {
 
 function StatusBadge({ status }: { status: string }) {
   const config: Record<string, { label: string; className: string }> = {
-    nao_atendida: { label: 'Não atendida', className: 'bg-red-100 text-red-700' },
-    em_atendimento: { label: 'Em atendimento', className: 'bg-blue-100 text-blue-700' },
-    aguardando_cliente: { label: 'Aguardando cliente', className: 'bg-yellow-100 text-yellow-700' },
-    finalizada: { label: 'Finalizada', className: 'bg-green-100 text-green-700' },
+    nao_atendida: {
+      label: 'Não atendida',
+      className: 'bg-red-100 text-red-700',
+    },
+    em_atendimento: {
+      label: 'Em atendimento',
+      className: 'bg-blue-100 text-blue-700',
+    },
+    aguardando_cliente: {
+      label: 'Aguardando cliente',
+      className: 'bg-yellow-100 text-yellow-700',
+    },
+    finalizada: {
+      label: 'Finalizada',
+      className: 'bg-green-100 text-green-700',
+    },
   }
-  const c = config[status] ?? { label: status, className: 'bg-slate-100 text-slate-600' }
+
+  const item = config[status] ?? {
+    label: status,
+    className: 'bg-slate-100 text-slate-600',
+  }
+
   return (
-    <span className={cn('rounded-full px-2 py-0.5 text-[12px] font-medium', c.className)}>
-      {c.label}
+    <span
+      className={cn(
+        'rounded-full px-2 py-0.5 text-[12px] font-medium',
+        item.className,
+      )}
+    >
+      {item.label}
     </span>
   )
 }

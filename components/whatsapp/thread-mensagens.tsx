@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { BalaoMensagem } from './balao-mensagem'
 
@@ -19,17 +19,24 @@ type Props = {
   conversaId: string
 }
 
+type MensagensPorConversa = Record<string, Mensagem[]>
+
 export function ThreadMensagens({ mensagensIniciais, conversaId }: Props) {
-  const [mensagens, setMensagens] = useState(mensagensIniciais)
+  const [mensagensRealtime, setMensagensRealtime] = useState<MensagensPorConversa>({})
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    setMensagens(mensagensIniciais)
-  }, [mensagensIniciais])
+  const mensagensNovas = mensagensRealtime[conversaId] ?? []
+
+  const mensagens = useMemo(() => {
+    const idsIniciais = new Set(mensagensIniciais.map((m) => m.id))
+    const novasSemDuplicar = mensagensNovas.filter((m) => !idsIniciais.has(m.id))
+
+    return [...mensagensIniciais, ...novasSemDuplicar]
+  }, [mensagensIniciais, mensagensNovas])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [mensagens])
+  }, [mensagens.length])
 
   useEffect(() => {
     const supabase = createClient()
@@ -38,30 +45,47 @@ export function ThreadMensagens({ mensagensIniciais, conversaId }: Props) {
       .channel(`thread-${conversaId}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversaId}` },
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversaId}`,
+        },
         (payload) => {
           const nova = payload.new as Record<string, unknown>
-          setMensagens((prev) => {
-            if (prev.some((m) => m.id === (nova.id as string))) return prev
-            return [
+
+          const mensagem: Mensagem = {
+            id: nova.id as string,
+            direcao: nova.direcao as 'enviada' | 'recebida',
+            conteudo: nova.conteudo as string | null,
+            tipo_midia: (nova.tipo_midia as string) ?? 'texto',
+            url_midia: (nova.url_midia as string) ?? null,
+            enviado_em: nova.enviado_em as string,
+            responsavel: null,
+          }
+
+          setMensagensRealtime((prev) => {
+            const mensagensDaConversa = prev[conversaId] ?? []
+
+            const jaExiste =
+              mensagensIniciais.some((m) => m.id === mensagem.id) ||
+              mensagensDaConversa.some((m) => m.id === mensagem.id)
+
+            if (jaExiste) return prev
+
+            return {
               ...prev,
-              {
-                id: nova.id as string,
-                direcao: nova.direcao as 'enviada' | 'recebida',
-                conteudo: nova.conteudo as string | null,
-                tipo_midia: (nova.tipo_midia as string) ?? 'texto',
-                url_midia: (nova.url_midia as string) ?? null,
-                enviado_em: nova.enviado_em as string,
-                responsavel: null,
-              },
-            ]
+              [conversaId]: [...mensagensDaConversa, mensagem],
+            }
           })
         }
       )
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
-  }, [conversaId])
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [conversaId, mensagensIniciais])
 
   return (
     <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-4">

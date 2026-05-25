@@ -34,7 +34,7 @@ export function ModalPerdido({ deal, aberto, onConfirmar, onCancelar }: Props) {
         </DialogHeader>
         <p className="text-sm text-slate-600">
           Informe o motivo para{' '}
-          <span className="font-medium">"{deal.titulo}"</span> ser marcada como perdida.
+          <span className="font-medium">{`"{deal.titulo}"`}</span> ser marcada como perdida.
         </p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">

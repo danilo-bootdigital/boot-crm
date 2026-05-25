@@ -1,182 +1,113 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { ItemConversa } from './item-conversa'
-import { FiltrosConversas } from './filtros-conversas'
-import { useParams, useRouter } from 'next/navigation'
-
-type ConversaStatus = 'nao_atendida' | 'em_atendimento' | 'aguardando_cliente' | 'finalizada'
-type TagType = { id: string; nome: string; cor: string }
-type Usuario = { id: string; nome: string }
+import { cn } from '@/lib/utils'
 
 type Conversa = {
   id: string
-  telefone_externo: string
-  ultima_mensagem_em: string | null
-  lead: { id: string; nome: string | null } | null
-  instancia: { nome: string } | null
+  nome_contato: string | null
+  telefone: string
   ultima_mensagem: string | null
-  status: ConversaStatus
-  responsavel_id: string | null
-  responsavel_nome: string | null
-  tags: TagType[]
-}
-
-type Filtros = {
-  status: ConversaStatus | null
-  responsavelId: string | null
-  tagId: string | null
-  busca: string
+  ultima_mensagem_em: string | null
+  nao_lidas: number
+  status: string
 }
 
 type Props = {
   conversasIniciais: Conversa[]
-  organizationId: string
-  usuarios: Usuario[]
-  todasTags: TagType[]
+  conversaAtivaId?: string
 }
 
-export function ListaConversas({ conversasIniciais, organizationId, usuarios, todasTags }: Props) {
-  const [conversas, setConversas] = useState(conversasIniciais)
-  const [filtros, setFiltros] = useState<Filtros>({ status: null, responsavelId: null, tagId: null, busca: '' })
-  const params = useParams()
-  const conversaAtivaId = params?.id as string | undefined
-  const router = useRouter()
+export function ListaConversas({
+  conversasIniciais,
+  conversaAtivaId,
+}: Props) {
+  const [conversasRealtime, setConversasRealtime] = useState<Conversa[]>([])
 
-  useEffect(() => {
-    setConversas(conversasIniciais)
-  }, [conversasIniciais])
+  const conversas = useMemo(() => {
+    const mapa = new Map<string, Conversa>()
+
+    for (const conversa of conversasIniciais) {
+      mapa.set(conversa.id, conversa)
+    }
+
+    for (const conversa of conversasRealtime) {
+      mapa.set(conversa.id, conversa)
+    }
+
+    return Array.from(mapa.values()).sort((a, b) => {
+      const dataA = a.ultima_mensagem_em
+        ? new Date(a.ultima_mensagem_em).getTime()
+        : 0
+
+      const dataB = b.ultima_mensagem_em
+        ? new Date(b.ultima_mensagem_em).getTime()
+        : 0
+
+      return dataB - dataA
+    })
+  }, [conversasIniciais, conversasRealtime])
 
   useEffect(() => {
     const supabase = createClient()
 
     const channel = supabase
-      .channel('conversations-updates')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'conversations',
-        filter: `organization_id=eq.${organizationId}`,
-      }, () => {
-        // Nova conversa criada — refresh para buscar dados completos
-        router.refresh()
-      })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'conversations',
-        filter: `organization_id=eq.${organizationId}`,
-      }, (payload) => {
-        const updated = payload.new as Record<string, unknown>
-        const convId = updated.id as string
+      .channel('lista-conversas')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversations',
+        },
+        async () => {
+          const { data } = await supabase
+            .from('conversations')
+            .select('id, nome_contato, telefone, ultima_mensagem, ultima_mensagem_em, nao_lidas, status')
+            .order('ultima_mensagem_em', { ascending: false })
 
-        setConversas((prev) => {
-          const idx = prev.findIndex((c) => c.id === convId)
-          if (idx === -1) {
-            router.refresh()
-            return prev
+          if (data) {
+            setConversasRealtime(data as Conversa[])
           }
-          const copy = [...prev]
-          copy[idx] = {
-            ...copy[idx],
-            status: (updated.status as ConversaStatus) ?? copy[idx].status,
-            responsavel_id: (updated.responsavel_id as string | null) ?? copy[idx].responsavel_id,
-            ultima_mensagem_em: (updated.ultima_mensagem_em as string | null) ?? copy[idx].ultima_mensagem_em,
-          }
-          return copy
-        })
-      })
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: `organization_id=eq.${organizationId}`,
-      }, (payload) => {
-        const msg = payload.new as Record<string, unknown>
-        const convId = msg.conversation_id as string
-        const conteudo = msg.conteudo as string | null
-        const enviadoEm = msg.enviado_em as string
-
-        setConversas((prev) => {
-          const idx = prev.findIndex((c) => c.id === convId)
-          if (idx === -1) {
-            // Nova conversa — refresh para buscar dados completos
-            router.refresh()
-            return prev
-          }
-          const updated = [...prev]
-          updated[idx] = {
-            ...updated[idx],
-            ultima_mensagem: conteudo ?? updated[idx].ultima_mensagem,
-            ultima_mensagem_em: enviadoEm ?? updated[idx].ultima_mensagem_em,
-          }
-          // Reordenar: conversa com nova mensagem vai pro topo
-          const [moved] = updated.splice(idx, 1)
-          updated.unshift(moved)
-          return updated
-        })
-      })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'leads',
-        filter: `organization_id=eq.${organizationId}`,
-      }, (payload) => {
-        const lead = payload.new as Record<string, unknown>
-        const leadId = lead.id as string
-        const nome = lead.nome as string | null
-
-        setConversas((prev) =>
-          prev.map((c) =>
-            c.lead?.id === leadId ? { ...c, lead: { ...c.lead, nome } } : c
-          )
-        )
-      })
+        }
+      )
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
-  }, [organizationId, router])
-
-  const contadores = useMemo(() => {
-    const c: Record<ConversaStatus, number> = { nao_atendida: 0, em_atendimento: 0, aguardando_cliente: 0, finalizada: 0 }
-    conversas.forEach((conv) => { c[conv.status]++ })
-    return c
-  }, [conversas])
-
-  const conversasFiltradas = useMemo(() => {
-    return conversas.filter((c) => {
-      if (filtros.status && c.status !== filtros.status) return false
-      if (filtros.responsavelId && c.responsavel_id !== filtros.responsavelId) return false
-      if (filtros.tagId && !c.tags.some((t) => t.id === filtros.tagId)) return false
-      if (filtros.busca) {
-        const termo = filtros.busca.toLowerCase()
-        const nome = c.lead?.nome?.toLowerCase() ?? ''
-        const tel = c.telefone_externo.toLowerCase()
-        if (!nome.includes(termo) && !tel.includes(termo)) return false
-      }
-      return true
-    })
-  }, [conversas, filtros])
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
 
   return (
-    <div className="flex flex-col h-full">
-      <FiltrosConversas
-        filtros={filtros}
-        onChange={setFiltros}
-        usuarios={usuarios}
-        tags={todasTags}
-        contadores={contadores}
-      />
-      <div className="flex-1 overflow-y-auto">
-        {conversasFiltradas.length === 0 ? (
-          <p className="p-6 text-center text-sm text-slate-400">Nenhuma conversa encontrada.</p>
-        ) : (
-          conversasFiltradas.map((c) => (
-            <ItemConversa key={c.id} conversa={c} ativa={c.id === conversaAtivaId} />
-          ))
-        )}
-      </div>
+    <div className="flex flex-col">
+      {conversas.map((conversa) => (
+        <Link
+          key={conversa.id}
+          href={`/whatsapp/${conversa.id}`}
+          className={cn(
+            'border-b px-4 py-3 transition-colors hover:bg-slate-50',
+            conversa.id === conversaAtivaId && 'bg-slate-100'
+          )}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="truncate text-sm font-medium text-slate-800">
+              {conversa.nome_contato || conversa.telefone}
+            </h3>
+
+            {conversa.nao_lidas > 0 && (
+              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-green-500 px-1 text-[11px] font-bold text-white">
+                {conversa.nao_lidas}
+              </span>
+            )}
+          </div>
+
+          <p className="mt-1 truncate text-xs text-slate-500">
+            {conversa.ultima_mensagem || 'Sem mensagens'}
+          </p>
+        </Link>
+      ))}
     </div>
   )
 }

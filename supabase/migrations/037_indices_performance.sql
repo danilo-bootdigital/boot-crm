@@ -33,6 +33,13 @@ CREATE INDEX IF NOT EXISTS idx_quotes_responsavel_id ON quotes(responsavel_id);
 -- quote_items (CASCADE performance)
 CREATE INDEX IF NOT EXISTS idx_quote_items_quote_id ON quote_items(quote_id);
 
+-- orders
+CREATE INDEX IF NOT EXISTS idx_orders_organization_id ON orders(organization_id);
+CREATE INDEX IF NOT EXISTS idx_orders_responsavel_id ON orders(responsavel_id);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+CREATE INDEX IF NOT EXISTS idx_orders_ganho ON orders(ganho);
+CREATE INDEX IF NOT EXISTS idx_orders_criado_em ON orders(criado_em);
+
 -- order_items (coluna product_id não existe nesta tabela)
 -- CREATE INDEX IF NOT EXISTS idx_order_items_product_id ON order_items(product_id);
 

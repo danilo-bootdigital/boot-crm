@@ -27,6 +27,11 @@ type Props = {
   leadId: string | null
 }
 
+function gerarNomeArquivo(telefone: string, extensao: 'txt' | 'png') {
+  const timestamp = new Date().getTime()
+  return `conversa-${telefone}-${timestamp}.${extensao}`
+}
+
 export function ModalExportarConversa({
   aberto,
   onFechar,
@@ -57,9 +62,11 @@ export function ModalExportarConversa({
     const corpo = mensagens
       .map((m) => {
         const hora = format(new Date(m.enviado_em), 'dd/MM/yyyy HH:mm', { locale: ptBR })
-        const autor = m.direcao === 'enviada'
-          ? `${m.responsavel?.nome ?? 'Vendedor'} (enviada)`
-          : `${nomeContato} (recebida)`
+        const autor =
+          m.direcao === 'enviada'
+            ? `${m.responsavel?.nome ?? 'Vendedor'} (enviada)`
+            : `${nomeContato} (recebida)`
+
         return `${hora} — ${autor}:\n${m.conteudo ?? '(mídia)'}`
       })
       .join('\n\n')
@@ -69,13 +76,16 @@ export function ModalExportarConversa({
 
   function downloadTXT() {
     setCarregando(true)
+
     const conteudo = gerarTXT()
     const blob = new Blob([conteudo], { type: 'text/plain;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
+
     a.href = url
-    a.download = `conversa-${telefone}-${Date.now()}.txt`
+    a.download = gerarNomeArquivo(telefone, 'txt')
     a.click()
+
     URL.revokeObjectURL(url)
     logExportacao('txt').catch(console.error)
     setCarregando(false)
@@ -84,20 +94,28 @@ export function ModalExportarConversa({
 
   async function downloadPNG() {
     setCarregando(true)
+
     try {
       const html2canvas = (await import('html2canvas')).default
       const el = document.getElementById('conversa-export-preview')
+
       if (!el) return
+
       const canvas = await html2canvas(el, { scale: 2, useCORS: true })
+
       canvas.toBlob((blob) => {
         if (!blob) return
+
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
+
         a.href = url
-        a.download = `conversa-${telefone}-${Date.now()}.png`
+        a.download = gerarNomeArquivo(telefone, 'png')
         a.click()
+
         URL.revokeObjectURL(url)
       }, 'image/png')
+
       await logExportacao('png')
       onFechar()
     } catch (e: unknown) {
@@ -116,26 +134,44 @@ export function ModalExportarConversa({
   }
 
   return (
-    <Dialog open={aberto} onOpenChange={(open) => { if (!open) onFechar() }}>
+    <Dialog
+      open={aberto}
+      onOpenChange={(open) => {
+        if (!open) onFechar()
+      }}
+    >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Exportar Conversa</DialogTitle>
         </DialogHeader>
+
         <p className="text-sm text-slate-500">
           Escolha o formato de exportação. A exportação fica registrada no log de auditoria.
         </p>
 
-        {/* Preview hidden for html2canvas */}
-        <div id="conversa-export-preview" className="absolute -left-[9999px] top-0 w-[600px] bg-slate-50 p-6 font-sans text-sm">
+        <div
+          id="conversa-export-preview"
+          className="absolute -left-[9999px] top-0 w-[600px] bg-slate-50 p-6 font-sans text-sm"
+        >
           <div className="mb-4 border-b pb-3">
             <p className="font-bold text-slate-900">BOOT-CRM — Exportação de Conversa</p>
-            <p className="text-xs text-slate-500">Contato: {nomeContato} · {telefone}</p>
-            <p className="text-xs text-slate-500">Exportado por: {perfilNome} · {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
+            <p className="text-xs text-slate-500">
+              Contato: {nomeContato} · {telefone}
+            </p>
+            <p className="text-xs text-slate-500">
+              Exportado por: {perfilNome} ·{' '}
+              {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+            </p>
           </div>
+
           <div className="space-y-3">
             {mensagens.map((m) => (
               <div key={m.id} className={`flex ${m.direcao === 'enviada' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[75%] rounded-lg px-3 py-2 text-xs ${m.direcao === 'enviada' ? 'bg-green-100' : 'bg-white border'}`}>
+                <div
+                  className={`max-w-[75%] rounded-lg px-3 py-2 text-xs ${
+                    m.direcao === 'enviada' ? 'bg-green-100' : 'bg-white border'
+                  }`}
+                >
                   <p>{m.conteudo ?? '(mídia)'}</p>
                   <p className="mt-0.5 text-[12px] text-slate-400">
                     {format(new Date(m.enviado_em), 'dd/MM HH:mm', { locale: ptBR })}

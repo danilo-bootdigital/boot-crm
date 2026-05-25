@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
 
     // Buscar ou criar conversa — busca por telefone na org inteira (independente da instância)
     // para evitar duplicatas quando o usuário reconecta com outra instância
-    let conversaQuery = supabase
+    const conversaQuery = supabase
       .from('conversations')
       .select('id, lead_id, status, responsavel_id, whatsapp_instance_id')
       .eq('organization_id', instancia.organization_id)

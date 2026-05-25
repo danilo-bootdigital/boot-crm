@@ -38,9 +38,6 @@ export function BuscaProduto({ produtos, value, onSelect }: Props) {
     return () => document.removeEventListener('mousedown', handleClickFora)
   }, [])
 
-  useEffect(() => {
-    setActiveIndex(-1)
-  }, [busca])
 
   useEffect(() => {
     if (activeIndex >= 0 && listRef.current) {
@@ -129,10 +126,6 @@ export function BuscaProduto({ produtos, value, onSelect }: Props) {
           className="h-9 text-sm pl-8"
           placeholder="Buscar produto..."
           value={busca}
-          onChange={(e) => {
-            setBusca(e.target.value)
-            setAberto(true)
-          }}
           onFocus={() => setAberto(true)}
           onKeyDown={handleKeyDown}
           role="combobox"

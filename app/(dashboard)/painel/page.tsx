@@ -171,7 +171,7 @@ export default async function PainelPage() {
   }
 
   // Grafico - Vendas mensais (6 meses) baseado em pedidos
-  let dadosMensais: { mes: string; valor: number }[] = []
+  const dadosMensais: { mes: string; valor: number }[] = []
   if (!isAtendimento) {
     let queryPedidosMensais = supabase
       .from('orders')
@@ -185,7 +185,7 @@ export default async function PainelPage() {
 
     // Buscar subtotais dos itens desses pedidos
     const pedidosMensaisIds = (pedidosMensais ?? []).map((p) => p.id)
-    let itensMensaisMap = new Map<string, number>()
+    const itensMensaisMap = new Map<string, number>()
     if (pedidosMensaisIds.length > 0) {
       const { data: itensMensais } = await supabase
         .from('order_items')
@@ -229,6 +229,7 @@ export default async function PainelPage() {
         .select('id, responsavel_id')
         .eq('organization_id', orgId)
         .neq('status', 'cancelado')
+        .eq('ganho', true)
         .gte('criado_em', inicio)
 
       const pedidosVendedoresIds = (pedidosVendedores ?? []).map((p) => p.id)
