@@ -19,7 +19,7 @@ export function ModalNovaInstancia({ aberto, onFechar, vendedores }: Props) {
   const [formData, setFormData] = useState({
     nome: '',
     evolution_instance_name: '',
-    vendedor_id: '',
+    vendedor_id: null as string | null,
   })
 
   async function handleSubmit(e: React.FormEvent) {

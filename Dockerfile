@@ -13,8 +13,6 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-ENV NEXT_PUBLIC_SUPABASE_URL=https://zjhapezbcqoqwrwolcju.supabase.co
-ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqaGFwZXpiY3FvcXdyd29sY2p1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NjI3NzEsImV4cCI6MjA5NDAzODc3MX0.ANkRf5Z6T4LdqUOtfPK7EVbZjah03BbBURrGKl2ZK_0
 ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN npm run build
@@ -25,8 +23,6 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NEXT_PUBLIC_SUPABASE_URL=https://zjhapezbcqoqwrwolcju.supabase.co
-ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqaGFwZXpiY3FvcXdyd29sY2p1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NjI3NzEsImV4cCI6MjA5NDAzODc3MX0.ANkRf5Z6T4LdqUOtfPK7EVbZjah03BbBURrGKl2ZK_0
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs

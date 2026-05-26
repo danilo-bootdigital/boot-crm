@@ -63,7 +63,7 @@ async function main() {
     if (!lead) return false
 
     const messageCount = messages.find(m => m.lead_id === deal.lead_id)
-    return messageCount && messageCount.sent_messages > 0 && messageCount.received_messages === 0
+    return messageCount && (messageCount as any).sent_messages > 0 && (messageCount as any).received_messages === 0
   })
 
   if (dealsToDelete.length === 0) {

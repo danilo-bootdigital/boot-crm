@@ -277,9 +277,9 @@ export function ModalDetalheDeal({ deal, aberto, onFechar, estagios = [] }: Prop
               </h3>
 
               <div className="space-y-2">
-                {deal.ultimas_mensagens.map((msg) => (
+                {deal.ultimas_mensagens.map((msg, index) => (
                   <div
-                    key={msg.id}
+                    key={index}
                     className={`rounded-md px-3 py-2 text-sm ${
                       msg.direcao === 'enviada'
                         ? 'bg-green-50 text-green-800 ml-4'
@@ -360,7 +360,6 @@ export function ModalDetalheDeal({ deal, aberto, onFechar, estagios = [] }: Prop
                   variant="ghost"
                   size="sm"
                   className="gap-1 h-7"
-                  asChild
                 >
                   <Link href={`/orcamentos/novo?deal_id=${deal.id}`}>
                     <Plus className="h-3.5 w-3.5" />

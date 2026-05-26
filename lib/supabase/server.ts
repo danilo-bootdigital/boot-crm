@@ -25,9 +25,5 @@ export async function createClient() {
     }
   )
 
-  // Forçar refresh da sessão para manter token válido
-  // Isso garante que o token é renovado mesmo em Server Actions
-  await supabase.auth.getUser()
-
   return supabase
 }
