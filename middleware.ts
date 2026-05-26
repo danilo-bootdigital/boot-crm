@@ -31,7 +31,7 @@ export async function middleware(request: NextRequest) {
   const isLoginPage = request.nextUrl.pathname.startsWith('/login')
   const isWebhookRoute = request.nextUrl.pathname.startsWith('/api/webhook')
   const isOrcamentoPublico = request.nextUrl.pathname.startsWith('/orcamento/')
-  const isPublicRoute = isLoginPage || isWebhookRoute || isOrcamentoPublico
+  const isPublicRoute = isLoginPage || isWebhookRoute || isOrcamentoPublico || request.nextUrl.pathname === '/'
 
   // Usuário não autenticado tentando acessar rota protegida
   if (!user && !isPublicRoute) {
