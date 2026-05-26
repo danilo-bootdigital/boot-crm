@@ -173,7 +173,10 @@ export default async function PipelinePage() {
       } : null,
       ultima_mensagem: conversaInfo?.ultima_mensagem ?? null,
       ultima_mensagem_em: conversaInfo?.ultima_mensagem_em ?? null,
-      ultimas_mensagens: conversaInfo?.ultimas_mensagens ?? [],
+      ultimas_mensagens: (conversaInfo?.ultimas_mensagens ?? []).map(msg => ({
+        ...msg,
+        id: msg.conteudo?.substring(0, 36) || Date.now().toString()
+      })),
       status_conversa: conversaInfo?.status_conversa ?? null,
       conversa_id: conversaInfo?.conversa_id ?? null,
       tags: conversaInfo?.tags ?? [],
