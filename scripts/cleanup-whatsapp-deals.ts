@@ -10,6 +10,12 @@ interface Lead {
   id: string;
 }
 
+interface MessageCount {
+  lead_id: string;
+  sent_messages: number;
+  received_messages: number;
+}
+
 async function main() {
   const supabase = createAdminClient()
 
@@ -62,8 +68,8 @@ async function main() {
     const lead = leads.find(l => l.id === deal.lead_id)
     if (!lead) return false
 
-    const messageCount = messages.find(m => m.lead_id === deal.lead_id)
-    return messageCount && (messageCount as any).sent_messages > 0 && (messageCount as any).received_messages === 0
+    const messageCount = messages.find((m: MessageCount) => m.lead_id === deal.lead_id)
+    return messageCount && messageCount.sent_messages > 0 && messageCount.received_messages === 0
   })
 
   if (dealsToDelete.length === 0) {
