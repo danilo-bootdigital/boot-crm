@@ -11,13 +11,16 @@ function apiHeaders() {
   return { 'Content-Type': 'application/json', apikey: apiKey }
 }
 
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+async function apiFetch<T>(path: string, options?: RequestInit, timeout?: number): Promise<T> {
   const { baseUrl } = getConfig()
+  const signal = options?.signal ?? AbortSignal.timeout(timeout ?? 15000)
+
   const res = await fetch(`${baseUrl}${path}`, {
     ...options,
     headers: { ...apiHeaders(), ...options?.headers },
-    signal: options?.signal ?? AbortSignal.timeout(15000),
+    signal,
   })
+
   if (!res.ok) {
     const text = await res.text()
     if (res.status === 400 && text.includes('"exists":false')) {
@@ -80,15 +83,36 @@ export async function deletarInstancia(instanceName: string): Promise<void> {
 export async function enviarTexto(
   instanceName: string,
   numero: string,
-  texto: string
+  texto: string,
+  maxTentativas: number = 3
 ): Promise<string> {
-  const data = await apiFetch<{ key?: { id?: string } }>(
-    `/message/sendText/${instanceName}`,
-    { method: 'POST', body: JSON.stringify({ number: numero, text: texto }) }
-  )
-  const id = data.key?.id
-  if (!id) throw new Error('Evolution API não retornou key.id para a mensagem enviada')
-  return id
+  let tentativa = 0
+
+  while (tentativa < maxTentativas) {
+    try {
+      const data = await apiFetch<{ key?: { id?: string } }>(
+        `/message/sendText/${instanceName}`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ number: numero, text: texto }),
+          timeout: 30000,
+        }
+      )
+      const id = data.key?.id
+      if (!id) throw new Error('Evolution API não retornou key.id para a mensagem enviada')
+      return id
+    } catch (error) {
+      tentativa++
+      if (tentativa >= maxTentativas) throw error
+
+      // Exponential backoff
+      await new Promise(resolve =>
+        setTimeout(resolve, 1000 * Math.pow(2, tentativa))
+      )
+    }
+  }
+
+  throw new Error('Número máximo de tentativas excedido')
 }
 
 export async function enviarImagem(
@@ -109,6 +133,7 @@ export async function enviarImagem(
         mimetype: mimeType,
         caption: caption || '',
       }),
+      timeout: 30000,
     }
   )
   const id = data.key?.id
@@ -131,6 +156,7 @@ export async function enviarAudio(
         audio: mediaBase64,
         mimetype: mimeType,
       }),
+      timeout: 30000,
     }
   )
   const id = data.key?.id
@@ -156,6 +182,7 @@ export async function enviarDocumento(
         mimetype: mimeType,
         fileName,
       }),
+      timeout: 30000,
     }
   )
   const id = data.key?.id
@@ -165,20 +192,56 @@ export async function enviarDocumento(
 
 export async function baixarMidia(
   instanceName: string,
-  messageData: Record<string, unknown>
+  messageData: Record<string, unknown>,
+  maxSize?: number
 ): Promise<{ base64: string; mimeType: string } | null> {
   try {
-    const data = await apiFetch<{ base64?: string; mimetype?: string; mediaType?: string }>(
+    const data = await apiFetch<{ base64?: string; mimetype?: string; mediaType?: string; size?: number }>(
       `/chat/getBase64FromMediaMessage/${instanceName}`,
       {
         method: 'POST',
         body: JSON.stringify({ message: messageData }),
       }
     )
+
     if (!data.base64) return null
+
+    // Validar tamanho do arquivo
+    if (maxSize && data.size && data.size > maxSize) {
+      console.warn(`Arquivo excede tamanho máximo: ${data.size} bytes > ${maxSize} bytes`)
+      return null
+    }
+
     return { base64: data.base64, mimeType: data.mimetype || 'application/octet-stream' }
   } catch (err) {
     console.error('[evolution] baixarMidia:', err)
     return null
+  }
+}
+
+export async function enviarMensagemComRetry(
+  instanceName: string,
+  numero: string,
+  tipo: 'texto' | 'imagem' | 'audio' | 'documento',
+  conteudo: string,
+  mediaBase64?: string,
+  mimeType?: string,
+  fileName?: string,
+  caption?: string
+): Promise<string> {
+  switch (tipo) {
+    case 'texto':
+      return await enviarTexto(instanceName, numero, conteudo)
+    case 'imagem':
+      if (!mediaBase64 || !mimeType) throw new Error('Mídia e mimeType são obrigatórios para imagens')
+      return await enviarImagem(instanceName, numero, mediaBase64, mimeType, caption)
+    case 'audio':
+      if (!mediaBase64 || !mimeType) throw new Error('Mídia e mimeType são obrigatórios para áudio')
+      return await enviarAudio(instanceName, numero, mediaBase64, mimeType)
+    case 'documento':
+      if (!mediaBase64 || !mimeType || !fileName) throw new Error('Mídia, mimeType e fileName são obrigatórios para documentos')
+      return await enviarDocumento(instanceName, numero, mediaBase64, mimeType, fileName)
+    default:
+      throw new Error('Tipo de mensagem inválido')
   }
 }

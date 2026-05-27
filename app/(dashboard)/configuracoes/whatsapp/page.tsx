@@ -2,67 +2,69 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { CardInstancia } from '@/components/whatsapp/card-instancia'
 import { AdicionarInstanciaButton } from '@/components/whatsapp/adicionar-instancia-button'
+import ConfiguracaoAvancada from './config-avancada'
 
-export default async function WhatsappConfigPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+'use client'
 
-  const { data: perfil } = await supabase
-    .from('profiles')
-    .select('id, cargo, organization_id')
-    .eq('id', user.id)
-    .single()
+import { useState } from 'react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Settings, Plus } from 'lucide-react'
+import { toast } from 'sonner'
+import ConfiguracaoAvancada from './config-avancada'
 
-  if (!perfil || perfil.cargo !== 'admin') redirect('/painel')
-
-  const { data: instancias } = await supabase
-    .from('whatsapp_instances')
-    .select(`
-      id, nome, numero, status_conexao, compartilhado,
-      vendedor:profiles!vendedor_id(nome)
-    `)
-    .eq('organization_id', perfil.organization_id)
-    .order('criado_em', { ascending: true })
-
-  const { data: vendedores } = await supabase
-    .from('profiles')
-    .select('id, nome')
-    .eq('organization_id', perfil.organization_id)
-    .eq('ativo', true)
-    .in('cargo', ['vendedor', 'atendimento'])
-    .order('nome')
-
-  const instanciasFormatadas = (instancias ?? []).map((i) => ({
-    id: i.id as string,
-    nome: i.nome as string,
-    numero: i.numero as string | null,
-    status_conexao: i.status_conexao as import('@/types/database').WhatsappStatus,
-    compartilhado: i.compartilhado as boolean,
-    vendedor: (Array.isArray(i.vendedor) ? i.vendedor[0] : i.vendedor) as { nome: string } | null,
-  }))
+export default function WhatsappConfigPage() {
+  const [activeTab, setActiveTab] = useState('conexoes')
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Conexões WhatsApp</h1>
-          <p className="mt-0.5 text-sm text-slate-500">Gerencie as instâncias conectadas ao sistema.</p>
+          <h1 className="text-2xl font-bold text-slate-900">Configurações WhatsApp</h1>
+          <p className="mt-0.5 text-sm text-slate-500">Gerencie instâncias e configurações avançadas.</p>
         </div>
-        <AdicionarInstanciaButton vendedores={vendedores ?? []} />
       </div>
 
-      {instanciasFormatadas.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-12 text-center">
-          <p className="text-sm text-slate-400">Nenhuma instância configurada. Adicione a primeira para começar.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {instanciasFormatadas.map((i) => (
-            <CardInstancia key={i.id} instancia={i} />
-          ))}
-        </div>
-      )}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="conexoes" className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Instâncias
+          </TabsTrigger>
+          <TabsTrigger value="configuracoes" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Configurações Avançadas
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="conexoes">
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold">Conexões WhatsApp</h2>
+                <p className="mt-0.5 text-sm text-slate-500">Gerencie as instâncias conectadas ao sistema.</p>
+              </div>
+            </div>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-sm text-slate-400 mb-4">Nenhuma instância configurada</p>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Adicionar Instância
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="configuracoes">
+          <ConfiguracaoAvancada />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
