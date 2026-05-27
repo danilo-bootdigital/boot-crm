@@ -69,6 +69,7 @@ export function FormOrcamento({ produtos, fornecedores, categorias, deals, conta
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const editando = !!orcamentoId
+  const [isLoading, setIsLoading] = useState(false)
 
   const [dealId, setDealId] = useState(defaultValues?.deal_id ?? '')
   const [supplierId, setSupplierId] = useState(defaultValues?.supplier_id ?? '')

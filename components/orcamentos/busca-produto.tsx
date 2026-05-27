@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Input } from '@/components/ui/input'
 import { Search, X } from 'lucide-react'
+import { useDebounce } from '@/lib/use-debounce'
 import type { Product } from '@/types/database'
 
 type Props = {
@@ -15,17 +16,29 @@ export function BuscaProduto({ produtos, value, onSelect }: Props) {
   const [busca, setBusca] = useState('')
   const [aberto, setAberto] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
+  const [isSearching, setIsSearching] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const produtoSelecionado = value ? produtos.find(p => p.id === value) : null
 
+  // Debounce da busca para melhor performance
+  const debouncedSetBusca = useDebounce(setBusca, 300)
+
+  useEffect(() => {
+    setIsSearching(true)
+    const timer = setTimeout(() => {
+      setIsSearching(false)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [busca])
+
   const filtrados = busca.trim()
     ? produtos.filter(p => p.nome.toLowerCase().includes(busca.toLowerCase()))
     : produtos
 
-  const opcoes = [{ id: '__livre__', nome: 'Descrição livre' }, ...filtrados]
+  const opcoes = [{ id: '__livre__', nome: 'Descrição livre' }, ...filtrados.slice(0, 50)]
 
   useEffect(() => {
     function handleClickFora(e: MouseEvent) {
@@ -34,17 +47,32 @@ export function BuscaProduto({ produtos, value, onSelect }: Props) {
         setActiveIndex(-1)
       }
     }
-    document.addEventListener('mousedown', handleClickFora)
-    return () => document.removeEventListener('mousedown', handleClickFora)
-  }, [])
+
+    // Adicionar evento de click apenas quando o dropdown estiver aberto
+    if (aberto) {
+      document.addEventListener('mousedown', handleClickFora)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickFora)
+    }
+  }, [aberto])
 
 
   useEffect(() => {
     if (activeIndex >= 0 && listRef.current) {
       const item = listRef.current.children[activeIndex] as HTMLElement | undefined
-      item?.scrollIntoView({ block: 'nearest' })
+      if (item) {
+        item.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      }
     }
-  }, [activeIndex])
+  }, [activeIndex, produtos])
+
+  useEffect(() => {
+    setAberto(false)
+    setActiveIndex(-1)
+    setBusca('')
+  }, [produtos])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (!aberto) {
@@ -89,8 +117,10 @@ export function BuscaProduto({ produtos, value, onSelect }: Props) {
   function handleSelect(produtoId: string) {
     onSelect(produtoId)
     setBusca('')
-    setAberto(false)
-    setActiveIndex(-1)
+    setTimeout(() => {
+      setAberto(false)
+      setActiveIndex(-1)
+    }, 100)
   }
 
   function handleLimpar() {
@@ -124,8 +154,9 @@ export function BuscaProduto({ produtos, value, onSelect }: Props) {
         <Input
           ref={inputRef}
           className="h-9 text-sm pl-8"
-          placeholder="Buscar produto..."
+          placeholder={isSearching ? "Buscando..." : "Buscar produto..."}
           value={busca}
+          onChange={(e) => debouncedSetBusca(e.target.value)}
           onFocus={() => setAberto(true)}
           onKeyDown={handleKeyDown}
           role="combobox"
@@ -140,7 +171,7 @@ export function BuscaProduto({ produtos, value, onSelect }: Props) {
           id={listboxId}
           ref={listRef}
           role="listbox"
-          className="absolute z-[9999] mt-1 w-full rounded-lg border bg-white shadow-lg max-h-72 overflow-y-auto"
+          className="absolute z-[99999] mt-1 w-full rounded-lg border bg-white shadow-lg max-h-72 overflow-y-auto"
         >
           {opcoes.map((opcao, index) => (
             <li
@@ -179,7 +210,7 @@ export function BuscaProduto({ produtos, value, onSelect }: Props) {
           ))}
           {filtrados.length === 0 && (
             <li className="px-3 py-2 text-sm text-slate-400" role="option" aria-disabled="true" aria-selected={false}>
-              Nenhum produto encontrado
+              Nenhum produto encontrado. Tente outro termo ou selecione "Descrição livre".
             </li>
           )}
         </ul>
