@@ -3,6 +3,10 @@ import { redirect } from 'next/navigation'
 import { ListaConversas } from '@/components/whatsapp/lista-conversas'
 import { ModalNovaConversa } from '@/components/whatsapp/modal-nova-conversa'
 import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Settings, BarChart3, AlertTriangle } from 'lucide-react'
+import { WhatsAppInstanceManager } from '@/components/whatsapp/whatsapp-instance-manager'
 
 export default async function WhatsappPage() {
   const supabase = await createClient()
@@ -16,6 +20,66 @@ export default async function WhatsappPage() {
     .single()
 
   if (!perfil) redirect('/login')
+
+  // Buscar instâncias
+  const { data: instancias } = await supabase
+    .from('whatsapp_instances')
+    .select('id, nome, status_conexao, evolution_instance_name')
+    .eq('organization_id', perfil.organization_id)
+
+  // Verificar se há instâncias conectadas
+  const hasConnectedInstances = instancias?.some(inst => inst.status_conexao === 'conectado') || false
+
+  // Se não houver instâncias, mostrar tela de configuração
+  if (!instancias || instancias.length === 0) {
+    return (
+      <div className="container mx-auto py-6">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold">WhatsApp</h1>
+          <p className="text-muted-foreground">Gerencie suas conversas do WhatsApp</p>
+        </div>
+
+        <div className="max-w-2xl mx-auto">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                <span>Nenhuma instância configurada</span>
+              </CardTitle>
+              <CardDescription>
+                Para começar a usar o WhatsApp, você precisa primeiro configurar uma instância.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Siga estes passos para configurar sua integração com o WhatsApp:
+              </p>
+              <ol className="list-decimal list-inside space-y-2 text-sm">
+                <li>Acesse as configurações do WhatsApp</li>
+                <li>Crie uma nova instância</li>
+                <li>Escaneie o QR code com o WhatsApp do seu celular</li>
+                <li>Comece a enviar e receber mensagens</li>
+              </ol>
+              <div className="flex space-x-2">
+                <Link href="/configuracoes-whatsapp">
+                  <Button>
+                    <Settings className="h-4 w-4 mr-2" />
+                    Configurar WhatsApp
+                  </Button>
+                </Link>
+                <Link href="/monitoramento-whatsapp">
+                  <Button variant="outline">
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    Ver Monitoramento
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
 
   // Buscar conversas com status e responsável
   let query = supabase
@@ -36,16 +100,28 @@ export default async function WhatsappPage() {
 
   // Vendedor só vê conversas das instâncias atribuídas a ele ou onde é responsável
   if (perfil.cargo === 'vendedor' || perfil.cargo === 'atendimento') {
-    const { data: instancias } = await supabase
+    const { data: userInstances } = await supabase
       .from('whatsapp_instances')
       .select('id')
       .eq('organization_id', perfil.organization_id)
       .or(`vendedor_id.eq.${perfil.id},compartilhado.eq.true`)
-    const ids = (instancias ?? []).map((i) => i.id as string)
+    const ids = (userInstances ?? []).map((i) => i.id as string)
     if (ids.length === 0) {
       return (
         <div className="flex h-full items-center justify-center">
-          <p className="text-sm text-slate-400">Nenhuma instância atribuída.</p>
+          <div className="text-center">
+            <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Nenhuma instância atribuída</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Você não tem acesso a nenhuma instância de WhatsApp.
+            </p>
+            <Link href="/configuracoes-whatsapp">
+              <Button>
+                <Settings className="h-4 w-4 mr-2" />
+                Solicitar Acesso
+              </Button>
+            </Link>
+          </div>
         </div>
       )
     }
@@ -98,61 +174,115 @@ export default async function WhatsappPage() {
   const { data: usuariosRaw } = await supabase
     .from('profiles')
     .select('id, nome')
-    .eq('organization_id', perfil.organization_id)
-    .eq('ativo', true)
-    .order('nome')
 
   const usuarios = (usuariosRaw ?? []) as { id: string; nome: string }[]
 
-  // Buscar instâncias autorizadas para o botão Nova Conversa
-  let instQuery = supabase
-    .from('whatsapp_instances')
-    .select('id, nome, numero, status_conexao')
-    .eq('organization_id', perfil.organization_id)
-    .eq('status_conexao', 'conectado')
-
-  if (perfil.cargo === 'vendedor' || perfil.cargo === 'atendimento') {
-    instQuery = instQuery.or(`vendedor_id.eq.${perfil.id},compartilhado.eq.true`)
-  }
-
-  const { data: instanciasRaw } = await instQuery
-  const instancias = (instanciasRaw ?? []) as { id: string; nome: string; numero: string | null; status_conexao: string }[]
-
-  const conversas = (conversasRaw ?? []).map((c) => {
-    const resp = (Array.isArray(c.responsavel) ? c.responsavel[0] : c.responsavel) as { nome: string } | null
-    const lead = Array.isArray(c.lead) ? c.lead[0] : c.lead
-    const cid = c.id as string
-    return {
-      id: cid,
-      nome_contato: (lead?.nome as string) || null,
-      telefone: c.telefone_externo as string,
-      ultima_mensagem: ultimasMensagens[cid] ?? null,
-      ultima_mensagem_em: c.ultima_mensagem_em as string | null,
-      nao_lidas: 0, // Valor padrão, pode ser ajustado se necessário
-      status: (c.status as 'nao_atendida' | 'em_atendimento' | 'aguardando_cliente' | 'finalizada') ?? 'nao_atendida',
-    }
-  })
-
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b px-4 py-3">
-        <div>
-          <h1 className="text-lg font-semibold text-slate-900">WhatsApp</h1>
-          <p className="text-xs text-slate-500">{conversas.length} conversa{conversas.length !== 1 ? 's' : ''}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <ModalNovaConversa instancias={instancias} />
-          {['admin', 'gestor'].includes(perfil.cargo) && (
-            <Link href="/whatsapp/relatorios" className="rounded-md border px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
-              Relatórios
-            </Link>
-          )}
+    <div className="flex h-screen">
+      {/* Sidebar */}
+      <div className="w-80 border-r bg-muted/10">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold">WhatsApp</h2>
+            <div className="flex space-x-1">
+              <Link href="/configuracoes-whatsapp">
+                <Button size="sm" variant="ghost">
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </Link>
+              <Link href="/monitoramento-whatsapp">
+                <Button size="sm" variant="ghost">
+                  <BarChart3 className="h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          {/* Status das instâncias */}
+          <div className="mb-6">
+            <h3 className="text-sm font-medium mb-2">Instâncias</h3>
+            <div className="space-y-2">
+              {instancias?.map((inst) => (
+                <div
+                  key={inst.id}
+                  className={`p-2 rounded text-sm ${
+                    inst.status_conexao === 'conectado'
+                      ? 'bg-green-100 text-green-800'
+                      : inst.status_conexao === 'aguardando_qr'
+                      ? 'bg-yellow-100 text-yellow-800'
+                      : 'bg-red-100 text-red-800'
+                  }`}
+                >
+                  {inst.nome} - {inst.status_conexao === 'conectado' ? 'Online' : inst.status_conexao === 'aguardando_qr' ? 'Aguardando QR' : 'Offline'}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Filtros */}
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Status</label>
+              <select className="w-full p-2 border rounded text-sm">
+                <option value="">Todos</option>
+                <option value="nao_atendida">Não Atendida</option>
+                <option value="em_atendimento">Em Atendimento</option>
+                <option value="aguardando_resposta">Aguardando Resposta</option>
+                <option value="finalizada">Finalizada</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">Tags</label>
+              <div className="flex flex-wrap gap-1">
+                {todasTags.map((tag) => (
+                  <span
+                    key={tag.id}
+                    className="px-2 py-1 rounded text-xs cursor-pointer hover:bg-gray-200"
+                    style={{ backgroundColor: tag.cor + '20', color: tag.cor }}
+                  >
+                    {tag.nome}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">Responsável</label>
+              <select className="w-full p-2 border rounded text-sm">
+                <option value="">Todos</option>
+                {usuarios.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
       </div>
-      <div className="flex-1 overflow-hidden">
-        <ListaConversas
-          conversasIniciais={conversas}
-        />
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <div className="border-b p-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-semibold">Conversas</h1>
+            <ModalNovaConversa instancias={instancias} />
+          </div>
+        </div>
+
+        {/* Lista de conversas */}
+        <div className="flex-1 overflow-auto">
+          <ListaConversas
+            conversas={conversasRaw ?? []}
+            ultimasMensagens={ultimasMensagens}
+            tagsMap={tagsMap}
+            todasTags={todasTags}
+            usuarios={usuarios}
+            cargoUsuario={perfil.cargo}
+          />
+        </div>
       </div>
     </div>
   )

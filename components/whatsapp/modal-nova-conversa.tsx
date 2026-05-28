@@ -97,10 +97,13 @@ export function ModalNovaConversa({ instancias }: Props) {
     return (
       <Button className="gap-2" disabled>
         <Plus className="h-4 w-4" />
-        Nenhum WhatsApp conectado
+        Nenhuma instância encontrada
       </Button>
     )
   }
+
+  // Verificar se há instâncias conectadas
+  const hasConnectedInstance = instancias.some(inst => inst.status_conexao === 'conectado')
 
   return (
     <Dialog open={aberto} onOpenChange={(v) => { setAberto(v); if (!v) handleReset() }}>
@@ -117,6 +120,12 @@ export function ModalNovaConversa({ instancias }: Props) {
             Nova Conversa
           </DialogTitle>
         </DialogHeader>
+
+        {!hasConnectedInstance && (
+          <div className="rounded-md bg-amber-50 p-3 text-sm text-amber-700">
+            ⚠️ Nenhuma instância está conectada no momento. As mensagens serão salvas mas não serão enviadas até que o WhatsApp esteja online.
+          </div>
+        )}
 
         <div className="space-y-4">
           {!selecionado ? (

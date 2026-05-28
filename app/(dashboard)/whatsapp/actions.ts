@@ -174,7 +174,11 @@ export async function iniciarConversa(params: IniciarConversaParams): Promise<st
     .single()
 
   if (!instancia) throw new Error('Instância de WhatsApp não encontrada.')
-  if (instancia.status_conexao !== 'conectado') throw new Error('WhatsApp desconectado. Reconecte a instância.')
+
+  // Apenas alerta se estiver desconectado, mas não bloqueia
+  if (instancia.status_conexao !== 'conectado') {
+    console.warn(`Instância ${instancia.nome} está desconectada. A conversa será criada mas a mensagem não será enviada até a reconexão.`)
+  }
 
   // Vendedor só pode usar instâncias atribuídas ou compartilhadas
   if (perfil.cargo === 'vendedor' || perfil.cargo === 'atendimento') {
@@ -289,8 +293,18 @@ export async function iniciarConversa(params: IniciarConversaParams): Promise<st
     conversaId = novaConversa.id
   }
 
-  // Enviar mensagem via Evolution API
-  const messageIdExterno = await enviarTexto(instancia.evolution_instance_name!, formatado, texto.trim())
+  // Enviar mensagem via Evolution API (se estiver conectado)
+  let messageIdExterno: string | null = null
+  if (instancia.status_conexao === 'conectado' && instancia.evolution_instance_name) {
+    try {
+      messageIdExterno = await enviarTexto(instancia.evolution_instance_name, formatado, texto.trim())
+    } catch (error) {
+      console.error('Erro ao enviar mensagem via Evolution:', error)
+      // Não falhar toda a operação se o envio falhar
+    }
+  } else {
+    console.warn(`Instância ${instancia.nome} está desconectada. Mensagem não será enviada via WhatsApp.`)
+  }
 
   const agora = new Date().toISOString()
 
@@ -303,19 +317,34 @@ export async function iniciarConversa(params: IniciarConversaParams): Promise<st
     tipo_midia: 'texto',
     conteudo: texto.trim(),
     responsavel_id: perfil.id,
-    status: 'enviada',
+    status: messageIdExterno ? 'enviada' : 'pendente',
     enviado_em: agora,
   })
 
   // Atualizar conversa
+  const updateData: Record<string, unknown> = {
+    ultima_mensagem_em: agora,
+    status: 'em_atendimento',
+    responsavel_id: perfil.id,
+    atualizado_em: agora,
+  }
+
+  // Se a mensagem não foi enviada, marcar como aguardando envio e adicionar nota
+  if (!messageIdExterno) {
+    updateData.status = 'aguardando_resposta'
+
+    // Adicionar nota sobre a mensagem pendente
+    await supabase.from('conversation_notes').insert({
+      organization_id: perfil.organization_id,
+      conversation_id: conversaId,
+      autor_id: perfil.id,
+      conteudo: `Mensagem salva mas não enviada (WhatsApp offline em ${new Date().toLocaleString()})`,
+    })
+  }
+
   await supabase
     .from('conversations')
-    .update({
-      ultima_mensagem_em: agora,
-      status: 'em_atendimento',
-      responsavel_id: perfil.id,
-      atualizado_em: agora,
-    })
+    .update(updateData)
     .eq('id', conversaId)
 
   // Atualizar última interação do lead - apenas para prospecção
