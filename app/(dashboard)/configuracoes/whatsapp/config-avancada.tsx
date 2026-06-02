@@ -40,6 +40,11 @@ const defaultConfig: ConfiguracaoWhatsApp = {
   habilitar_monitoramento: true,
 }
 
+const parseSafeInt = (value: string, fallback: number): number => {
+  const n = parseInt(value, 10)
+  return Number.isFinite(n) && n >= 0 ? n : fallback
+}
+
 export default function ConfiguracaoAvancada() {
   const [config, setConfig] = useState<ConfiguracaoWhatsApp>(defaultConfig)
   const [loading, setLoading] = useState(false)
@@ -98,8 +103,20 @@ export default function ConfiguracaoAvancada() {
 
       if (!perfil) return
 
+      // Sanitizar payload: remover campos que não devem ser enviados e normalizar números
+      const { id: _omitId, organization_id: _omitOrg, ...restConfig } = config
+      const sanitizeNumber = (v: number) => (Number.isFinite(v) ? v : defaultConfig.max_tamanho_mensagem)
+
       const configParaSalvar = {
-        ...config,
+        max_tamanho_mensagem: sanitizeNumber(restConfig.max_tamanho_mensagem),
+        tempo_retencao_midia: sanitizeNumber(restConfig.tempo_retencao_midia),
+        max_tentativas_envio: sanitizeNumber(restConfig.max_tentativas_envio),
+        palavras_urgentes: restConfig.palavras_urgentes,
+        habilitar_cache_contatos: restConfig.habilitar_cache_contatos,
+        tempo_cache_contatos: sanitizeNumber(restConfig.tempo_cache_contatos),
+        rate_limit_por_minuto: sanitizeNumber(restConfig.rate_limit_por_minuto),
+        webhook_timeout: sanitizeNumber(restConfig.webhook_timeout),
+        habilitar_monitoramento: restConfig.habilitar_monitoramento,
         organization_id: perfil.organization_id,
         atualizado_em: new Date().toISOString(),
       }
@@ -108,17 +125,23 @@ export default function ConfiguracaoAvancada() {
         .from('whatsapp_config')
         .select('id')
         .eq('organization_id', perfil.organization_id)
-        .single()
+        .maybeSingle()
 
+      let resultado: { error: unknown } | null
       if (configExistente) {
-        await supabase
+        resultado = await supabase
           .from('whatsapp_config')
           .update(configParaSalvar)
           .eq('id', configExistente.id)
+          .eq('organization_id', perfil.organization_id)
       } else {
-        await supabase
+        resultado = await supabase
           .from('whatsapp_config')
           .insert(configParaSalvar)
+      }
+
+      if (resultado?.error) {
+        throw resultado.error
       }
 
       toast.success('Configuração salva com sucesso!')
@@ -189,7 +212,7 @@ export default function ConfiguracaoAvancada() {
                     id="max-tamanho-mensagem"
                     type="number"
                     value={config.max_tamanho_mensagem}
-                    onChange={(e) => setConfig({ ...config, max_tamanho_mensagem: parseInt(e.target.value) })}
+                    onChange={(e) => setConfig({ ...config, max_tamanho_mensagem: parseSafeInt(e.target.value, defaultConfig.max_tamanho_mensagem) })}
                   />
                   <p className="text-xs text-slate-500">
                     Limite de caracteres por mensagem
@@ -204,7 +227,7 @@ export default function ConfiguracaoAvancada() {
                     id="tempo-retencao-midia"
                     type="number"
                     value={config.tempo_retencao_midia}
-                    onChange={(e) => setConfig({ ...config, tempo_retencao_midia: parseInt(e.target.value) })}
+                    onChange={(e) => setConfig({ ...config, tempo_retencao_midia: parseSafeInt(e.target.value, defaultConfig.tempo_retencao_midia) })}
                   />
                   <p className="text-xs text-slate-500">
                     Mídia será automaticamente removida após este período
@@ -219,7 +242,7 @@ export default function ConfiguracaoAvancada() {
                     id="max-tentativas-envio"
                     type="number"
                     value={config.max_tentativas_envio}
-                    onChange={(e) => setConfig({ ...config, max_tentativas_envio: parseInt(e.target.value) })}
+                    onChange={(e) => setConfig({ ...config, max_tentativas_envio: parseSafeInt(e.target.value, defaultConfig.max_tentativas_envio) })}
                   />
                   <p className="text-xs text-slate-500">
                     Número máximo de tentativas para enviar mensagens
@@ -234,7 +257,7 @@ export default function ConfiguracaoAvancada() {
                     id="rate-limit"
                     type="number"
                     value={config.rate_limit_por_minuto}
-                    onChange={(e) => setConfig({ ...config, rate_limit_por_minuto: parseInt(e.target.value) })}
+                    onChange={(e) => setConfig({ ...config, rate_limit_por_minuto: parseSafeInt(e.target.value, defaultConfig.rate_limit_por_minuto) })}
                   />
                   <p className="text-xs text-slate-500">
                     Limite de mensagens por minuto por instância
@@ -302,7 +325,7 @@ export default function ConfiguracaoAvancada() {
                   id="webhook-timeout"
                   type="number"
                   value={config.webhook_timeout}
-                  onChange={(e) => setConfig({ ...config, webhook_timeout: parseInt(e.target.value) })}
+                  onChange={(e) => setConfig({ ...config, webhook_timeout: parseSafeInt(e.target.value, defaultConfig.webhook_timeout) })}
                 />
                 <p className="text-xs text-slate-500">
                   Tempo máximo de espera para respostas do webhook
@@ -352,7 +375,7 @@ export default function ConfiguracaoAvancada() {
                     id="tempo-cache-contatos"
                     type="number"
                     value={config.tempo_cache_contatos}
-                    onChange={(e) => setConfig({ ...config, tempo_cache_contatos: parseInt(e.target.value) })}
+                    onChange={(e) => setConfig({ ...config, tempo_cache_contatos: parseSafeInt(e.target.value, defaultConfig.tempo_cache_contatos) })}
                   />
                   <p className="text-xs text-slate-500">
                     Contatos serão mantidos no cache por este tempo

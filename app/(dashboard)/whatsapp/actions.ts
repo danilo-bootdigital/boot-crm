@@ -120,6 +120,7 @@ export async function enviarMensagem(conversaId: string, texto: string) {
     .update(updateData)
     .eq('id', conversaId)
     .eq('organization_id', perfil.organization_id)
+    .eq('organization_id', perfil.organization_id)
 
   await supabase.from('audit_logs').insert({
     organization_id: perfil.organization_id,
@@ -299,10 +300,18 @@ export async function iniciarConversa(params: IniciarConversaParams): Promise<st
     try {
       messageIdExterno = await enviarTexto(instancia.evolution_instance_name, formatado, texto.trim())
     } catch (error) {
-      console.error('Erro ao enviar mensagem via Evolution:', error)
-      // Não falhar toda a operação se o envio falhar
+      const errorMsg = error instanceof Error ? error.message : 'Erro desconhecido'
+      console.error('Erro ao enviar mensagem via Evolution:', errorMsg)
+
+      // Notificar usuário sobre erro específico
+      if (errorMsg.includes('401') || errorMsg.includes('unauthorized')) {
+        throw new Error('Sessão do WhatsApp expirada. Por favor, gere um novo QR code na tela de instâncias.')
+      } else if (errorMsg.includes('does not exist')) {
+        throw new Error('Número não possui WhatsApp ou está incorreto.')
+      }
+      // Para outros erros, não falhar toda a operação
     }
-  } else {
+  } else if (instancia.status_conexao !== 'conectado') {
     console.warn(`Instância ${instancia.evolution_instance_name} está desconectada. Mensagem não será enviada via WhatsApp.`)
   }
 
@@ -346,6 +355,7 @@ export async function iniciarConversa(params: IniciarConversaParams): Promise<st
     .from('conversations')
     .update(updateData)
     .eq('id', conversaId)
+    .eq('organization_id', perfil.organization_id)
 
   // Atualizar última interação do lead - apenas para prospecção
   // Prospecção não deve gerar novas interações
@@ -579,6 +589,7 @@ export async function enviarMidia(conversaId: string, formData: FormData) {
     .from('conversations')
     .update(updateData)
     .eq('id', conversaId)
+    .eq('organization_id', perfil.organization_id)
     .eq('organization_id', perfil.organization_id)
 
   revalidatePath('/whatsapp')

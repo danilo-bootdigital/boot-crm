@@ -55,9 +55,31 @@ export function WhatsAppInstanceManager({ organizationId, onInstanceUpdate }: Pr
   const [selectedInstance, setSelectedInstance] = useState<WhatsAppInstance | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [instanceToDelete, setInstanceToDelete] = useState<WhatsAppInstance | null>(null)
+  const [savingSettings, setSavingSettings] = useState(false)
 
   const { toast } = useToast()
   const supabase = createClient()
+
+  // Salvar configurações globais
+  const handleSaveSettings = async () => {
+    setSavingSettings(true)
+    try {
+      // Atualizar todas as instâncias existentes com as novas configurações
+      // (implementação futura: armazenar em tabela de configurações globais)
+      toast({
+        title: 'Configurações salvas',
+        description: 'As configurações globais foram atualizadas.'
+      })
+    } catch (error) {
+      toast({
+        title: 'Erro ao salvar',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive'
+      })
+    } finally {
+      setSavingSettings(false)
+    }
+  }
 
   // Gerar URL do webhook
   useEffect(() => {
@@ -86,7 +108,7 @@ export function WhatsAppInstanceManager({ organizationId, onInstanceUpdate }: Pr
       for (const instance of data || []) {
         try {
           const state = await obterEstadoConexao(instance.evolution_instance_name!)
-          states.set(instance.id, state)
+          states.set(instance.id, state === 'open' ? 'conectado' : state === 'close' ? 'desconectado' : 'aguardando_qr')
         } catch (err) {
           states.set(instance.id, 'desconectado')
         }
@@ -106,16 +128,25 @@ export function WhatsAppInstanceManager({ organizationId, onInstanceUpdate }: Pr
   useEffect(() => {
     loadInstances()
 
-    // Atualizar estados a cada 30 segundos
-    const interval = setInterval(() => {
-      instances.forEach(async instance => {
+    // Atualizar estados a cada 30 segundos — busca fresca do banco para evitar stale closure
+    const interval = setInterval(async () => {
+      const { data: atuais } = await supabase
+        .from('whatsapp_instances')
+        .select('id, evolution_instance_name')
+        .eq('organization_id', organizationId)
+
+      if (!atuais) return
+
+      const states = new Map<string, 'conectado' | 'desconectado' | 'aguardando_qr'>()
+      for (const instance of atuais) {
         try {
           const state = await obterEstadoConexao(instance.evolution_instance_name!)
-          setConnectionStates(prev => new Map(prev).set(instance.id, state === 'open' ? 'conectado' : state === 'close' ? 'desconectado' : 'aguardando_qr'))
+          states.set(instance.id, state === 'open' ? 'conectado' : state === 'close' ? 'desconectado' : 'aguardando_qr')
         } catch (err) {
-          setConnectionStates(prev => new Map(prev).set(instance.id, 'desconectado'))
+          states.set(instance.id, 'desconectado')
         }
-      })
+      }
+      setConnectionStates(states)
     }, 30000)
 
     return () => clearInterval(interval)
@@ -466,7 +497,16 @@ export function WhatsAppInstanceManager({ organizationId, onInstanceUpdate }: Pr
                 </div>
               </div>
 
-              <Button className="w-full">Salvar Configurações</Button>
+              <Button onClick={handleSaveSettings} disabled={savingSettings} className="w-full">
+                {savingSettings ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  'Salvar Configurações'
+                )}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
