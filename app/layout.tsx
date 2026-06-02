@@ -1,7 +1,6 @@
+import ProvidersLayout from "./providers-layout"
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { Toaster } from "@/components/ui/sonner";
-import { ToastProvider } from "@/hooks/use-toast";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -61,11 +60,7 @@ export default function RootLayout({
             `,
           }}
         />
-        {children}
-        <Toaster />
-        <ToastProvider>
-          <Toaster />
-        </ToastProvider>
+        <ProvidersLayout>{children}</ProvidersLayout>
       </body>
     </html>
   );
