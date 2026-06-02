@@ -90,17 +90,26 @@ export async function enviarTexto(
 
   while (tentativa < maxTentativas) {
     try {
-      const data = await apiFetch<{ key?: { id?: string } }>(
-        `/message/sendText/${instanceName}`,
-        {
-          method: 'POST',
-          body: JSON.stringify({ number: numero, text: texto }),
-          timeout: 30000,
-        }
-      )
-      const id = data.key?.id
-      if (!id) throw new Error('Evolution API não retornou key.id para a mensagem enviada')
-      return id
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 30000)
+
+      try {
+        const data = await apiFetch<{ key?: { id?: string } }>(
+          `/message/sendText/${instanceName}`,
+          {
+            method: 'POST',
+            body: JSON.stringify({ number: numero, text: texto }),
+            signal: controller.signal,
+          }
+        )
+        clearTimeout(timeoutId)
+        const id = data.key?.id
+        if (!id) throw new Error('Evolution API não retornou key.id para a mensagem enviada')
+        return id
+      } catch (error) {
+        clearTimeout(timeoutId)
+        throw error
+      }
     } catch (error) {
       tentativa++
       if (tentativa >= maxTentativas) throw error
@@ -122,23 +131,32 @@ export async function enviarImagem(
   mimeType: string,
   caption?: string
 ): Promise<string> {
-  const data = await apiFetch<{ key?: { id?: string } }>(
-    `/message/sendMedia/${instanceName}`,
-    {
-      method: 'POST',
-      body: JSON.stringify({
-        number: numero,
-        mediatype: 'image',
-        media: mediaBase64,
-        mimetype: mimeType,
-        caption: caption || '',
-      }),
-      timeout: 30000,
-    }
-  )
-  const id = data.key?.id
-  if (!id) throw new Error('Evolution API não retornou key.id para imagem enviada')
-  return id
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 30000)
+
+  try {
+    const data = await apiFetch<{ key?: { id?: string } }>(
+      `/message/sendMedia/${instanceName}`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          number: numero,
+          mediatype: 'image',
+          media: mediaBase64,
+          mimetype: mimeType,
+          caption: caption || '',
+        }),
+        signal: controller.signal,
+      }
+    )
+    clearTimeout(timeoutId)
+    const id = data.key?.id
+    if (!id) throw new Error('Evolution API não retornou key.id para imagem enviada')
+    return id
+  } catch (error) {
+    clearTimeout(timeoutId)
+    throw error
+  }
 }
 
 export async function enviarAudio(
@@ -147,21 +165,30 @@ export async function enviarAudio(
   mediaBase64: string,
   mimeType: string
 ): Promise<string> {
-  const data = await apiFetch<{ key?: { id?: string } }>(
-    `/message/sendWhatsAppAudio/${instanceName}`,
-    {
-      method: 'POST',
-      body: JSON.stringify({
-        number: numero,
-        audio: mediaBase64,
-        mimetype: mimeType,
-      }),
-      timeout: 30000,
-    }
-  )
-  const id = data.key?.id
-  if (!id) throw new Error('Evolution API não retornou key.id para áudio enviado')
-  return id
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 30000)
+
+  try {
+    const data = await apiFetch<{ key?: { id?: string } }>(
+      `/message/sendWhatsAppAudio/${instanceName}`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          number: numero,
+          audio: mediaBase64,
+          mimetype: mimeType,
+        }),
+        signal: controller.signal,
+      }
+    )
+    clearTimeout(timeoutId)
+    const id = data.key?.id
+    if (!id) throw new Error('Evolution API não retornou key.id para áudio enviado')
+    return id
+  } catch (error) {
+    clearTimeout(timeoutId)
+    throw error
+  }
 }
 
 export async function enviarDocumento(
@@ -171,23 +198,32 @@ export async function enviarDocumento(
   mimeType: string,
   fileName: string
 ): Promise<string> {
-  const data = await apiFetch<{ key?: { id?: string } }>(
-    `/message/sendMedia/${instanceName}`,
-    {
-      method: 'POST',
-      body: JSON.stringify({
-        number: numero,
-        mediatype: 'document',
-        media: mediaBase64,
-        mimetype: mimeType,
-        fileName,
-      }),
-      timeout: 30000,
-    }
-  )
-  const id = data.key?.id
-  if (!id) throw new Error('Evolution API não retornou key.id para documento enviado')
-  return id
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 30000)
+
+  try {
+    const data = await apiFetch<{ key?: { id?: string } }>(
+      `/message/sendMedia/${instanceName}`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          number: numero,
+          mediatype: 'document',
+          media: mediaBase64,
+          mimetype: mimeType,
+          fileName,
+        }),
+        signal: controller.signal,
+      }
+    )
+    clearTimeout(timeoutId)
+    const id = data.key?.id
+    if (!id) throw new Error('Evolution API não retornou key.id para documento enviado')
+    return id
+  } catch (error) {
+    clearTimeout(timeoutId)
+    throw error
+  }
 }
 
 export async function baixarMidia(

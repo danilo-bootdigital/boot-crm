@@ -28,6 +28,7 @@ interface ConfiguracaoWhatsApp {
 }
 
 const defaultConfig: ConfiguracaoWhatsApp = {
+  organization_id: '',
   max_tamanho_mensagem: 4096,
   tempo_retencao_midia: 30,
   max_tentativas_envio: 3,
@@ -248,8 +249,9 @@ export default function ConfiguracaoAvancada() {
                     placeholder="Adicionar palavra urgente"
                     onKeyPress={(e) => {
                       if (e.key === 'Enter') {
-                        adicionarPalavraUrgente((e.target as HTMLInputElement).value)
-                        (e.target as HTMLInputElement).value = ''
+                        const input = e.target as HTMLInputElement
+                        adicionarPalavraUrgente(input.value)
+                        input.value = ''
                       }
                     }}
                   />

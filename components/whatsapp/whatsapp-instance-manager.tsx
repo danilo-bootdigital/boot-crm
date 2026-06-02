@@ -111,7 +111,7 @@ export function WhatsAppInstanceManager({ organizationId, onInstanceUpdate }: Pr
       instances.forEach(async instance => {
         try {
           const state = await obterEstadoConexao(instance.evolution_instance_name!)
-          setConnectionStates(prev => new Map(prev).set(instance.id, state))
+          setConnectionStates(prev => new Map(prev).set(instance.id, state === 'open' ? 'conectado' : state === 'close' ? 'desconectado' : 'aguardando_qr'))
         } catch (err) {
           setConnectionStates(prev => new Map(prev).set(instance.id, 'desconectado'))
         }

@@ -177,7 +177,7 @@ export async function iniciarConversa(params: IniciarConversaParams): Promise<st
 
   // Apenas alerta se estiver desconectado, mas não bloqueia
   if (instancia.status_conexao !== 'conectado') {
-    console.warn(`Instância ${instancia.nome} está desconectada. A conversa será criada mas a mensagem não será enviada até a reconexão.`)
+    console.warn(`Instância ${instancia.evolution_instance_name} está desconectada. A conversa será criada mas a mensagem não será enviada até a reconexão.`)
   }
 
   // Vendedor só pode usar instâncias atribuídas ou compartilhadas
@@ -303,7 +303,7 @@ export async function iniciarConversa(params: IniciarConversaParams): Promise<st
       // Não falhar toda a operação se o envio falhar
     }
   } else {
-    console.warn(`Instância ${instancia.nome} está desconectada. Mensagem não será enviada via WhatsApp.`)
+    console.warn(`Instância ${instancia.evolution_instance_name} está desconectada. Mensagem não será enviada via WhatsApp.`)
   }
 
   const agora = new Date().toISOString()

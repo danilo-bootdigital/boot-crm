@@ -26,7 +26,7 @@ export async function limparMidiaAntiga() {
 
     for (const file of files) {
       // Verificar se o arquivo foi modificado antes da data limite
-      const dataModificacao = new Date(file.updatedAt || file.created_at)
+      const dataModificacao = new Date(file.updated_at || file.created_at || Date.now())
       if (dataModificacao < dataLimite) {
         arquivosParaDeletar.push(file.name)
       }
@@ -39,7 +39,7 @@ export async function limparMidiaAntiga() {
       for (const arquivo of arquivosParaDeletar) {
         await supabase.storage
           .from('whatsapp-media')
-          .delete(arquivo)
+          .remove([arquivo])
       }
 
       console.log(`Limpeza concluída: ${arquivosParaDeletar.length} arquivos removidos`)
@@ -102,19 +102,20 @@ export async function monitorarUsoMidia() {
       .from('whatsapp-media')
       .list('', { limit: 1 })
 
-    // Contar total de arquivos
-    const { count: totalArquivos } = await supabase.storage
-      .from('whatsapp-media')
-      .list('', { offset: 0, limit: 1 })
-
-    // Calcular espaço estimado (aproximado)
+    // Obter amostra de arquivos para estimativa
     const { data: sampleFiles } = await supabase.storage
       .from('whatsapp-media')
       .list('', { limit: 100 })
 
     const tamanhoMedio = sampleFiles?.length ?
-      sampleFiles.reduce((acc, file) => acc + (file.size || 0), 0) / sampleFiles.length : 0
+      sampleFiles.reduce((acc, file) => acc + (file.metadata?.size || 0), 0) / sampleFiles.length : 0
 
+    // Estimar total de arquivos (baseado na paginação)
+    const { data: firstPage } = await supabase.storage
+      .from('whatsapp-media')
+      .list('', { limit: 1000 })
+
+    const totalArquivos = firstPage?.length || 0
     const espacoEstimado = totalArquivos * tamanhoMedio
 
     console.log(`Uso de mídia WhatsApp: ${totalArquivos} arquivos, ~${(espacoEstimado / 1024 / 1024).toFixed(2)} MB`)

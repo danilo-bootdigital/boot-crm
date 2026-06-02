@@ -24,7 +24,7 @@ export default async function WhatsappPage() {
   // Buscar instâncias
   const { data: instancias } = await supabase
     .from('whatsapp_instances')
-    .select('id, nome, status_conexao, evolution_instance_name')
+    .select('id, nome, status_conexao, evolution_instance_name, numero')
     .eq('organization_id', perfil.organization_id)
 
   // Verificar se há instâncias conectadas
@@ -129,6 +129,17 @@ export default async function WhatsappPage() {
   }
 
   const { data: conversasRaw } = await query
+
+  // Transformar conversas para o formato esperado pelo componente
+  const conversasFormatadas = (conversasRaw ?? []).map((conversa) => ({
+    id: conversa.id,
+    nome_contato: conversa.lead?.[0]?.nome || 'Não identificado',
+    telefone: conversa.telefone_externo,
+    ultima_mensagem: ultimasMensagens[conversa.id] || '',
+    ultima_mensagem_em: conversa.ultima_mensagem_em,
+    nao_lidas: 0, // Este valor precisa ser calculado separadamente
+    status: conversa.status,
+  }))
 
   // Buscar última mensagem por conversa via RPC
   const conversaIds = (conversasRaw ?? []).map((c) => c.id as string)
@@ -275,12 +286,8 @@ export default async function WhatsappPage() {
         {/* Lista de conversas */}
         <div className="flex-1 overflow-auto">
           <ListaConversas
-            conversas={conversasRaw ?? []}
-            ultimasMensagens={ultimasMensagens}
-            tagsMap={tagsMap}
-            todasTags={todasTags}
-            usuarios={usuarios}
-            cargoUsuario={perfil.cargo}
+            conversasIniciais={conversasFormatadas}
+            conversaAtivaId={undefined}
           />
         </div>
       </div>

@@ -1,9 +1,3 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import { CardInstancia } from '@/components/whatsapp/card-instancia'
-import { AdicionarInstanciaButton } from '@/components/whatsapp/adicionar-instancia-button'
-import ConfiguracaoAvancada from './config-avancada'
-
 'use client'
 
 import { useState } from 'react'
@@ -13,6 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Settings, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import ConfiguracaoAvancada from './config-avancada'
+import { CardInstancia } from '@/components/whatsapp/card-instancia'
+import { AdicionarInstanciaButton } from '@/components/whatsapp/adicionar-instancia-button'
 
 export default function WhatsappConfigPage() {
   const [activeTab, setActiveTab] = useState('conexoes')

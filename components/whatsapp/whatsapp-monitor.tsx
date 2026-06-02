@@ -76,7 +76,7 @@ export function WhatsAppMonitor() {
         let status = instance.status_conexao as 'conectado' | 'desconectado' | 'aguardando_qr'
         try {
           const estado = await obterEstadoConexao(instance.evolution_instance_name!)
-          status = estado
+          status = estado === 'open' ? 'conectado' : estado === 'close' ? 'desconectado' : 'aguardando_qr'
         } catch (err) {
           status = 'desconectado'
         }
@@ -374,7 +374,7 @@ export function WhatsAppMonitor() {
             <Card key={check.service}>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2">
                     <span>{check.service}</span>
                     {getHealthBadge(check.status)}
                   </div>
