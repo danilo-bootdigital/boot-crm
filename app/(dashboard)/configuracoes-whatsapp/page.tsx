@@ -21,45 +21,24 @@ export default function WhatsAppSettingsPage() {
 
   const handleEnvironmentTest = async () => {
     try {
-      // Testar variáveis de ambiente
-      const missingVars = []
+      // Chamar a rota API para testar as variáveis
+      const response = await fetch('/api/whatsapp/debug-env')
+      const data = await response.json()
 
-      if (!process.env.NEXT_PUBLIC_EVOLUTION_API_URL) {
-        missingVars.push('EVOLUTION_API_URL')
-      }
-      if (!process.env.NEXT_PUBLIC_EVOLUTION_API_KEY) {
-        missingVars.push('EVOLUTION_API_KEY')
-      }
-      if (!process.env.NEXT_PUBLIC_EVOLUTION_WEBHOOK_SECRET) {
-        missingVars.push('EVOLUTION_WEBHOOK_SECRET')
-      }
-
-      if (missingVars.length > 0) {
-        toast({
-          title: 'Variáveis de ambiente faltando',
-          description: `Configure: ${missingVars.join(', ')}`,
-          variant: 'destructive'
-        })
-        return
-      }
-
-      // Testar conexão com API
-      const response = await fetch(`${process.env.NEXT_PUBLIC_EVOLUTION_API_URL}/api/status`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': process.env.NEXT_PUBLIC_EVOLUTION_API_KEY!
-        }
-      })
-
-      if (response.ok) {
+      if (data.success && data.envVars.EVOLUTION_API_URL === 'OK' && data.envVars.EVOLUTION_API_KEY === 'OK') {
         toast({
           title: 'API Evolution acessível',
           description: 'A conexão com a API está funcionando corretamente.'
         })
       } else {
+        const missingVars = []
+        if (data.envVars.EVOLUTION_API_URL === 'Faltando') missingVars.push('EVOLUTION_API_URL')
+        if (data.envVars.EVOLUTION_API_KEY === 'Faltando') missingVars.push('EVOLUTION_API_KEY')
+        if (data.envVars.EVOLUTION_WEBHOOK_SECRET === 'Faltando') missingVars.push('EVOLUTION_WEBHOOK_SECRET')
+
         toast({
-          title: 'Erro na API Evolution',
-          description: `Retornou status ${response.status}`,
+          title: 'Variáveis de ambiente faltando',
+          description: `Configure: ${missingVars.join(', ')}`,
           variant: 'destructive'
         })
       }
@@ -110,7 +89,7 @@ export default function WhatsAppSettingsPage() {
                 <Label>API URL</Label>
                 <Input
                   placeholder="https://api.evolution-api.com"
-                  defaultValue={process.env.NEXT_PUBLIC_EVOLUTION_API_URL || ''}
+                  defaultValue={process.env.EVOLUTION_API_URL || ''}
                   readOnly
                 />
               </div>
@@ -118,7 +97,7 @@ export default function WhatsAppSettingsPage() {
                 <Label>API Key</Label>
                 <Input
                   placeholder="sua-chave-api"
-                  defaultValue={process.env.NEXT_PUBLIC_EVOLUTION_API_KEY ? '***' : ''}
+                  defaultValue={process.env.EVOLUTION_API_KEY ? '***' : ''}
                   readOnly
                 />
               </div>
@@ -126,7 +105,7 @@ export default function WhatsAppSettingsPage() {
                 <Label>Webhook Secret</Label>
                 <Input
                   placeholder="seu-secret"
-                  defaultValue={process.env.NEXT_PUBLIC_EVOLUTION_WEBHOOK_SECRET ? '***' : ''}
+                  defaultValue={process.env.EVOLUTION_WEBHOOK_SECRET ? '***' : ''}
                   readOnly
                 />
               </div>

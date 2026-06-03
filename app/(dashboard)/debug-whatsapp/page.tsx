@@ -4,14 +4,12 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { RefreshCw, AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { RefreshCw, AlertCircle, CheckCircle, Loader2, Smartphone } from 'lucide-react'
 
 export default function DebugWhatsAppPage() {
   const [status, setStatus] = useState<'loading' | 'error' | 'success'>('loading')
   const [error, setError] = useState<string | null>(null)
   const [dados, setDados] = useState<any>(null)
-  const supabase = createClient()
 
   useEffect(() => {
     verificarConexao()
@@ -21,43 +19,24 @@ export default function DebugWhatsAppPage() {
     try {
       setStatus('loading')
 
-      // 1. Verificar autenticação
-      const { data: { user }, error: authError } = await supabase.auth.getUser()
-      if (authError) throw authError
-      if (!user) throw new Error('Usuário não autenticado')
+      // Chamar a rota API server-side
+      const response = await fetch('/api/whatsapp/debug-env')
+      const data = await response.json()
 
-      // 2. Verificar perfil
-      const { data: perfil, error: perfilError } = await supabase
-        .from('profiles')
-        .select('id, organization_id, cargo')
-        .eq('id', user.id)
-        .single()
-      if (perfilError) throw perfilError
-      if (!perfil) throw new Error('Perfil não encontrado')
-
-      // 3. Verificar instâncias
-      const { data: instancias, error: instanciasError } = await supabase
-        .from('whatsapp_instances')
-        .select('*')
-        .eq('organization_id', perfil.organization_id)
-      if (instanciasError) throw instanciasError
-
-      // 4. Verificar variáveis de ambiente
-      const envVars = {
-        EVOLUTION_API_URL: process.env.NEXT_PUBLIC_EVOLUTION_API_URL,
-        EVOLUTION_API_KEY: process.env.NEXT_PUBLIC_EVOLUTION_API_KEY ? '***' : null,
-        EVOLUTION_WEBHOOK_SECRET: process.env.NEXT_PUBLIC_EVOLUTION_WEBHOOK_SECRET ? '***' : null,
-        NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+      if (data.success) {
+        setDados({
+          user: data.user,
+          perfil: data.perfil,
+          instancias: data.instancias,
+          envVars: data.envVars,
+          evolutionStatus: data.evolutionStatus,
+          timestamp: data.timestamp
+        })
+        setStatus('success')
+      } else {
+        setError(data.error || 'Erro ao verificar configuração')
+        setStatus('error')
       }
-
-      setDados({
-        user: { id: user.id, email: user.email },
-        perfil: { id: perfil.id, cargo: perfil.cargo, organization_id: perfil.organization_id },
-        instancias: instancias || [],
-        envVars,
-        timestamp: new Date().toISOString()
-      })
-      setStatus('success')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro desconhecido')
       setStatus('error')
@@ -143,13 +122,38 @@ export default function DebugWhatsAppPage() {
               {Object.entries(dados.envVars).map(([key, value]) => (
                 <div key={key} className="flex items-center justify-between">
                   <span className="font-mono text-sm">{key}</span>
-                  <Badge variant={value ? 'default' : 'destructive'}>
-                    {value ? 'OK' : 'Faltando'}
+                  <Badge variant={value === 'OK' ? 'default' : 'destructive'}>
+                    {value === 'OK' ? 'OK' : 'Faltando'}
                   </Badge>
                 </div>
               ))}
             </CardContent>
           </Card>
+
+          {/* Status da Evolution API */}
+          {dados.evolutionStatus && dados.evolutionStatus !== 'Não testado' && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Smartphone className="h-5 w-5" />
+                  Status da Evolution API
+                </CardTitle>
+                <CardDescription>
+                  Teste de conexão com a API Evolution
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <span>Conexão com API</span>
+                  <Badge variant={
+                    dados.evolutionStatus === 'OK' ? 'default' : 'destructive'
+                  }>
+                    {dados.evolutionStatus === 'OK' ? 'OK' : dados.evolutionStatus}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Instâncias WhatsApp */}
           <Card>
