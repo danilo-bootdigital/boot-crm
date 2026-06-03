@@ -84,8 +84,14 @@ export function WhatsAppInstanceManager({ organizationId, onInstanceUpdate }: Pr
   // Gerar URL do webhook
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const baseUrl = window.location.origin
-      setWebhookUrl(`${baseUrl}/api/webhook/evolution`)
+      try {
+        const baseUrl = window.location.origin
+        const url = `${baseUrl}/api/webhook/evolution`
+        console.log('[WhatsAppInstanceManager] Webhook URL gerada:', url)
+        setWebhookUrl(url)
+      } catch (error) {
+        console.error('[WhatsAppInstanceManager] Erro ao gerar webhook URL:', error)
+      }
     }
   }, [])
 
@@ -93,28 +99,39 @@ export function WhatsAppInstanceManager({ organizationId, onInstanceUpdate }: Pr
   const loadInstances = async () => {
     setLoading(true)
     try {
+      console.log('[WhatsAppInstanceManager] Carregando instâncias para org:', organizationId)
+
       const { data, error } = await supabase
         .from('whatsapp_instances')
         .select('*')
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.error('[WhatsAppInstanceManager] Erro ao carregar instâncias:', error)
+        throw error
+      }
 
+      console.log('[WhatsAppInstanceManager] Instâncias encontradas:', data?.length || 0)
       setInstances(data || [])
 
       // Verificar estado de conexão de cada instância
       const states = new Map()
       for (const instance of data || []) {
         try {
+          console.log('[WhatsAppInstanceManager] Verificando estado da instância:', instance.evolution_instance_name)
           const state = await obterEstadoConexao(instance.evolution_instance_name!)
-          states.set(instance.id, state === 'open' ? 'conectado' : state === 'close' ? 'desconectado' : 'aguardando_qr')
+          const status = state === 'open' ? 'conectado' : state === 'close' ? 'desconectado' : 'aguardando_qr'
+          states.set(instance.id, status)
+          console.log(`[WhatsAppInstanceManager] Instância ${instance.evolution_instance_name}: ${status}`)
         } catch (err) {
+          console.error('[WhatsAppInstanceManager] Erro ao verificar estado da instância:', instance.evolution_instance_name, err)
           states.set(instance.id, 'desconectado')
         }
       }
       setConnectionStates(states)
     } catch (error) {
+      console.error('[WhatsAppInstanceManager] Erro geral ao carregar instâncias:', error)
       toast({
         title: 'Erro ao carregar instâncias',
         description: error instanceof Error ? error.message : 'Erro desconhecido',
@@ -165,10 +182,15 @@ export function WhatsAppInstanceManager({ organizationId, onInstanceUpdate }: Pr
 
     setCreating(true)
     try {
+      console.log('[WhatsAppInstanceManager] Criando nova instância:', newInstanceName)
+      console.log('[WhatsAppInstanceManager] Webhook URL:', webhookUrl)
+
       // Criar instância na Evolution API
       await criarInstancia(newInstanceName, webhookUrl)
+      console.log('[WhatsAppInstanceManager] Instância criada na Evolution API')
 
       // Salvar no banco
+      console.log('[WhatsAppInstanceManager] Salvando no banco...')
       const { error } = await supabase
         .from('whatsapp_instances')
         .insert({
@@ -181,7 +203,10 @@ export function WhatsAppInstanceManager({ organizationId, onInstanceUpdate }: Pr
           updated_at: new Date().toISOString()
         })
 
-      if (error) throw error
+      if (error) {
+        console.error('[WhatsAppInstanceManager] Erro ao salvar no banco:', error)
+        throw error
+      }
 
       toast({
         title: 'Instância criada',
@@ -192,6 +217,7 @@ export function WhatsAppInstanceManager({ organizationId, onInstanceUpdate }: Pr
       await loadInstances()
       onInstanceUpdate?.()
     } catch (error) {
+      console.error('[WhatsAppInstanceManager] Erro ao criar instância:', error)
       toast({
         title: 'Erro ao criar instância',
         description: error instanceof Error ? error.message : 'Erro desconhecido',

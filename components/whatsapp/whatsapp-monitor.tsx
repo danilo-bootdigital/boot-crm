@@ -58,10 +58,19 @@ export function WhatsAppMonitor() {
   const loadData = async () => {
     setLoading(true)
     try {
+      console.log('[WhatsAppMonitor] Carregando dados...')
+
       // Carregar status das instâncias
-      const { data: instances } = await supabase
+      const { data: instances, error: instancesError } = await supabase
         .from('whatsapp_instances')
         .select('*')
+
+      if (instancesError) {
+        console.error('[WhatsAppMonitor] Erro ao carregar instâncias:', instancesError)
+        throw instancesError
+      }
+
+      console.log('[WhatsAppMonitor] Instâncias encontradas:', instances?.length || 0)
 
       const statuses: InstanceStatus[] = []
       let totalMensagens = 0
@@ -72,69 +81,88 @@ export function WhatsAppMonitor() {
       let totalErros = 0
 
       for (const instance of instances || []) {
-        // Verificar status atual
-        let status = instance.status_conexao as 'conectado' | 'desconectado' | 'aguardando_qr'
         try {
-          const estado = await obterEstadoConexao(instance.evolution_instance_name!)
-          status = estado === 'open' ? 'conectado' : estado === 'close' ? 'desconectado' : 'aguardando_qr'
-        } catch (err) {
-          status = 'desconectado'
+          // Verificar status atual
+          console.log('[WhatsAppMonitor] Verificando instância:', instance.evolution_instance_name)
+          let status = instance.status_conexao as 'conectado' | 'desconectado' | 'aguardando_qr'
+          try {
+            const estado = await obterEstadoConexao(instance.evolution_instance_name!)
+            status = estado === 'open' ? 'conectado' : estado === 'close' ? 'desconectado' : 'aguardando_qr'
+          } catch (err) {
+            console.error('[WhatsAppMonitor] Erro ao verificar estado:', err)
+            status = 'desconectado'
+          }
+
+          // Contar mensagens
+          console.log('[WhatsAppMonitor] Contando mensagens para instância:', instance.id)
+          const { count: total } = await supabase
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('whatsapp_instance_id', instance.id)
+
+          const { count: enviadas } = await supabase
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('whatsapp_instance_id', instance.id)
+            .eq('direcao', 'enviada')
+
+          const { count: recebidas } = await supabase
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('whatsapp_instance_id', instance.id)
+            .eq('direcao', 'recebida')
+
+          const { count: entregues } = await supabase
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('whatsapp_instance_id', instance.id)
+            .eq('status', 'entregue')
+
+          const { count: lidas } = await supabase
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('whatsapp_instance_id', instance.id)
+            .eq('status', 'lida')
+
+          const { count: erros } = await supabase
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('whatsapp_instance_id', instance.id)
+            .in('status', ['falha', 'pendente'])
+
+          statuses.push({
+            id: instance.id,
+            nome: instance.nome,
+            status,
+            ultima_atualizacao: instance.updated_at,
+            mensagens_enviadas: enviadas || 0,
+            mensagens_recebidas: recebidas || 0,
+            erros: erros || 0
+          })
+
+          totalMensagens += total || 0
+          totalEnviadas += enviadas || 0
+          totalRecebidas += recebidas || 0
+          totalEntregues += entregues || 0
+          totalLidas += lidas || 0
+          totalErros += erros || 0
+        } catch (instanceError) {
+          console.error('[WhatsAppMonitor] Erro ao processar instância:', instance.evolution_instance_name, instanceError)
+          // Adicionar instância com erro
+          statuses.push({
+            id: instance.id,
+            nome: instance.nome,
+            status: 'desconectado',
+            ultima_atualizacao: instance.updated_at,
+            mensagens_enviadas: 0,
+            mensagens_recebidas: 0,
+            erros: 1
+          })
+          totalErros += 1
         }
-
-        // Contar mensagens
-        const { count: total } = await supabase
-          .from('messages')
-          .select('*', { count: 'exact', head: true })
-          .eq('whatsapp_instance_id', instance.id)
-
-        const { count: enviadas } = await supabase
-          .from('messages')
-          .select('*', { count: 'exact', head: true })
-          .eq('whatsapp_instance_id', instance.id)
-          .eq('direcao', 'enviada')
-
-        const { count: recebidas } = await supabase
-          .from('messages')
-          .select('*', { count: 'exact', head: true })
-          .eq('whatsapp_instance_id', instance.id)
-          .eq('direcao', 'recebida')
-
-        const { count: entregues } = await supabase
-          .from('messages')
-          .select('*', { count: 'exact', head: true })
-          .eq('whatsapp_instance_id', instance.id)
-          .eq('status', 'entregue')
-
-        const { count: lidas } = await supabase
-          .from('messages')
-          .select('*', { count: 'exact', head: true })
-          .eq('whatsapp_instance_id', instance.id)
-          .eq('status', 'lida')
-
-        const { count: erros } = await supabase
-          .from('messages')
-          .select('*', { count: 'exact', head: true })
-          .eq('whatsapp_instance_id', instance.id)
-          .in('status', ['falha', 'pendente'])
-
-        statuses.push({
-          id: instance.id,
-          nome: instance.nome,
-          status,
-          ultima_atualizacao: instance.updated_at,
-          mensagens_enviadas: enviadas || 0,
-          mensagens_recebidas: recebidas || 0,
-          erros: erros || 0
-        })
-
-        totalMensagens += total || 0
-        totalEnviadas += enviadas || 0
-        totalRecebidas += recebidas || 0
-        totalEntregues += entregues || 0
-        totalLidas += lidas || 0
-        totalErros += erros || 0
       }
 
+      console.log('[WhatsAppMonitor] Dados carregados com sucesso')
       setInstanceStatuses(statuses)
       setMessageStats({
         total: totalMensagens,
@@ -169,6 +197,7 @@ export function WhatsAppMonitor() {
 
       setLastUpdate(new Date())
     } catch (error) {
+      console.error('[WhatsAppMonitor] Erro ao carregar dados:', error)
       toast({
         title: 'Erro ao carregar dados',
         description: error instanceof Error ? error.message : 'Erro desconhecido',
