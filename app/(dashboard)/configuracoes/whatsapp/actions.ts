@@ -59,12 +59,17 @@ export async function excluirInstancia(instanceId: string) {
 
   const { data: instancia } = await supabase
     .from('whatsapp_instances')
-    .select('id, evolution_instance_name')
+    .select('id, evolution_instance_name, status_conexao')
     .eq('id', instanceId)
     .eq('organization_id', perfil.organization_id)
     .single()
 
   if (!instancia) throw new Error('Instância não encontrada.')
+
+  // Impedir exclusão se estiver conectada
+  if (instancia.status_conexao === 'conectado') {
+    throw new Error('Desconecte a instância antes de excluí-la.')
+  }
 
   if (instancia.evolution_instance_name) {
     try { await deletarInstancia(instancia.evolution_instance_name) } catch { /* ignorar se não existir na API */ }

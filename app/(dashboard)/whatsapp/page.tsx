@@ -5,8 +5,59 @@ import { ModalNovaConversa } from '@/components/whatsapp/modal-nova-conversa'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Settings, BarChart3, AlertTriangle } from 'lucide-react'
+import { Settings, BarChart3, AlertTriangle, Loader2 } from 'lucide-react'
 import { WhatsAppInstanceManager } from '@/components/whatsapp/whatsapp-instance-manager'
+import { Suspense } from 'react'
+
+// Componente de loading
+function ConversasLoading() {
+  return (
+    <div className="flex-1 overflow-auto">
+      <div className="p-4 space-y-2">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="h-16 bg-gray-100 animate-pulse rounded" />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// Componente de empty state
+function ConversasEmpty() {
+  return (
+    <div className="flex-1 flex items-center justify-center">
+      <div className="text-center">
+        <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold mb-2">Nenhuma conversa encontrada</h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          Nenhuma conversa foi iniciada ainda.
+        </p>
+        <Button onClick={() => window.location.reload()}>
+          Atualizar
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+// Componente de error state
+function ConversasError({ error }: { error: string }) {
+  console.error('Erro ao carregar conversas:', error)
+  return (
+    <div className="flex-1 flex items-center justify-center">
+      <div className="text-center">
+        <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold mb-2">Erro ao carregar conversas</h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          Ocorreu um erro ao buscar as conversas. Tente novamente.
+        </p>
+        <Button onClick={() => window.location.reload()}>
+          Recarregar
+        </Button>
+      </div>
+    </div>
+  )
+}
 
 export default async function WhatsappPage() {
   const supabase = await createClient()
@@ -22,10 +73,18 @@ export default async function WhatsappPage() {
   if (!perfil) redirect('/login')
 
   // Buscar instâncias
-  const { data: instancias } = await supabase
+  const { data: instancias, error: instanciasError } = await supabase
     .from('whatsapp_instances')
     .select('id, nome, status_conexao, evolution_instance_name, numero')
     .eq('organization_id', perfil.organization_id)
+
+  if (instanciasError) {
+    return (
+      <div className="container mx-auto py-6">
+        <ConversasError error={instanciasError.message} />
+      </div>
+    )
+  }
 
   // Verificar se há instâncias conectadas
   const hasConnectedInstances = instancias?.some(inst => inst.status_conexao === 'conectado') || false
@@ -128,30 +187,97 @@ export default async function WhatsappPage() {
     query = query.in('whatsapp_instance_id', ids)
   }
 
-  const { data: conversasRaw } = await query
+  const { data: conversasRaw, error: conversasError } = await query
 
-  // Transformar conversas para o formato esperado pelo componente
-  const conversasFormatadas = (conversasRaw ?? []).map((conversa) => ({
-    id: conversa.id,
-    nome_contato: conversa.lead?.[0]?.nome || 'Não identificado',
-    telefone: conversa.telefone_externo,
-    ultima_mensagem: ultimasMensagens[conversa.id] || '',
-    ultima_mensagem_em: conversa.ultima_mensagem_em,
-    nao_lidas: 0, // Este valor precisa ser calculado separadamente
-    status: conversa.status,
-  }))
+  // Tratar erro ao buscar conversas
+  if (conversasError) {
+    return (
+      <div className="flex h-screen">
+        <div className="flex-1 flex items-center justify-center">
+          <ConversasError error={conversasError.message} />
+        </div>
+      </div>
+    )
+  }
+
+  // Se não houver conversas, mostrar empty state
+  if (!conversasRaw || conversasRaw.length === 0) {
+    return (
+      <div className="flex h-screen">
+        {/* Sidebar */}
+        <div className="w-80 border-r bg-muted/10">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold">WhatsApp</h2>
+              <div className="flex space-x-1">
+                <Link href="/configuracoes-whatsapp">
+                  <Button size="sm" variant="ghost">
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </Link>
+                <Link href="/monitoramento-whatsapp">
+                  <Button size="sm" variant="ghost">
+                    <BarChart3 className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            {/* Status das instâncias */}
+            <div className="mb-6">
+              <h3 className="text-sm font-medium mb-2">Instâncias</h3>
+              <div className="space-y-2">
+                {instancias?.map((inst) => (
+                  <div
+                    key={inst.id}
+                    className={`p-2 rounded text-sm ${
+                      inst.status_conexao === 'conectado'
+                        ? 'bg-green-100 text-green-800'
+                        : inst.status_conexao === 'aguardando_qr'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    {inst.nome} - {inst.status_conexao === 'conectado' ? 'Online' : inst.status_conexao === 'aguardando_qr' ? 'Aguardando QR' : 'Offline'}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main content */}
+        <div className="flex-1 flex flex-col">
+          {/* Header */}
+          <div className="border-b p-4">
+            <div className="flex items-center justify-between">
+              <h1 className="text-2xl font-semibold">Conversas</h1>
+              <ModalNovaConversa instancias={instancias} />
+            </div>
+          </div>
+
+          {/* Empty state */}
+          <ConversasEmpty />
+        </div>
+      </div>
+    )
+  }
 
   // Buscar última mensagem por conversa via RPC
   const conversaIds = (conversasRaw ?? []).map((c) => c.id as string)
   const ultimasMensagens: Record<string, string> = {}
   if (conversaIds.length > 0) {
-    const { data: msgs } = await supabase.rpc('ultimas_mensagens_por_conversa', {
-      p_conversation_ids: conversaIds,
-      p_org_id: perfil.organization_id,
-    })
-    ;(msgs ?? []).forEach((m: { conversation_id: string; conteudo: string | null }) => {
-      if (m.conteudo) ultimasMensagens[m.conversation_id] = m.conteudo
-    })
+    try {
+      const { data: msgs } = await supabase.rpc('ultimas_mensagens_por_conversa', {
+        p_conversation_ids: conversaIds,
+        p_org_id: perfil.organization_id,
+      })
+      ;(msgs ?? []).forEach((m: { conversation_id: string; conteudo: string | null }) => {
+        if (m.conteudo) ultimasMensagens[m.conversation_id] = m.conteudo
+      })
+    } catch (error) {
+      console.error('Erro ao buscar últimas mensagens:', error)
+    }
   }
 
   // Buscar tags de todas as conversas
@@ -187,6 +313,17 @@ export default async function WhatsappPage() {
     .select('id, nome')
 
   const usuarios = (usuariosRaw ?? []) as { id: string; nome: string }[]
+
+  // Transformar conversas para o formato esperado pelo componente (corrigido)
+  const conversasFormatadas = (conversasRaw ?? []).map((conversa) => ({
+    id: conversa.id,
+    nome_contato: conversa.lead?.[0]?.nome || 'Não identificado',
+    telefone: conversa.telefone_externo,
+    ultima_mensagem: ultimasMensagens[conversa.id] || '',
+    ultima_mensagem_em: conversa.ultima_mensagem_em,
+    nao_lidas: 0, // Este valor precisa ser calculado separadamente
+    status: conversa.status,
+  }))
 
   return (
     <div className="flex h-screen">
@@ -285,10 +422,12 @@ export default async function WhatsappPage() {
 
         {/* Lista de conversas */}
         <div className="flex-1 overflow-auto">
-          <ListaConversas
-            conversasIniciais={conversasFormatadas}
-            conversaAtivaId={undefined}
-          />
+          <Suspense fallback={<ConversasLoading />}>
+            <ListaConversas
+              conversasIniciais={conversasFormatadas}
+              conversaAtivaId={undefined}
+            />
+          </Suspense>
         </div>
       </div>
     </div>
