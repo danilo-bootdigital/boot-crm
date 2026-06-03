@@ -102,7 +102,12 @@ export async function fetchVendedores(): Promise<{ id: string; nome: string }[]>
 
   return (data || []).map(p => ({ id: p.id, nome: p.nome }))
 }
-  { estado: 'conectado' } | { estado: 'qr'; base64: string } | { estado: 'aguardando' } | { estado: 'erro'; mensagem: string }
+
+export async function verificarQRCode(instanceId: string): Promise<
+  | { estado: 'conectado' }
+  | { estado: 'qr'; base64: string }
+  | { estado: 'aguardando' }
+  | { estado: 'erro'; mensagem: string }
 > {
   const { supabase, perfil } = await getSoAdmin()
 
