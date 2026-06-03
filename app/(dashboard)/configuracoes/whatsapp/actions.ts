@@ -88,7 +88,20 @@ export async function excluirInstancia(instanceId: string) {
   revalidatePath('/configuracoes/whatsapp')
 }
 
-export async function verificarQRCode(instanceId: string): Promise<
+export async function fetchVendedores(): Promise<{ id: string; nome: string }[]> {
+  const { supabase, perfil } = await getSoAdmin()
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, nome')
+    .eq('organization_id', perfil.organization_id)
+    .eq('cargo', 'vendedor')
+    .order('nome')
+
+  if (error) throw new Error(`Erro ao buscar vendedores: ${error.message}`)
+
+  return (data || []).map(p => ({ id: p.id, nome: p.nome }))
+}
   { estado: 'conectado' } | { estado: 'qr'; base64: string } | { estado: 'aguardando' } | { estado: 'erro'; mensagem: string }
 > {
   const { supabase, perfil } = await getSoAdmin()

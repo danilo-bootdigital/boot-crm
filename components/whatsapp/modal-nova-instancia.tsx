@@ -27,10 +27,16 @@ export function ModalNovaInstancia({ aberto, onFechar, vendedores }: Props) {
     setCarregando(true)
 
     try {
+      const formDataToSend = new FormData()
+      formDataToSend.append('nome', formData.nome)
+      formDataToSend.append('compartilhado', String(!formData.vendedor_id))
+      if (formData.vendedor_id) {
+        formDataToSend.append('vendedor_id', formData.vendedor_id)
+      }
+
       const response = await fetch('/api/whatsapp/instances', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: formDataToSend,
       })
 
       if (response.ok) {
