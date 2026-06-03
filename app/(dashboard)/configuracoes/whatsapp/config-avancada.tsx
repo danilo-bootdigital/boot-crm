@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Trash2, Save, RefreshCw } from 'lucide-react'
+import { Trash2, Save, RefreshCw, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface ConfiguracaoWhatsApp {
@@ -49,6 +49,7 @@ export default function ConfiguracaoAvancada() {
   const [config, setConfig] = useState<ConfiguracaoWhatsApp>(defaultConfig)
   const [loading, setLoading] = useState(false)
   const [salvando, setSalvando] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const supabase = createClient()
 
   useEffect(() => {
@@ -57,23 +58,38 @@ export default function ConfiguracaoAvancada() {
 
   const carregarConfiguracao = async () => {
     setLoading(true)
+    setError(null)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      if (authError) {
+        throw new Error('Erro de autenticação: ' + authError.message)
+      }
+      if (!user) {
+        throw new Error('Usuário não autenticado')
+      }
 
-      const { data: perfil } = await supabase
+      const { data: perfil, error: perfilError } = await supabase
         .from('profiles')
         .select('organization_id')
         .eq('id', user.id)
         .single()
 
-      if (!perfil) return
+      if (perfilError) {
+        throw new Error('Erro ao buscar perfil: ' + perfilError.message)
+      }
+      if (!perfil) {
+        throw new Error('Perfil não encontrado')
+      }
 
-      const { data: configExistente } = await supabase
+      const { data: configExistente, error: configError } = await supabase
         .from('whatsapp_config')
         .select('*')
         .eq('organization_id', perfil.organization_id)
         .single()
+
+      if (configError && configError.code !== 'PGRST116') { // PGRST116 = no rows returned
+        throw new Error('Erro ao buscar configuração: ' + configError.message)
+      }
 
       if (configExistente) {
         setConfig({
@@ -84,6 +100,9 @@ export default function ConfiguracaoAvancada() {
       }
     } catch (error) {
       console.error('Erro ao carregar configuração:', error)
+      setError(error instanceof Error ? error.message : 'Erro desconhecido')
+      // Em caso de erro, manter a configuração padrão
+      setConfig(defaultConfig)
     } finally {
       setLoading(false)
     }
@@ -92,16 +111,26 @@ export default function ConfiguracaoAvancada() {
   const salvarConfiguracao = async () => {
     setSalvando(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      if (authError) {
+        throw new Error('Erro de autenticação: ' + authError.message)
+      }
+      if (!user) {
+        throw new Error('Usuário não autenticado')
+      }
 
-      const { data: perfil } = await supabase
+      const { data: perfil, error: perfilError } = await supabase
         .from('profiles')
         .select('organization_id')
         .eq('id', user.id)
         .single()
 
-      if (!perfil) return
+      if (perfilError) {
+        throw new Error('Erro ao buscar perfil: ' + perfilError.message)
+      }
+      if (!perfil) {
+        throw new Error('Perfil não encontrado')
+      }
 
       // Sanitizar payload: remover campos que não devem ser enviados e normalizar números
       const { id: _omitId, organization_id: _omitOrg, ...restConfig } = config
@@ -174,6 +203,24 @@ export default function ConfiguracaoAvancada() {
       <div className="flex items-center justify-center h-64">
         <RefreshCw className="h-8 w-8 animate-spin" />
       </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="text-center">
+            <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-3" />
+            <h3 className="text-lg font-medium text-red-900 mb-2">Erro ao carregar configurações</h3>
+            <p className="text-sm text-red-700 mb-4">{error}</p>
+            <Button onClick={carregarConfiguracao} variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Tentar novamente
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     )
   }
 

@@ -6,12 +6,10 @@ import { fetchVendedores } from '@/app/(dashboard)/configuracoes/whatsapp/action
 export async function GET() {
   try {
     const vendedores = await fetchVendedores()
-    return NextResponse.json({ vendedores })
+    return NextResponse.json({ vendedores: vendedores || [] })
   } catch (error) {
     console.error('Erro ao buscar vendedores:', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Erro desconhecido' },
-      { status: 400 }
-    )
+    // Em caso de erro, retornar array vazio
+    return NextResponse.json({ vendedores: [] })
   }
 }

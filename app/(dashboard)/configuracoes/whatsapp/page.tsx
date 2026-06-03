@@ -56,27 +56,49 @@ function WhatsappConfigContent() {
       setError(null)
 
       const [respInst, respVend] = await Promise.all([
-        fetch('/api/whatsapp/instances'),
-        fetch('/api/whatsapp/vendedores'),
+        fetch('/api/whatsapp/instances').catch((e) => {
+          console.error('Erro ao buscar instâncias:', e)
+          return { ok: false, status: 500, json: () => Promise.resolve({ error: 'Falha ao conectar ao servidor' }) }
+        }),
+        fetch('/api/whatsapp/vendedores').catch((e) => {
+          console.error('Erro ao buscar vendedores:', e)
+          return { ok: false, status: 500, json: () => Promise.resolve({ error: 'Falha ao conectar ao servidor' }) }
+        }),
       ])
 
-      if (!respInst.ok) {
-        throw new Error('Falha ao carregar instâncias')
+      // Tratar respostas com segurança
+      let dataInst = { instancias: [] as any[] }
+      let dataVend = { vendedores: [] as any[] }
+
+      if (respInst.ok) {
+        try {
+          const temp = await respInst.json()
+          dataInst = { instancias: temp.instancias || [] }
+        } catch (e) {
+          console.error('Erro ao parsear instâncias:', e)
+          dataInst = { instancias: [] }
+        }
       }
 
-      if (!respVend.ok) {
-        throw new Error('Falha ao carregar vendedores')
+      if (respVend.ok) {
+        try {
+          const temp = await respVend.json()
+          dataVend = { vendedores: temp.vendedores || [] }
+        } catch (e) {
+          console.error('Erro ao parsear vendedores:', e)
+          dataVend = { vendedores: [] }
+        }
       }
-
-      const dataInst = await respInst.json()
-      const dataVend = await respVend.json()
 
       // Normalizar dados para segurança
-      setInstancias(dataInst.instancias || [])
-      setVendedores(dataVend.vendedores || [])
+      setInstancias(dataInst.instancias)
+      setVendedores(dataVend.vendedores)
     } catch (err) {
       console.error('Erro ao carregar dados:', err)
       setError(err instanceof Error ? err : new Error('Erro desconhecido'))
+      // Mesmo em erro, definir arrays vazios para evitar quebra
+      setInstancias([])
+      setVendedores([])
     } finally {
       setLoading(false)
     }
