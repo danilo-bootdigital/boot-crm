@@ -1,30 +1,50 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Settings, Plus } from 'lucide-react'
+import { Settings, Plus, AlertCircle, RefreshCw } from 'lucide-react'
 import ConfiguracaoAvancada from './config-avancada'
 import { CardInstancia } from '@/components/whatsapp/card-instancia'
 import { AdicionarInstanciaButton } from '@/components/whatsapp/adicionar-instancia-button'
 
 type Instancia = {
   id: string
-  nome: string
+  nome: string | null
   numero: string | null
-  status_conexao: 'conectado' | 'desconectado' | 'aguardando_qr'
-  compartilhado: boolean
-  vendedor: { nome: string } | null
+  status_conexao: string
+  compartilhado: boolean | null
+  vendedor: { nome: string | null } | { nome: string | null }[] | null
 }
 
 type Vendedor = { id: string; nome: string }
 
-export default function WhatsappConfigPage() {
+// Componente de erro
+function ErrorFallback({ error, onRetry }: { error: Error; onRetry: () => void }) {
+  return (
+    <Card>
+      <CardContent className="pt-6">
+        <div className="text-center">
+          <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-3" />
+          <h3 className="text-lg font-medium text-red-900 mb-2">Erro ao carregar configurações</h3>
+          <p className="text-sm text-red-700 mb-4">{error.message}</p>
+          <Button onClick={onRetry} variant="outline" className="flex items-center gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Tentar novamente
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function WhatsappConfigContent() {
   const [activeTab, setActiveTab] = useState('conexoes')
   const [instancias, setInstancias] = useState<Instancia[]>([])
   const [vendedores, setVendedores] = useState<Vendedor[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
 
   useEffect(() => {
     carregarDados()
@@ -32,25 +52,38 @@ export default function WhatsappConfigPage() {
 
   async function carregarDados() {
     try {
+      setLoading(true)
+      setError(null)
+
       const [respInst, respVend] = await Promise.all([
         fetch('/api/whatsapp/instances'),
         fetch('/api/whatsapp/vendedores'),
       ])
 
-      if (respInst.ok) {
-        const data = await respInst.json()
-        setInstancias(data.instancias || [])
+      if (!respInst.ok) {
+        throw new Error('Falha ao carregar instâncias')
       }
 
-      if (respVend.ok) {
-        const data = await respVend.json()
-        setVendedores(data.vendedores || [])
+      if (!respVend.ok) {
+        throw new Error('Falha ao carregar vendedores')
       }
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error)
+
+      const dataInst = await respInst.json()
+      const dataVend = await respVend.json()
+
+      // Normalizar dados para segurança
+      setInstancias(dataInst.instancias || [])
+      setVendedores(dataVend.vendedores || [])
+    } catch (err) {
+      console.error('Erro ao carregar dados:', err)
+      setError(err instanceof Error ? err : new Error('Erro desconhecido'))
     } finally {
       setLoading(false)
     }
+  }
+
+  if (error) {
+    return <ErrorFallback error={error} onRetry={carregarDados} />
   }
 
   return (
@@ -87,6 +120,7 @@ export default function WhatsappConfigPage() {
             {loading ? (
               <Card>
                 <CardContent className="pt-6 text-center text-sm text-slate-500">
+                  <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2" />
                   Carregando instâncias...
                 </CardContent>
               </Card>
@@ -114,5 +148,20 @@ export default function WhatsappConfigPage() {
         </TabsContent>
       </Tabs>
     </div>
+  )
+}
+
+export default function WhatsappConfigPage() {
+  return (
+    <Suspense fallback={
+      <Card>
+        <CardContent className="pt-6 text-center text-sm text-slate-500">
+          <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2" />
+          Carregando configurações...
+        </CardContent>
+      </Card>
+    }>
+      <WhatsappConfigContent />
+    </Suspense>
   )
 }

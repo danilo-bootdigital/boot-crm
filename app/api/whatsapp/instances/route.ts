@@ -31,7 +31,7 @@ export async function GET() {
         status_conexao,
         compartilhado,
         vendedor_id,
-        vendedor:vendedor_id (nome)
+        vendedor:profiles!vendedor_id(id, nome)
       `)
       .eq('organization_id', perfil.organization_id)
       .order('nome')
