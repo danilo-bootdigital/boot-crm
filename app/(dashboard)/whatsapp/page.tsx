@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Settings, BarChart3, AlertTriangle, Loader2 } from 'lucide-react'
 import { WhatsAppInstanceManager } from '@/components/whatsapp/whatsapp-instance-manager'
 import { Suspense } from 'react'
+import { obterNomeContato } from '@/lib/nome-contato'
 
 // Componente de loading
 function ConversasLoading() {
@@ -140,7 +141,7 @@ export default async function WhatsappPage() {
     )
   }
 
-  // Buscar conversas com status e responsável
+  // Buscar conversas com status e responsável, incluindo contatos
   let query = supabase
     .from('conversations')
     .select(`
@@ -150,8 +151,13 @@ export default async function WhatsappPage() {
       status,
       responsavel_id,
       responsavel:profiles!responsavel_id(nome),
-      lead:leads!lead_id(id, nome),
-      instancia:whatsapp_instances!whatsapp_instance_id(nome)
+      lead:leads!lead_id(id, nome, telefone),
+      contato:contacts!contato_id(id, nome, telefone),
+      instancia:whatsapp_instances!whatsapp_instance_id(nome),
+      nome_contato,
+      name_source,
+      whatsapp_push_name,
+      is_name_manually_edited
     `)
     .eq('organization_id', perfil.organization_id)
     .order('ultima_mensagem_em', { ascending: false, nullsFirst: false })
@@ -314,15 +320,41 @@ export default async function WhatsappPage() {
 
   const usuarios = (usuariosRaw ?? []) as { id: string; nome: string }[]
 
-  // Transformar conversas para o formato esperado pelo componente (corrigido)
-  const conversasFormatadas = (conversasRaw ?? []).map((conversa) => ({
-    id: conversa.id,
-    nome_contato: conversa.lead?.[0]?.nome || 'Não identificado',
-    telefone: conversa.telefone_externo,
-    ultima_mensagem: ultimasMensagens[conversa.id] || '',
-    ultima_mensagem_em: conversa.ultima_mensagem_em,
-    nao_lidas: 0, // Este valor precisa ser calculado separadamente
-    status: conversa.status,
+  // Transformar conversas para o formato esperado pelo componente
+  const conversasFormatadas = await Promise.all((conversasRaw ?? []).map(async (conversa) => {
+    // Se o nome já estiver salvo e não foi editado manualmente, usar o cache
+    if (conversa.nome_contato && conversa.is_name_manually_edited) {
+      return {
+        id: conversa.id,
+        nome_contato: conversa.nome_contato,
+        telefone: conversa.telefone_externo,
+        ultima_mensagem: ultimasMensagens[conversa.id] || '',
+        ultima_mensagem_em: conversa.ultima_mensagem_em,
+        nao_lidas: 0,
+        status: conversa.status,
+      }
+    }
+
+    // Caso contrário, resolver o nome com a função unificada
+    const nomeResolvido = await obterNomeContato(
+      conversa.telefone_externo,
+      perfil.organization_id,
+      {
+        leadId: conversa.lead?.[0]?.id,
+        pushName: conversa.whatsapp_push_name,
+        conversationId: conversa.id
+      }
+    )
+
+    return {
+      id: conversa.id,
+      nome_contato: nomeResolvido,
+      telefone: conversa.telefone_externo,
+      ultima_mensagem: ultimasMensagens[conversa.id] || '',
+      ultima_mensagem_em: conversa.ultima_mensagem_em,
+      nao_lidas: 0,
+      status: conversa.status,
+    }
   }))
 
   return (

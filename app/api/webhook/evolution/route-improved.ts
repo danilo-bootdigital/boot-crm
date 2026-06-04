@@ -383,6 +383,11 @@ export async function POST(req: NextRequest) {
         atualizado_em: new Date().toISOString(),
       }
 
+      // Armazenar pushName mais recente
+      if (pushName && pushName.trim()) {
+        updateData.whatsapp_push_name = pushName.trim()
+      }
+
       // Se conversa existe mas não tem lead vinculado, tentar vincular
       if (!leadId) {
         const { data: leadExistente } = await supabase
@@ -420,7 +425,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Atualizar nome do lead se tem nome genérico
+      // Atualizar nome do lead se tem nome genérico E NÃO foi editado manualmente
       if (!fromMe && leadId) {
         const { data: leadAtual } = await supabase
           .from('leads')
@@ -433,17 +438,65 @@ export async function POST(req: NextRequest) {
           const ehGenerico = !nomeAtual
             || nomeAtual === 'Contato WhatsApp'
             || /^\d{8,15}$/.test(nomeAtual.replace(/\D/g, ''))
-          if (ehGenerico) {
+
+          // Verificar se o nome da conversa não foi editado manualmente
+          const { data: conversaInfo } = await supabase
+            .from('conversations')
+            .select('is_name_manually_edited')
+            .eq('id', conversaAtual?.id)
+            .single()
+
+          if (ehGenerico && (!conversaInfo?.is_name_manually_edited)) {
             // Prioridade: contato cadastrado > pushName
             const contatoNome = await buscarContatoPorTelefone(supabase, instancia.organization_id, telefone)
 
             const novoNome = contatoNome?.nome?.trim() || pushName?.trim()
             if (novoNome) {
+              // Atualizar lead
               await supabase
                 .from('leads')
                 .update({ nome: novoNome, atualizado_em: new Date().toISOString() })
                 .eq('id', leadId)
+
+              // Atualizar cache da conversa (se não foi editado manualmente)
+              if (!conversaInfo?.is_name_manually_edited) {
+                updateData.nome_contato = novoNome
+                updateData.name_source = contatoNome ? 'contact' : 'pushname'
+              }
             }
+          }
+        }
+      }
+
+      // Se a conversa não tem nome editado manualmente, atualizar cache
+      if (!(conversaAtual as any)?.is_name_manually_edited) {
+        // Verificar se precisa atualizar o nome cacheado
+        const { data: conversaCache } = await supabase
+          .from('conversations')
+          .select('nome_contato, name_source')
+          .eq('id', conversaAtual?.id)
+          .single()
+
+        const nomeCacheado = conversaCache?.nome_contato || ''
+        const fonteCacheada = conversaCache?.name_source || ''
+
+        // Se não tem nome cacheado ou a fonte é inferior, atualizar
+        if (!nomeCacheado || (fonteCacheada && ['phone', 'unknown'].includes(fonteCacheada))) {
+          const contatoNome = await buscarContatoPorTelefone(supabase, instancia.organization_id, telefone)
+          let nomeExibicao = nomeCacheado
+          let novaFonte = fonteCacheada
+
+          if (contatoNome?.nome?.trim()) {
+            nomeExibicao = contatoNome.nome.trim()
+            novaFonte = 'contact'
+          } else if (pushName?.trim() && (!nomeCacheado || fonteCacheada === 'phone' || fonteCacheada === 'unknown')) {
+            nomeExibicao = pushName.trim()
+            novaFonte = 'pushname'
+          }
+
+          if (nomeExibicao !== nomeCacheado) {
+            updateData.nome_contato = nomeExibicao
+            updateData.name_source = novaFonte
           }
         }
       }

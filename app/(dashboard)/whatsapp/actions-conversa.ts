@@ -352,20 +352,48 @@ export async function editarNomeConversa(conversaId: string, novoNome: string) {
   // Buscar conversa e lead vinculado
   const { data: conversa } = await supabase
     .from('conversations')
-    .select('id, lead_id, telefone_externo')
+    .select('id, lead_id, telefone_externo, nome_contato, name_source')
     .eq('id', conversaId)
     .eq('organization_id', perfil.organization_id)
     .single()
 
   if (!conversa) throw new Error('Conversa não encontrada.')
 
+  // Atualizar nome da conversa (cache)
+  await supabase
+    .from('conversations')
+    .update({
+      nome_contato: novoNome.trim(),
+      name_source: 'manual',
+      is_name_manually_edited: true,
+      atualizado_em: new Date().toISOString()
+    })
+    .eq('id', conversaId)
+    .eq('organization_id', perfil.organization_id)
+
+  // Se tem lead vinculado, atualizar também
   if (conversa.lead_id) {
-    // Atualizar nome do lead existente
-    await supabase
+    // Verificar se o lead tem um nome diferente (não genérico)
+    const { data: lead } = await supabase
       .from('leads')
-      .update({ nome: novoNome.trim(), atualizado_em: new Date().toISOString() })
+      .select('nome')
       .eq('id', conversa.lead_id)
-      .eq('organization_id', perfil.organization_id)
+      .single()
+
+    const ehNomeGenerico = !lead?.nome
+      || lead.nome === 'Contato WhatsApp'
+      || /^\d{8,15}$/.test(lead.nome.replace(/\D/g, ''))
+
+    if (ehNomeGenerico) {
+      await supabase
+        .from('leads')
+        .update({
+          nome: novoNome.trim(),
+          atualizado_em: new Date().toISOString()
+        })
+        .eq('id', conversa.lead_id)
+        .eq('organization_id', perfil.organization_id)
+    }
   } else {
     // Criar lead e vincular à conversa
     const { data: novoLead } = await supabase
@@ -383,11 +411,23 @@ export async function editarNomeConversa(conversaId: string, novoNome: string) {
     if (novoLead) {
       await supabase
         .from('conversations')
-        .update({ lead_id: novoLead.id, atualizado_em: new Date().toISOString() })
+        .update({
+          lead_id: novoLead.id,
+          atualizado_em: new Date().toISOString()
+        })
         .eq('id', conversaId)
         .eq('organization_id', perfil.organization_id)
     }
   }
+
+  // Criar atividade de auditoria
+  await supabase.from('activities').insert({
+    organization_id: perfil.organization_id,
+    tipo: 'nome_contato_editado',
+    descricao: `Nome do contato alterado para "${novoNome.trim()}" na conversa ${conversaId}`,
+    conversation_id: conversaId,
+    autor_id: perfil.id,
+  })
 
   revalidatePath('/whatsapp')
   revalidatePath(`/whatsapp/${conversaId}`)

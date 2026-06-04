@@ -4,10 +4,11 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
+import { EditarNome } from './editar-nome'
 
 type Conversa = {
   id: string
-  nome_contato: string | null
+  nome_contato: string
   telefone: string
   ultima_mensagem: string | null
   ultima_mensagem_em: string | null
@@ -18,11 +19,13 @@ type Conversa = {
 type Props = {
   conversasIniciais: Conversa[]
   conversaAtivaId?: string
+  onNomeEditado?: (conversaId: string, novoNome: string) => void
 }
 
 export function ListaConversas({
   conversasIniciais,
   conversaAtivaId,
+  onNomeEditado,
 }: Props) {
   const [conversasRealtime, setConversasRealtime] = useState<Conversa[]>([])
 
@@ -80,6 +83,23 @@ export function ListaConversas({
     }
   }, [])
 
+  const handleNomeEditado = (conversaId: string, novoNome: string) => {
+    // Atualizar na lista atual
+    const index = conversas.findIndex(c => c.id === conversaId)
+    if (index !== -1) {
+      const atualizadas = [...conversas]
+      atualizadas[index] = {
+        ...atualizadas[index],
+        nome_contato: novoNome
+      }
+      // Como usamos useMemo, precisamos forçar atualização
+      setConversasRealtime(prev => [...prev])
+    }
+
+    // Notificar o componente pai
+    onNomeEditado?.(conversaId, novoNome)
+  }
+
   return (
     <div className="flex flex-col">
       {conversas.map((conversa) => (
@@ -87,14 +107,27 @@ export function ListaConversas({
           key={conversa.id}
           href={`/whatsapp/${conversa.id}`}
           className={cn(
-            'border-b px-4 py-3 transition-colors hover:bg-slate-50',
+            'border-b px-4 py-3 transition-colors hover:bg-slate-50 group',
             conversa.id === conversaAtivaId && 'bg-slate-100'
           )}
         >
           <div className="flex items-center justify-between gap-2">
-            <h3 className="truncate text-sm font-medium text-slate-800">
-              {conversa.nome_contato || conversa.telefone}
-            </h3>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="truncate text-sm font-medium text-slate-800">
+                  {conversa.nome_contato}
+                </h3>
+                <EditarNome
+                  conversaId={conversa.id}
+                  nomeAtual={conversa.nome_contato}
+                  telefone={conversa.telefone}
+                  onEditComplete={(novoNome) => handleNomeEditado(conversa.id, novoNome)}
+                />
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                {conversa.telefone}
+              </p>
+            </div>
 
             {conversa.nao_lidas > 0 && (
               <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-green-500 px-1 text-[11px] font-bold text-white">
