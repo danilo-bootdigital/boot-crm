@@ -243,8 +243,9 @@ export async function baixarMidia(
     if (!data.base64) return null
 
     // Validar tamanho do arquivo
-    if (maxSize && data.size && data.size > maxSize) {
-      console.warn(`Arquivo excede tamanho máximo: ${data.size} bytes > ${maxSize} bytes`)
+    const tamanho = typeof data.size === 'string' ? parseInt(data.size, 10) : data.size
+    if (maxSize && tamanho && tamanho > maxSize) {
+      console.warn(`Arquivo excede tamanho máximo: ${tamanho} bytes > ${maxSize} bytes`)
       return null
     }
 

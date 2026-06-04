@@ -340,7 +340,7 @@ export default async function WhatsappPage() {
       conversa.telefone_externo,
       perfil.organization_id,
       {
-        leadId: conversa.lead?.[0]?.id,
+        leadId: (conversa.lead as any)?.id,
         pushName: conversa.whatsapp_push_name,
         conversationId: conversa.id
       }

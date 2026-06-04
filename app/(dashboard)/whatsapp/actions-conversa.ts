@@ -442,7 +442,7 @@ export async function listarAuditLog(conversaId: string) {
     .from('activities')
     .select('id, tipo, descricao, criado_em, autor:profiles!autor_id(nome)')
     .eq('organization_id', perfil.organization_id)
-    .or(`lead_id.eq.${conversaId},deal_id.eq.${conversaId}`)
+    .or(`conversation_id.eq.${conversaId},lead_id.eq.${conversaId},deal_id.eq.${conversaId}`)
     .order('criado_em', { ascending: false })
     .limit(30)
 

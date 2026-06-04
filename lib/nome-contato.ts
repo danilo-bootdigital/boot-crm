@@ -203,6 +203,7 @@ export async function backfillNomesConversas(organizationId: string): Promise<{ 
       .select(`
         id,
         telefone_externo,
+        nome_contato,
         lead_id,
         lead:leads!lead_id(nome, telefone),
         messages!messages_conversation_id_fkey(
@@ -243,7 +244,7 @@ export async function backfillNomesConversas(organizationId: string): Promise<{ 
         // Se o nome for diferente do atual, atualizar
         // NOTA: O campo nome_contato será adicionado pela migration 040
         // Atualmente ignorado para não quebrar o app
-        const nomeAtual = ''  // temporariamente vazio
+        const nomeAtual = conversa.nome_contato || ''
         if (false && resolved.display !== nomeAtual && resolved.source !== 'unknown') {
           const { error } = await supabase
             .from('conversations')

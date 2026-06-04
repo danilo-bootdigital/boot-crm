@@ -155,7 +155,11 @@ export async function POST(req: NextRequest) {
     if (conversaAtual && conversaAtual.whatsapp_instance_id !== instancia.id) {
       await supabase
         .from('conversations')
-        .update({ whatsapp_instance_id: instancia.id, atualizado_em: new Date().toISOString() })
+        .update({
+          whatsapp_instance_id: instancia.id,
+          atualizado_em: new Date().toISOString(),
+          whatsapp_push_name: pushName
+        })
         .eq('id', conversaAtual.id)
     }
 
@@ -173,6 +177,7 @@ export async function POST(req: NextRequest) {
             ultima_mensagem_em: enviadoEm,
             status: 'aguardando_resposta',
             responsavel_id: instancia.vendedor_id ?? null,
+            whatsapp_push_name: pushName
           })
           .select('id, lead_id, status, responsavel_id, whatsapp_instance_id')
           .single()
@@ -285,6 +290,7 @@ export async function POST(req: NextRequest) {
             ultima_mensagem_em: enviadoEm,
             status: 'nao_atendida',
             responsavel_id: instancia.vendedor_id ?? null,
+            whatsapp_push_name: pushName
           })
           .select('id, lead_id, status, responsavel_id, whatsapp_instance_id')
           .single()
@@ -442,6 +448,11 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // Atualizar pushName se vierdo WhatsApp e não foi editado manualmente
+      if (!fromMe && pushName && pushName.trim()) {
+        updateData.whatsapp_push_name = pushName.trim()
+      }
+
       await supabase
         .from('conversations')
         .update(updateData)
@@ -485,7 +496,7 @@ export async function POST(req: NextRequest) {
             .upload(path, buffer, { contentType: resultado.mimeType, upsert: false })
 
           if (!uploadErr) {
-            const { data: urlData } = supabase.storage
+            const { data: urlData } = await supabase.storage
               .from('whatsapp-media')
               .getPublicUrl(path)
             urlMidia = urlData.publicUrl
@@ -522,7 +533,7 @@ export async function POST(req: NextRequest) {
 
   // ── messages.update (status de entrega) ───────────────────────
   if (event === 'messages.update') {
-    const updates = Array.isArray(data) ? data : [data]
+    const updates = Array.isArray(data) ? data : (data ? [data] : [])
     for (const update of updates) {
       const key = (update as Record<string, unknown>)?.key as Record<string, unknown> | undefined
       const status = (update as Record<string, unknown>)?.status as number | undefined
