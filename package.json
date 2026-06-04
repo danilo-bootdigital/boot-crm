@@ -2,11 +2,15 @@
   "name": "boot-crm",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "deploy:verify": "./scripts/verify-deploy-env.sh",
+    "deploy:test": "./scripts/verify-deploy.sh",
+    "deploy:webhook": "./scripts/setup-webhook.sh"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.0",
