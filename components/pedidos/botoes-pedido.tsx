@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { ChevronRight, X, Trash2, Edit } from 'lucide-react'
-import { avancarStatus, cancelarPedido, excluirPedido } from '@/app/(dashboard)/pedidos/actions'
+import { avancarStatus, cancelarPedido, excluirPedido, concluirPedido } from '@/app/(dashboard)/pedidos/actions'
 import { ModalEditarPedido } from '@/components/pedidos/modal-editar-pedido'
 import { toast } from 'sonner'
 

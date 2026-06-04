@@ -307,6 +307,236 @@ export async function cancelarPedido(orderId: string, motivo: string) {
   revalidatePath(`/pedidos/${orderId}`)
 }
 
+export async function verificarPedidoPodeEditar(pedidoId: string, senha: string, motivo: string) {
+  if (!motivo?.trim()) {
+    return { error: 'Motivo da alteração é obrigatório.' }
+  }
+
+  const { supabase, perfil } = await getUsuarioEOrg()
+
+  // Verificar se o pedido existe e pertence à organização
+  const { data: pedido } = await supabase
+    .from('orders')
+    .select('id, status, organization_id')
+    .eq('id', pedidoId)
+    .eq('organization_id', perfil.organization_id)
+    .single()
+
+  if (!pedido) {
+    return { error: 'Pedido não encontrado.' }
+  }
+
+  // Verificar se o pedido está em status permitido para edição
+  const statusPermitidos: OrderStatus[] = ['pendente', 'em_producao']
+  if (!statusPermitidos.includes(pedido.status)) {
+    return { error: 'Apenas pedidos pendentes ou em produção podem ser editados.' }
+  }
+
+  // Verificar senha de administrador
+  const { error: authError } = await supabase.auth.signInWithPassword({
+    email: (await supabase.auth.getUser()).data.user!.email!,
+    password: senha,
+  })
+
+  if (authError) {
+    return { error: 'Senha administrativa incorreta.' }
+  }
+
+  // Registrar tentativa de auditoria (mesmo que falhe)
+  try {
+    await supabase.from('pedido_audit_logs').insert({
+      organization_id: perfil.organization_id,
+      order_id: pedidoId,
+      acao: 'SOLICITAR_EDICAO',
+      motivo: motivo,
+      dados_anteriores: JSON.stringify({ status: pedido.status }),
+      campos_alterados: JSON.stringify({ solicitado_edicao: true }),
+      usuario_id: perfil.id,
+      ip: '', // Pode ser capturado do request
+      sessao: '', // Pode ser capturado do session
+    })
+  } catch (e) {
+    // Não falhar se o log não conseguir ser salvo
+    console.error('Erro ao registrar log de auditoria:', e)
+  }
+
+  return {}
+}
+
+export async function editarPedidoSimples(
+  orderId: string,
+  dados: {
+    observacoes?: string | null
+    endereco_entrega?: string | null
+    forma_pagamento?: string | null
+    desconto_geral: number
+    frete: number
+    itens?: Array<{
+      id: string
+      descricao: string
+      quantidade: number
+      preco_unitario: number
+      desconto_item: number
+    }>
+  },
+  senhaAdmin: string,
+  motivo: string
+) {
+  if (!motivo?.trim()) throw new Error('Motivo da alteração é obrigatório.')
+
+  const { supabase, perfil, user } = await getUsuarioEOrgComSenha(senhaAdmin)
+
+  // Buscar dados atuais do pedido
+  const { data: pedidoAtual } = await supabase
+    .from('orders')
+    .select(`
+      *,
+      itens:order_items(*)
+    `)
+    .eq('id', orderId)
+    .eq('organization_id', perfil.organization_id)
+    .single()
+
+  if (!pedidoAtual) throw new Error('Pedido não encontrado.')
+
+  // Validações
+  if (pedidoAtual.status === 'cancelado' || pedidoAtual.status === 'concluido') {
+    throw new Error('Não é possível editar um pedido cancelado ou concluído.')
+  }
+
+  // Calcular novo valor total
+  const valorSubtotal = dados.itens ?
+    dados.itens.reduce((acc, item) => acc + (item.quantidade * item.preco_unitario * (1 - item.desconto_item / 100)), 0) :
+    pedidoAtual.valor_total - pedidoAtual.desconto_geral - pedidoAtual.frete
+  const valorTotal = Math.round((valorSubtotal * (1 - dados.desconto_geral / 100) + dados.frete) * 100) / 100
+
+  // Atualizar pedido
+  const { error: updateError } = await supabase
+    .from('orders')
+    .update({
+      observacoes: dados.observacoes,
+      endereco_entrega: dados.endereco_entrega,
+      forma_pagamento: dados.forma_pagamento,
+      desconto_geral: dados.desconto_geral,
+      frete: dados.frete,
+      valor_total: valorTotal,
+      atualizado_em: new Date().toISOString(),
+    })
+    .eq('id', orderId)
+    .eq('organization_id', perfil.organization_id)
+
+  if (updateError) throw new Error(`Erro ao atualizar pedido: ${updateError.message}`)
+
+  // Atualizar itens do pedido
+  if (dados.itens && dados.itens.length > 0) {
+    // Deletar itens antigos
+    await supabase.from('order_items').delete().eq('order_id', orderId)
+
+    // Inserir novos itens
+    const itensParaInserir = dados.itens.map((item) => ({
+      order_id: orderId,
+      descricao: item.descricao,
+      quantidade: item.quantidade,
+      preco_unitario: item.preco_unitario,
+      desconto_item: item.desconto_item,
+      subtotal: item.quantidade * item.preco_unitario * (1 - item.desconto_item / 100),
+    }))
+
+    const { error: itensError } = await supabase.from('order_items').insert(itensParaInserir)
+    if (itensError) throw new Error(`Erro ao atualizar itens do pedido: ${itensError.message}`)
+  }
+
+  // Registrar auditoria detalhada
+  await supabase.from('pedido_audit_logs').insert({
+    organization_id: perfil.organization_id,
+    order_id: orderId,
+    quote_id: pedidoAtual.quote_id,
+    usuario_id: perfil.id,
+    administrador_id: perfil.id,
+    acao: 'EDICAO',
+    campos_alterados: JSON.stringify({
+      observacoes: { anterior: pedidoAtual.observacoes, novo: dados.observacoes },
+      endereco_entrega: { anterior: pedidoAtual.endereco_entrega, novo: dados.endereco_entrega },
+      forma_pagamento: { anterior: pedidoAtual.forma_pagamento, novo: dados.forma_pagamento },
+      desconto_geral: { anterior: pedidoAtual.desconto_geral, novo: dados.desconto_geral },
+      frete: { anterior: pedidoAtual.frete, novo: dados.frete },
+      valor_total: { anterior: pedidoAtual.valor_total, novo: valorTotal },
+    }),
+    dados_anteriores: JSON.stringify(pedidoAtual),
+    dados_novos: JSON.stringify({
+      ...pedidoAtual,
+      ...dados,
+      valor_total: valorTotal,
+    }),
+    motivo: motivo.trim(),
+    ip: '',
+    sessao: '',
+  })
+
+  await supabase.from('activities').insert({
+    organization_id: perfil.organization_id,
+    tipo: 'pedido_editado',
+    descricao: `Pedido #${pedidoAtual.numero} editado por administrador. Motivo: ${motivo.trim()}`,
+    lead_id: pedidoAtual.lead_id || null,
+    deal_id: pedidoAtual.deal_id || null,
+    autor_id: perfil.id,
+  })
+
+  revalidatePath('/pedidos')
+  revalidatePath(`/pedidos/${orderId}`)
+}
+
+export async function concluirPedido(orderId: string) {
+  const { supabase, perfil } = await getUsuarioEOrg()
+
+  const { data: pedido } = await supabase
+    .from('orders')
+    .select('id, status, lead_id, deal_id, numero')
+    .eq('id', orderId)
+    .eq('organization_id', perfil.organization_id)
+    .single()
+
+  if (!pedido) throw new Error('Pedido não encontrado.')
+  if (pedido.status === 'concluido') {
+    throw new Error('Pedido já está concluído.')
+  }
+
+  const agora = new Date().toISOString()
+
+  const { error } = await supabase
+    .from('orders')
+    .update({
+      status: 'concluido' as OrderStatus,
+      concluido_em: agora,
+      atualizado_em: agora,
+    })
+    .eq('id', orderId)
+    .eq('organization_id', perfil.organization_id)
+
+  if (error) throw new Error(`Erro ao concluir pedido: ${error.message}`)
+
+  await supabase.from('order_status_history').insert({
+    organization_id: perfil.organization_id,
+    order_id: orderId,
+    status_anterior: pedido.status,
+    status_novo: 'concluido',
+    observacao: `Pedido concluído por ${perfil.id}.`,
+    autor_id: perfil.id,
+  })
+
+  await supabase.from('activities').insert({
+    organization_id: perfil.organization_id,
+    tipo: 'pedido_concluido',
+    descricao: `Pedido #${pedido.numero} foi concluído por ${perfil.id}.`,
+    lead_id: pedido.lead_id || null,
+    deal_id: pedido.deal_id || null,
+    autor_id: perfil.id,
+  })
+
+  revalidatePath('/pedidos')
+  revalidatePath(`/pedidos/${orderId}`)
+}
+
 export async function excluirPedido(orderId: string, senhaAdmin: string) {
   if (!senhaAdmin?.trim()) throw new Error('Senha de administrador é obrigatória.')
 

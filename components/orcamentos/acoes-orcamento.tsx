@@ -16,6 +16,7 @@ import {
   transformarEmPedido,
   verificarPedidoGerado,
   marcarRecusadoCliente,
+  marcarAprovadoCliente,
   excluirOrcamento,
 } from '@/app/(dashboard)/orcamentos/actions'
 import type { QuoteStatus, UserRole } from '@/types/database'
@@ -99,8 +100,8 @@ export function AcoesOrcamento({ orcamentoId, status, cargo, isResponsavel }: Pr
       cor: 'default',
     },
     enviado_ao_cliente: {
-      acao: 'Aprovar Orçamento',
-      onClick: () => executar(() => aprovarOrcamento(orcamentoId), 'Orçamento aprovado!'),
+      acao: 'Cliente Aprovou',
+      onClick: () => executar(() => marcarAprovadoCliente(orcamentoId), 'Cliente aprovou o orçamento!'),
       cor: 'default',
     },
     aprovado_pelo_cliente: {
@@ -109,9 +110,9 @@ export function AcoesOrcamento({ orcamentoId, status, cargo, isResponsavel }: Pr
       cor: 'default',
     },
     recusado_pelo_cliente: {
-      acao: null,
-      onClick: null,
-      cor: 'secondary',
+      acao: 'Cliente Recusou',
+      onClick: () => executar(() => marcarRecusadoCliente(orcamentoId), 'Cliente recusou o orçamento.'),
+      cor: 'destructive',
     },
     rejeitado_internamente: {
       acao: 'Reenviar para Aprovação',
