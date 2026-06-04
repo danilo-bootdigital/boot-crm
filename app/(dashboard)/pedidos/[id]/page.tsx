@@ -99,7 +99,21 @@ export default async function PedidoDetalhePage({ params }: { params: Promise<{ 
             Criado em {new Date(pedido.criado_em).toLocaleDateString('pt-BR')} · Responsável: {responsavel?.nome ?? '—'}
           </p>
         </div>
-        <BotoesPedido pedidoId={id} status={pedido.status} />
+        <BotoesPedido
+          pedidoId={id}
+          status={pedido.status}
+          numero={pedido.numero}
+          itens={itens ?? []}
+          valor_total={pedido.valor_total}
+          desconto_geral={pedido.desconto_geral}
+          frete={pedido.frete}
+          observacoes={pedido.observacoes}
+          endereco_entrega={pedido.endereco_entrega}
+          forma_pagamento={pedido.forma_pagamento}
+          lead_id={(pedido as any).lead_id}
+          deal_id={(pedido as any).deal_id}
+          contato_id={(pedido as any).contato_id}
+        />
       </div>
 
       <TimelineStatus statusAtual={pedido.status} />

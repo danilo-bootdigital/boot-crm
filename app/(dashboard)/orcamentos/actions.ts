@@ -324,29 +324,92 @@ export async function enviarAoCliente(orcamentoId: string) {
   await alterarStatus(orcamentoId, 'enviado_ao_cliente', ['aprovado_internamente'])
 }
 
-export async function marcarAprovadoCliente(orcamentoId: string) {
+export async function aprovarOrcamento(orcamentoId: string) {
   const { supabase, perfil } = await getUsuarioEOrg()
 
   const { data: orcamento } = await supabase
     .from('quotes')
-    .select('id, status, lead_id, deal_id, contato_id, responsavel_id, numero, valor_total, desconto_geral, frete, observacoes, endereco_entrega, forma_pagamento')
+    .select('id, status')
     .eq('id', orcamentoId)
     .eq('organization_id', perfil.organization_id)
     .single()
 
   if (!orcamento) throw new Error('Orçamento não encontrado.')
-  if (orcamento.status !== 'enviado_ao_cliente') {
-    throw new Error('Não é possível aprovar um orçamento que não foi enviado ao cliente.')
+
+  // Permitir aprovação a partir de: enviado_ao_cliente ou aprovado_internamente
+  const statusPermitidos: QuoteStatus[] = ['enviado_ao_cliente', 'aprovado_internamente']
+  if (!statusPermitidos.includes(orcamento.status as QuoteStatus)) {
+    throw new Error(`Status atual "${orcamento.status}" não permite aprovação.`)
   }
 
-  // 1. Alterar status do orçamento
-  const { error: errStatus } = await supabase
+  const { error } = await supabase
     .from('quotes')
-    .update({ status: 'aprovado_pelo_cliente' as QuoteStatus, atualizado_em: new Date().toISOString() })
+    .update({
+      status: 'aprovado_pelo_cliente' as QuoteStatus,
+      aprovado_cliente_em: new Date().toISOString(),
+      aprovado_cliente_por: perfil.id,
+      atualizado_em: new Date().toISOString(),
+    })
     .eq('id', orcamentoId)
     .eq('organization_id', perfil.organization_id)
 
-  if (errStatus) throw new Error(`Erro ao aprovar orçamento: ${errStatus.message}`)
+  if (error) throw new Error(`Erro ao aprovar orçamento: ${error.message}`)
+
+  // Registrar atividade
+  await supabase.from('activities').insert({
+    organization_id: perfil.organization_id,
+    tipo: 'orcamento_aprovado',
+    descricao: `Orçamento aprovado pelo cliente.`,
+    autor_id: perfil.id,
+  })
+
+  revalidatePath('/orcamentos')
+  revalidatePath(`/orcamentos/${orcamentoId}`)
+}
+
+export async function transformarEmPedido(orcamentoId: string, motivo?: string) {
+  const { supabase, perfil } = await getUsuarioEOrg()
+
+  // 1. Validar orçamento
+  const { data: orcamento } = await supabase
+    .from('quotes')
+    .select(`
+      *,
+      responsavel:profiles!responsavel_id(nome),
+      lead:leads!lead_id(nome, telefone),
+      contato:contacts!contato_id(nome, telefone),
+      itens:quote_items!quote_id(*)
+    `)
+    .eq('id', orcamentoId)
+    .eq('organization_id', perfil.organization_id)
+    .single()
+
+  if (!orcamento) throw new Error('Orçamento não encontrado.')
+
+  // Validações
+  if (orcamento.status !== 'aprovado_pelo_cliente') {
+    throw new Error('Apenas orçamentos aprovados pelo cliente podem ser transformados em pedidos.')
+  }
+
+  if (!orcamento.itens || orcamento.itens.length === 0) {
+    throw new Error('Orçamento deve ter pelo menos um item para ser transformado em pedido.')
+  }
+
+  if (!orcamento.contato_id && !orcamento.lead_id) {
+    throw new Error('Orçamento deve ter um cliente (contato ou lead) vinculado.')
+  }
+
+  // Verificar se já existe pedido para este orçamento
+  const { data: pedidoExistente } = await supabase
+    .from('orders')
+    .select('id')
+    .eq('quote_id', orcamentoId)
+    .eq('organization_id', perfil.organization_id)
+    .single()
+
+  if (pedidoExistente) {
+    throw new Error('Já existe um pedido gerado para este orçamento. Entre em contato com o administrador para gerar um novo.')
+  }
 
   // 2. Buscar contato vinculado (prioridade: contato_id direto no orçamento)
   let contatoId: string | null = orcamento.contato_id ?? null
@@ -364,7 +427,7 @@ export async function marcarAprovadoCliente(orcamentoId: string) {
     }
   }
 
-  // 3. Criar pedido (mesmo número do orçamento)
+  // 3. Criar pedido
   const { data: pedido, error: errPedido } = await supabase
     .from('orders')
     .insert({
@@ -389,27 +452,21 @@ export async function marcarAprovadoCliente(orcamentoId: string) {
   if (errPedido) throw new Error(`Erro ao gerar pedido: ${errPedido.message}`)
 
   // 4. Copiar itens do orçamento para o pedido
-  const { data: itens } = await supabase
-    .from('quote_items')
-    .select('product_id, descricao, quantidade, preco_unitario, desconto_item, subtotal')
-    .eq('quote_id', orcamentoId)
+  const itensParaInserir = orcamento.itens.map((item: any) => ({
+    order_id: pedido.id,
+    product_id: item.product_id,
+    descricao: item.descricao,
+    quantidade: item.quantidade,
+    preco_unitario: item.preco_unitario,
+    desconto_item: item.desconto_item,
+    subtotal: item.subtotal,
+  }))
 
-  if (itens && itens.length > 0) {
-    const itensParaInserir = itens.map((item) => ({
-      order_id: pedido.id,
-      product_id: item.product_id,
-      descricao: item.descricao,
-      quantidade: item.quantidade,
-      preco_unitario: item.preco_unitario,
-      desconto_item: item.desconto_item,
-      subtotal: item.subtotal,
-    }))
-    const { error: errItens } = await supabase.from('order_items').insert(itensParaInserir)
-    if (errItens) {
-      // Rollback: deletar pedido criado sem itens
-      await supabase.from('orders').delete().eq('id', pedido.id)
-      throw new Error(`Erro ao copiar itens para o pedido: ${errItens.message}`)
-    }
+  const { error: errItens } = await supabase.from('order_items').insert(itensParaInserir)
+  if (errItens) {
+    // Rollback: deletar pedido criado sem itens
+    await supabase.from('orders').delete().eq('id', pedido.id)
+    throw new Error(`Erro ao copiar itens para o pedido: ${errItens.message}`)
   }
 
   // 5. Registrar histórico de status do pedido
@@ -418,7 +475,7 @@ export async function marcarAprovadoCliente(orcamentoId: string) {
     order_id: pedido.id,
     status_anterior: null,
     status_novo: 'pendente',
-    observacao: `Pedido gerado a partir do orçamento #${orcamento.id.slice(0, 8)}`,
+    observacao: `Pedido gerado a partir do orçamento #${orcamento.id.slice(0, 8)}${motivo ? ` - ${motivo}` : ''}`,
     autor_id: perfil.id,
   })
 
@@ -426,15 +483,44 @@ export async function marcarAprovadoCliente(orcamentoId: string) {
   await supabase.from('activities').insert({
     organization_id: perfil.organization_id,
     tipo: 'pedido_gerado',
-    descricao: `Pedido #${pedido.numero} gerado a partir do orçamento aprovado.`,
+    descricao: `Pedido #${pedido.numero} gerado a partir do orçamento aprovado.${motivo ? ` Motivo: ${motivo}` : ''}`,
     lead_id: orcamento.lead_id ?? null,
     deal_id: orcamento.deal_id ?? null,
     autor_id: perfil.id,
   })
 
+  // 7. Atualizar orçamento com referência ao pedido
+  await supabase
+    .from('quotes')
+    .update({
+      aprovado_cliente_em: new Date().toISOString(),
+      aprovado_cliente_por: perfil.id,
+      atualizado_em: new Date().toISOString()
+    })
+    .eq('id', orcamentoId)
+    .eq('organization_id', perfil.organization_id)
+
   revalidatePath('/orcamentos')
   revalidatePath(`/orcamentos/${orcamentoId}`)
   revalidatePath('/pedidos')
+}
+
+export async function marcarAprovadoCliente(orcamentoId: string) {
+  // Função mantida para compatibilidade, mas agora chama transformarEmPedido
+  return transformarEmPedido(orcamentoId, 'Aprovação automática via botão "Cliente aprovou"')
+}
+
+export async function verificarPedidoGerado(orcamentoId: string) {
+  const { supabase, perfil } = await getUsuarioEOrg()
+
+  const { data: pedido } = await supabase
+    .from('orders')
+    .select('id, numero, status')
+    .eq('quote_id', orcamentoId)
+    .eq('organization_id', perfil.organization_id)
+    .single()
+
+  return pedido || null
 }
 
 export async function marcarRecusadoCliente(orcamentoId: string) {
