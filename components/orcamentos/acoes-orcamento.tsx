@@ -41,33 +41,28 @@ export function AcoesOrcamento({ orcamentoId, status, cargo, isResponsavel }: Pr
   const podeAgir = isAdminGestor || isResponsavel
 
   // Funções para Server Actions
-  async function handleTransformarPedido() {
-    'use server'
-    console.log('=== handleTransformarPedido (server) ===', motivoConversao)
-    if (!motivoConversao.trim()) {
-      throw new Error('Informe o motivo da conversão para gerar o pedido.')
+  const handleVerificarEPedirConfirmacaoServer = async () => {
+    const result = await handleVerificarEPedirConfirmacao(orcamentoId)
+    if (result.type === 'exists') {
+      toast.success(`Pedido #${result.pedido.numero} já foi gerado!`)
+      router.push(`/pedidos/${result.pedido.id}`)
+    } else {
+      setShowConfirmacaoConversao(true)
     }
-
-    await transformarEmPedido(orcamentoId, motivoConversao.trim())
-    toast.success('Pedido gerado com sucesso!')
-    setShowConfirmacaoConversao(false)
-    setMotivoConversao('')
-    router.refresh()
   }
 
-  async function handleVerificarEPedirConfirmacao() {
-    'use server'
-    console.log('=== handleVerificarEPedirConfirmacao (server) ===', orcamentoId)
-    const pedido = await verificarPedidoGerado(orcamentoId)
-    if (pedido) {
-      // Já existe pedido, mostrar link
-      toast.success(`Pedido #${pedido.numero} já foi gerado!`)
-      router.push(`/pedidos/${pedido.id}`)
-      return
+  const handleTransformarPedidoServer = async (motivo: string) => {
+    try {
+      const result = await handleTransformarPedido(orcamentoId, motivo)
+      toast.success(result.message)
+      setShowConfirmacaoConversao(false)
+      setMotivoConversao('')
+      router.refresh()
+    } catch (error) {
+      if (error instanceof Error) {
+        toast.error(error.message)
+      }
     }
-
-    // Não existe pedido, pedir confirmação
-    setShowConfirmacaoConversao(true)
   }
 
   // Funções para ações que não precisam de confirmação
@@ -185,9 +180,9 @@ export function AcoesOrcamento({ orcamentoId, status, cargo, isResponsavel }: Pr
               <p className="text-sm text-amber-800 mb-3">
                 ⚠️ Este orçamento será convertido em pedido. Após isso, alterações no pedido exigirão autorização de administrador.
               </p>
-              <form onSubmit={(e) => {
+              <form onSubmit={async (e) => {
                 e.preventDefault()
-                handleTransformarPedido()
+                await handleTransformarPedidoServer(motivoConversao)
               }}>
                 <Input
                   placeholder="Informe o motivo da conversão..."
