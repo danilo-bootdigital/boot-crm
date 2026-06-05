@@ -368,50 +368,57 @@ export async function aprovarOrcamento(orcamentoId: string) {
 }
 
 export async function transformarEmPedido(orcamentoId: string, motivo?: string) {
-  const { supabase, perfil } = await getUsuarioEOrg()
+  try {
+    const { supabase, perfil } = await getUsuarioEOrg()
 
-  // 1. Validar orçamento
-  const { data: orcamento } = await supabase
-    .from('quotes')
-    .select(`
-      *,
-      responsavel:profiles!responsavel_id(nome),
-      lead:leads!lead_id(nome, telefone),
-      contato:contacts!contato_id(nome, telefone),
-      itens:quote_items!quote_id(*)
-    `)
-    .eq('id', orcamentoId)
-    .eq('organization_id', perfil.organization_id)
-    .single()
+    // 1. Validar orçamento
+    const { data: orcamento } = await supabase
+      .from('quotes')
+      .select(`
+        *,
+        responsavel:profiles!responsavel_id(nome),
+        lead:leads!lead_id(nome, telefone),
+        contato:contacts!contato_id(nome, telefone),
+        itens:quote_items!quote_id(*)
+      `)
+      .eq('id', orcamentoId)
+      .eq('organization_id', perfil.organization_id)
+      .single()
 
-  if (!orcamento) throw new Error('Orçamento não encontrado.')
+    if (!orcamento) {
+      throw new Error('Orçamento não encontrado.')
+    }
 
-  // Validações
-  if (orcamento.status !== 'aprovado_pelo_cliente') {
-    throw new Error('Apenas orçamentos aprovados pelo cliente podem ser transformados em pedidos.')
-  }
+    // Validações
+    if (orcamento.status !== 'aprovado_pelo_cliente') {
+      throw new Error('Apenas orçamentos aprovados pelo cliente podem ser transformados em pedidos.')
+    }
 
-  if (!orcamento.itens || orcamento.itens.length === 0) {
-    throw new Error('Orçamento deve ter pelo menos um item para ser transformado em pedido.')
-  }
+    if (!orcamento.itens || orcamento.itens.length === 0) {
+      throw new Error('Orçamento deve ter pelo menos um item para ser transformado em pedido.')
+    }
 
-  if (!orcamento.contato_id && !orcamento.lead_id) {
-    throw new Error('Orçamento deve ter um cliente (contato ou lead) vinculado.')
-  }
+    if (!orcamento.contato_id && !orcamento.lead_id) {
+      throw new Error('Orçamento deve ter um cliente (contato ou lead) vinculado.')
+    }
 
-  // Verificar se já existe pedido para este orçamento
-  const { data: pedidoExistente } = await supabase
-    .from('orders')
-    .select('id')
-    .eq('quote_id', orcamentoId)
+    // Verificar se já existe pedido para este orçamento
+    const { data: pedidoExistente } = await supabase
+      .from('orders')
+      .select('id')
+      .eq('quote_id', orcamentoId)
     .eq('organization_id', perfil.organization_id)
     .single()
 
   if (pedidoExistente) {
+    console.error('Pedido já existe:', pedidoExistente)
     throw new Error('Já existe um pedido gerado para este orçamento. Entre em contato com o administrador para gerar um novo.')
   }
 
+  console.log('Nenhum pedido existente encontrado')
+
   // 2. Buscar contato vinculado (prioridade: contato_id direto no orçamento)
+  console.log('Buscando contato vinculado...')
   let contatoId: string | null = orcamento.contato_id ?? null
   if (!contatoId && orcamento.lead_id) {
     const { data: leadData } = await supabase.from('leads').select('telefone').eq('id', orcamento.lead_id).single()
@@ -426,8 +433,10 @@ export async function transformarEmPedido(orcamentoId: string, motivo?: string) 
       contatoId = contato?.id ?? null
     }
   }
+  console.log('Contato encontrado:', contatoId)
 
   // 3. Criar pedido
+  console.log('Criando pedido...')
   const { data: pedido, error: errPedido } = await supabase
     .from('orders')
     .insert({
@@ -449,9 +458,15 @@ export async function transformarEmPedido(orcamentoId: string, motivo?: string) 
     .select('id, numero')
     .single()
 
-  if (errPedido) throw new Error(`Erro ao gerar pedido: ${errPedido.message}`)
+  if (errPedido) {
+    console.error('Erro ao criar pedido:', errPedido)
+    throw new Error(`Erro ao gerar pedido: ${errPedido.message}`)
+  }
+
+  console.log('Pedido criado com sucesso:', pedido)
 
   // 4. Copiar itens do orçamento para o pedido
+  console.log('Copiando itens do orçamento para o pedido...')
   const itensParaInserir = orcamento.itens.map((item: any) => ({
     order_id: pedido.id,
     product_id: item.product_id,
@@ -464,10 +479,13 @@ export async function transformarEmPedido(orcamentoId: string, motivo?: string) 
 
   const { error: errItens } = await supabase.from('order_items').insert(itensParaInserir)
   if (errItens) {
+    console.error('Erro ao copiar itens:', errItens)
     // Rollback: deletar pedido criado sem itens
     await supabase.from('orders').delete().eq('id', pedido.id)
     throw new Error(`Erro ao copiar itens para o pedido: ${errItens.message}`)
   }
+
+  console.log('Itens copiados com sucesso')
 
   // 5. Registrar histórico de status do pedido
   await supabase.from('order_status_history').insert({
@@ -500,9 +518,17 @@ export async function transformarEmPedido(orcamentoId: string, motivo?: string) 
     .eq('id', orcamentoId)
     .eq('organization_id', perfil.organization_id)
 
+  console.log('transformarEmPedido concluído com sucesso!')
   revalidatePath('/orcamentos')
   revalidatePath(`/orcamentos/${orcamentoId}`)
   revalidatePath('/pedidos')
+  } catch (error) {
+    console.error('=== ERRO EM transformarEmPedido ===', error)
+    if (error instanceof Error) {
+      throw new Error(`Falha ao transformar orçamento em pedido: ${error.message}`)
+    }
+    throw new Error('Falha desconhecida ao transformar orçamento em pedido')
+  }
 }
 
 export async function marcarAprovadoCliente(orcamentoId: string) {

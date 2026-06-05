@@ -47,10 +47,10 @@ export async function middleware(request: NextRequest) {
 
     const { data: { user } } = await supabase.auth.getUser()
 
-    // Usuário autenticado tentando acessar login - redirecionar para painel
+    // Usuário autenticado tentando acessar login - redirecionar para dashboard
     if (user && isLoginPage) {
       const url = request.nextUrl.clone()
-      url.pathname = '/painel'
+      url.pathname = '/dashboard'
       return NextResponse.redirect(url)
     }
 

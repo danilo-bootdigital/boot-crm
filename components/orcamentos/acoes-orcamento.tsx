@@ -40,7 +40,24 @@ export function AcoesOrcamento({ orcamentoId, status, cargo, isResponsavel }: Pr
   const isAdminGestor = cargo === 'admin' || cargo === 'gestor'
   const podeAgir = isAdminGestor || isResponsavel
 
-  async function verificarEPedirConfirmacao() {
+  // Funções para Server Actions
+  async function handleTransformarPedido() {
+    'use server'
+    console.log('=== handleTransformarPedido (server) ===', motivoConversao)
+    if (!motivoConversao.trim()) {
+      throw new Error('Informe o motivo da conversão para gerar o pedido.')
+    }
+
+    await transformarEmPedido(orcamentoId, motivoConversao.trim())
+    toast.success('Pedido gerado com sucesso!')
+    setShowConfirmacaoConversao(false)
+    setMotivoConversao('')
+    router.refresh()
+  }
+
+  async function handleVerificarEPedirConfirmacao() {
+    'use server'
+    console.log('=== handleVerificarEPedirConfirmacao (server) ===', orcamentoId)
     const pedido = await verificarPedidoGerado(orcamentoId)
     if (pedido) {
       // Já existe pedido, mostrar link
@@ -53,10 +70,23 @@ export function AcoesOrcamento({ orcamentoId, status, cargo, isResponsavel }: Pr
     setShowConfirmacaoConversao(true)
   }
 
-  function executar(action: () => Promise<void>, mensagem: string) {
+  // Funções para ações que não precisam de confirmação
+  const actionHandlers = {
+    enviarParaAprovacao: () => enviarParaAprovacao(orcamentoId),
+    aprovarInterno: () => aprovarInterno(orcamentoId, comentario),
+    rejeitarInterno: () => rejeitarInterno(orcamentoId, comentario),
+    enviarAoCliente: () => enviarAoCliente(orcamentoId),
+    aprovarOrcamento: () => aprovarOrcamento(orcamentoId),
+    marcarRecusadoCliente: () => marcarRecusadoCliente(orcamentoId),
+    marcarAprovadoCliente: () => marcarAprovadoCliente(orcamentoId),
+    excluirOrcamento: () => excluirOrcamento(orcamentoId),
+  }
+
+  // Função para executar ações
+  function executarAcao(chave: keyof typeof actionHandlers, mensagem: string) {
     startTransition(async () => {
       try {
-        await action()
+        await actionHandlers[chave]()
         toast.success(mensagem)
         router.refresh()
       } catch (e: unknown) {
@@ -66,57 +96,41 @@ export function AcoesOrcamento({ orcamentoId, status, cargo, isResponsavel }: Pr
     })
   }
 
-  function handleTransformarPedido() {
-    if (!motivoConversao.trim()) {
-      toast.error('Informe o motivo da conversão para gerar o pedido.')
-      return
-    }
-
-    executar(
-      () => transformarEmPedido(orcamentoId, motivoConversao.trim()),
-      'Pedido gerado com sucesso!'
-    )
-    setShowConfirmacaoConversao(false)
-    setMotivoConversao('')
-  }
-
   // Fluxo simplificado
   const fluxoSimplificado = {
     rascunho: {
       acao: 'Enviar para aprovação',
-      onClick: () => executar(() => enviarParaAprovacao(orcamentoId), 'Enviado para aprovação.'),
+      onClick: actionHandlers.enviarParaAprovacao,
       cor: 'default',
     },
     aguardando_aprovacao_interna: {
       acao: isAdminGestor ? 'Aprovar Internamente' : null,
-      onClick: isAdminGestor
-        ? () => executar(() => aprovarInterno(orcamentoId, comentario), 'Aprovado internamente.')
-        : null,
+      onClick: isAdminGestor ? actionHandlers.aprovarInterno : null,
       cor: 'default',
     },
     aprovado_internamente: {
       acao: 'Enviar ao Cliente',
-      onClick: () => executar(() => enviarAoCliente(orcamentoId), 'Enviado ao cliente.'),
+      onClick: actionHandlers.enviarAoCliente,
       cor: 'default',
     },
     enviado_ao_cliente: {
       acao: 'Cliente Aprovou',
-      onClick: () => executar(() => marcarAprovadoCliente(orcamentoId), 'Cliente aprovou o orçamento!'),
+      onClick: actionHandlers.marcarAprovadoCliente,
       cor: 'default',
     },
     aprovado_pelo_cliente: {
       acao: 'Transformar em Pedido',
-      onClick: verificarEPedirConfirmacao,
+      onClick: handleVerificarEPedirConfirmacao,
       cor: 'default',
     },
     recusado_pelo_cliente: {
       acao: 'Cliente Recusou',
-      onClick: () => executar(() => marcarRecusadoCliente(orcamentoId), 'Cliente recusou o orçamento.'),
+      onClick: actionHandlers.marcarRecusadoCliente,
       cor: 'destructive',
     },
     rejeitado_internamente: {
       acao: 'Reenviar para Aprovação',
-      onClick: () => executar(() => enviarParaAprovacao(orcamentoId), 'Reenviado para aprovação.'),
+      onClick: actionHandlers.enviarParaAprovacao,
       cor: 'default',
     },
   }
@@ -131,14 +145,16 @@ export function AcoesOrcamento({ orcamentoId, status, cargo, isResponsavel }: Pr
       <CardContent className="space-y-3">
         {/* Fluxo principal */}
         {fluxoAtual.acao && fluxoAtual.onClick && (
-          <Button
-            className="w-full"
-            onClick={fluxoAtual.onClick}
-            disabled={isPending}
-            variant={fluxoAtual.cor === 'destructive' ? 'destructive' : 'default'}
-          >
-            {fluxoAtual.acao}
-          </Button>
+          <form action={fluxoAtual.onClick}>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isPending}
+              variant={fluxoAtual.cor === 'destructive' ? 'destructive' : 'default'}
+            >
+              {fluxoAtual.acao}
+            </Button>
+          </form>
         )}
 
         {/* Ações específicas por status */}
@@ -149,14 +165,16 @@ export function AcoesOrcamento({ orcamentoId, status, cargo, isResponsavel }: Pr
               value={comentario}
               onChange={(e) => setComentario(e.target.value)}
             />
-            <Button
-              variant="destructive"
-              className="w-full"
-              onClick={() => executar(() => rejeitarInterno(orcamentoId, comentario), 'Rejeitado.')}
-              disabled={isPending || !comentario.trim()}
-            >
-              Rejeitar
-            </Button>
+            <form action={actionHandlers.rejeitarInterno}>
+              <Button
+                type="submit"
+                variant="destructive"
+                className="w-full"
+                disabled={isPending || !comentario.trim()}
+              >
+                Rejeitar
+              </Button>
+            </form>
           </>
         )}
 
@@ -167,29 +185,35 @@ export function AcoesOrcamento({ orcamentoId, status, cargo, isResponsavel }: Pr
               <p className="text-sm text-amber-800 mb-3">
                 ⚠️ Este orçamento será convertido em pedido. Após isso, alterações no pedido exigirão autorização de administrador.
               </p>
-              <Input
-                placeholder="Informe o motivo da conversão..."
-                value={motivoConversao}
-                onChange={(e) => setMotivoConversao(e.target.value)}
-                className="mb-3"
-              />
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  onClick={handleTransformarPedido}
-                  disabled={isPending || !motivoConversao.trim()}
-                >
-                  Confirmar Conversão
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowConfirmacaoConversao(false)}
-                  disabled={isPending}
-                >
-                  Cancelar
-                </Button>
-              </div>
+              <form onSubmit={(e) => {
+                e.preventDefault()
+                handleTransformarPedido()
+              }}>
+                <Input
+                  placeholder="Informe o motivo da conversão..."
+                  value={motivoConversao}
+                  onChange={(e) => setMotivoConversao(e.target.value)}
+                  className="mb-3"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={isPending || !motivoConversao.trim()}
+                  >
+                    Confirmar Conversão
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowConfirmacaoConversao(false)}
+                    disabled={isPending}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </form>
             </CardContent>
           </Card>
         )}
@@ -210,18 +234,17 @@ export function AcoesOrcamento({ orcamentoId, status, cargo, isResponsavel }: Pr
         {/* Ações de exclusão */}
         {(status === 'rascunho' || status === 'rejeitado_internamente') && podeAgir && (
           <>
-            <Button
-              variant="destructive"
-              size="sm"
-              className="w-full"
-              onClick={() => {
-                if (!confirmExcluir) { setConfirmExcluir(true); return }
-                executar(() => excluirOrcamento(orcamentoId), 'Orçamento excluído.')
-              }}
-              disabled={isPending}
-            >
-              {confirmExcluir ? 'Confirmar exclusão' : 'Excluir orçamento'}
-            </Button>
+            <form action={actionHandlers.excluirOrcamento}>
+              <Button
+                type="submit"
+                variant="destructive"
+                size="sm"
+                className="w-full"
+                disabled={isPending}
+              >
+                {confirmExcluir ? 'Confirmar exclusão' : 'Excluir orçamento'}
+              </Button>
+            </form>
             {confirmExcluir && (
               <Button variant="outline" size="sm" className="w-full" onClick={() => setConfirmExcluir(false)}>
                 Cancelar
