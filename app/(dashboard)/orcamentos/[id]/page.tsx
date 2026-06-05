@@ -1,5 +1,5 @@
-import { createClient } from '@/lib/supabase/server'
-import { notFound, redirect } from 'next/navigation'
+'use client'
+
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -10,71 +10,37 @@ import { AcoesOrcamento } from '@/components/orcamentos/acoes-orcamento'
 import { BotaoExportarPdf } from '@/components/orcamentos/botao-exportar-pdf'
 import { formatarMoeda } from '@/lib/utils'
 import { ChevronLeft } from 'lucide-react'
+import { useOrcamentoData } from '@/components/hooks/use-orcamento-data'
 import type { QuoteStatus, QuoteItem } from '@/types/database'
+import { notFound } from 'next/navigation'
 
-export default async function OrcamentoDetalhePage({ params }: { params: Promise<{ id: string }> }) {
-  const supabase = await createClient()
-  const { id } = await params
+export default function OrcamentoDetalhePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = params
+  const { orcamento, perfil, loading } = useOrcamentoData(id)
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  if (loading) {
+    return <div>Carregando...</div>
+  }
 
-  const { data: perfil } = await supabase
-    .from('profiles')
-    .select('id, organization_id, cargo')
-    .eq('id', user.id)
-    .single()
-
-  if (!perfil) redirect('/login')
-
-  const { data: orcamento } = await supabase
-    .from('quotes')
-    .select(`
-      *,
-      responsavel:profiles!responsavel_id(nome),
-      lead:leads!lead_id(id, nome, telefone, email, endereco, cpf_cnpj),
-      deal:deals!deal_id(id, titulo, contato_id),
-      aprovador:profiles!aprovacao_interna_por(nome),
-      fornecedor:suppliers!supplier_id(nome)
-    `)
-    .eq('id', id)
-    .eq('organization_id', perfil.organization_id)
-    .single()
-
-  if (!orcamento) notFound()
+  if (!orcamento || !perfil) {
+    notFound()
+  }
 
   // Buscar dados completos do contato (prioridade: contato_id direto no orçamento)
   const dealData = Array.isArray(orcamento.deal) ? orcamento.deal[0] : orcamento.deal
   let contato: { nome: string; telefone: string | null; email: string | null; endereco: string | null; cpf_cnpj: string | null } | null = null
 
   if (orcamento.contato_id) {
-    const { data: c } = await supabase
-      .from('contacts')
-      .select('nome, telefone, email, endereco, cpf_cnpj')
-      .eq('id', orcamento.contato_id)
-      .single()
-    contato = c
+    contato = orcamento.contato
   } else if (dealData?.contato_id) {
-    const { data: c } = await supabase
-      .from('contacts')
-      .select('nome, telefone, email, endereco, cpf_cnpj')
-      .eq('id', dealData.contato_id)
-      .single()
-    contato = c
+    contato = dealData.contato
   }
 
   // Buscar dados da empresa
-  const { data: empresa } = await supabase
-    .from('organizations')
-    .select('nome, nome_fantasia, cnpj, telefone, email, endereco, logo_url, site, instagram')
-    .eq('id', perfil.organization_id)
-    .single()
+  const empresa = perfil.organization
 
-  const { data: itens } = await supabase
-    .from('quote_items')
-    .select('*')
-    .eq('quote_id', id)
-    .order('id') as { data: QuoteItem[] | null }
+  // Buscar itens do orçamento
+  const itens = orcamento.itens || []
 
   const responsavel = Array.isArray(orcamento.responsavel) ? orcamento.responsavel[0] : orcamento.responsavel
   const lead = Array.isArray(orcamento.lead) ? orcamento.lead[0] : orcamento.lead
@@ -85,12 +51,7 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
   // Buscar nome da transportadora do frete
   let transportadoraNome: string | null = null
   if (orcamento.carrier_id) {
-    const { data: carrier } = await supabase
-      .from('freight_carriers')
-      .select('nome')
-      .eq('id', orcamento.carrier_id)
-      .single()
-    transportadoraNome = carrier?.nome ?? null
+    transportadoraNome = orcamento.carrier?.nome || null
   }
 
   // Se não encontrou contato via deal, buscar pelo telefone ou nome do lead
@@ -99,26 +60,24 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
 
     // Tentar pelo telefone
     if (lead.telefone) {
-      const { data: c } = await supabase
-        .from('contacts')
-        .select('nome, telefone, email, endereco, cpf_cnpj')
-        .eq('organization_id', perfil.organization_id)
-        .eq('telefone', lead.telefone)
-        .limit(1)
-        .single()
-      if (c) contatoEncontrado = c
+      contatoEncontrado = {
+        nome: lead.nome,
+        telefone: lead.telefone,
+        email: lead.email,
+        endereco: lead.endereco,
+        cpf_cnpj: lead.cpf_cnpj
+      }
     }
 
     // Se não encontrou por telefone, tentar pelo nome
     if (!contatoEncontrado && lead.nome) {
-      const { data: c } = await supabase
-        .from('contacts')
-        .select('nome, telefone, email, endereco, cpf_cnpj')
-        .eq('organization_id', perfil.organization_id)
-        .eq('nome', lead.nome)
-        .limit(1)
-        .single()
-      if (c) contatoEncontrado = c
+      contatoEncontrado = {
+        nome: lead.nome,
+        telefone: lead.telefone,
+        email: lead.email,
+        endereco: lead.endereco,
+        cpf_cnpj: lead.cpf_cnpj
+      }
     }
 
     if (contatoEncontrado) contato = contatoEncontrado
