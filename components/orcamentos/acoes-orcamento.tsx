@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { isRedirectError } from 'next/dist/client/components/redirect-error'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,9 +11,6 @@ import {
   aprovarInterno,
   rejeitarInterno,
   enviarAoCliente,
-  aprovarOrcamento,
-  transformarEmPedido,
-  verificarPedidoGerado,
   marcarRecusadoCliente,
   marcarAprovadoCliente,
   excluirOrcamento,
@@ -34,36 +30,9 @@ export function AcoesOrcamento({ orcamentoId, status, cargo, isResponsavel }: Pr
   const [isPending, startTransition] = useTransition()
   const [comentario, setComentario] = useState('')
   const [confirmExcluir, setConfirmExcluir] = useState(false)
-  const [showConfirmacaoConversao, setShowConfirmacaoConversao] = useState(false)
-  const [motivoConversao, setMotivoConversao] = useState('')
 
   const isAdminGestor = cargo === 'admin' || cargo === 'gestor'
   const podeAgir = isAdminGestor || isResponsavel
-
-  // Funções para Server Actions
-  const handleVerificarEPedirConfirmacaoServer = async () => {
-    const result = await handleVerificarEPedirConfirmacao(orcamentoId)
-    if (result.type === 'exists') {
-      toast.success(`Pedido #${result.pedido.numero} já foi gerado!`)
-      router.push(`/pedidos/${result.pedido.id}`)
-    } else {
-      setShowConfirmacaoConversao(true)
-    }
-  }
-
-  const handleTransformarPedidoServer = async (motivo: string) => {
-    try {
-      const result = await handleTransformarPedido(orcamentoId, motivo)
-      toast.success(result.message)
-      setShowConfirmacaoConversao(false)
-      setMotivoConversao('')
-      router.refresh()
-    } catch (error) {
-      if (error instanceof Error) {
-        toast.error(error.message)
-      }
-    }
-  }
 
   // Funções para ações que não precisam de confirmação
   const actionHandlers = {
@@ -71,7 +40,6 @@ export function AcoesOrcamento({ orcamentoId, status, cargo, isResponsavel }: Pr
     aprovarInterno: () => aprovarInterno(orcamentoId, comentario),
     rejeitarInterno: () => rejeitarInterno(orcamentoId, comentario),
     enviarAoCliente: () => enviarAoCliente(orcamentoId),
-    aprovarOrcamento: () => aprovarOrcamento(orcamentoId),
     marcarRecusadoCliente: () => marcarRecusadoCliente(orcamentoId),
     marcarAprovadoCliente: () => marcarAprovadoCliente(orcamentoId),
     excluirOrcamento: () => excluirOrcamento(orcamentoId),
@@ -84,9 +52,8 @@ export function AcoesOrcamento({ orcamentoId, status, cargo, isResponsavel }: Pr
         await actionHandlers[chave]()
         toast.success(mensagem)
         router.refresh()
-      } catch (e: unknown) {
-        if (isRedirectError(e)) throw e
-        toast.error(e instanceof Error ? e.message : 'Erro ao executar ação.')
+      } catch (error: any) {
+        toast.error(error.message || 'Erro ao executar ação.')
       }
     })
   }
@@ -114,8 +81,8 @@ export function AcoesOrcamento({ orcamentoId, status, cargo, isResponsavel }: Pr
       cor: 'default',
     },
     aprovado_pelo_cliente: {
-      acao: 'Transformar em Pedido',
-      onClick: handleVerificarEPedirConfirmacao,
+      acao: 'Orçamento Aprovado',
+      onClick: null,
       cor: 'default',
     },
     recusado_pelo_cliente: {
@@ -173,66 +140,16 @@ export function AcoesOrcamento({ orcamentoId, status, cargo, isResponsavel }: Pr
           </>
         )}
 
-        {/* Confirmação de conversão */}
-        {showConfirmacaoConversao && (
-          <Card className="border-amber-200 bg-amber-50">
-            <CardContent className="pt-4">
-              <p className="text-sm text-amber-800 mb-3">
-                ⚠️ Este orçamento será convertido em pedido. Após isso, alterações no pedido exigirão autorização de administrador.
-              </p>
-              <form onSubmit={async (e) => {
-                e.preventDefault()
-                await handleTransformarPedidoServer(motivoConversao)
-              }}>
-                <Input
-                  placeholder="Informe o motivo da conversão..."
-                  value={motivoConversao}
-                  onChange={(e) => setMotivoConversao(e.target.value)}
-                  className="mb-3"
-                />
-                <div className="flex gap-2">
-                  <Button
-                    type="submit"
-                    size="sm"
-                    disabled={isPending || !motivoConversao.trim()}
-                  >
-                    Confirmar Conversão
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setShowConfirmacaoConversao(false)}
-                    disabled={isPending}
-                  >
-                    Cancelar
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Cliente recusou */}
         {status === 'recusado_pelo_cliente' && (
           <p className="text-center text-sm text-slate-400">Orçamento recusado pelo cliente.</p>
         )}
 
         {/* Orçamento finalizado (aprovado e convertido) */}
-        {status === 'aprovado_pelo_cliente' && !showConfirmacaoConversao && (
-          <div className="text-center space-y-3">
+        {status === 'aprovado_pelo_cliente' && (
+          <div className="text-center space-y-2">
             <p className="text-sm text-green-600 font-medium">✓ Orçamento Aprovado</p>
-            <p className="text-xs text-slate-500">Clique em "Transformar em Pedido" para continuar</p>
-            <form action={fluxoAtual.onClick}>
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isPending}
-                variant="default"
-              >
-                Transformar em Pedido
-              </Button>
-            </form>
+            <p className="text-xs text-slate-500">O orçamento foi aprovado pelo cliente</p>
           </div>
         )}
 
