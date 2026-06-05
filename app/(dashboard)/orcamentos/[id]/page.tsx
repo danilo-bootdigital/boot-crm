@@ -14,8 +14,9 @@ import { useOrcamentoData } from '@/components/hooks/use-orcamento-data'
 import type { QuoteStatus, QuoteItem } from '@/types/database'
 import { notFound } from 'next/navigation'
 
-export default function OrcamentoDetalhePage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = params
+export default async function OrcamentoDetalhePage({ params }: { params: Promise<{ id: string }> }) {
+  const paramsData = await params
+  const { id } = paramsData
   const { orcamento, perfil, loading } = useOrcamentoData(id)
 
   if (loading) {
@@ -126,7 +127,7 @@ export default function OrcamentoDetalhePage({ params }: { params: Promise<{ id:
               site: empresa.site,
               instagram: empresa.instagram,
             } : null}
-            itens={(itens ?? []).map((item) => ({
+            itens={(itens ?? []).map((item: any) => ({
               descricao: item.descricao,
               quantidade: item.quantidade,
               preco_unitario: item.preco_unitario,
@@ -170,7 +171,7 @@ export default function OrcamentoDetalhePage({ params }: { params: Promise<{ id:
                     </tr>
                   </thead>
                   <tbody>
-                    {(itens ?? []).map((item) => (
+                    {(itens ?? []).map((item: any) => (
                       <tr key={item.id} className="border-b last:border-0">
                         <td className="py-2 pr-4 font-medium text-slate-900">{item.descricao}</td>
                         <td className="py-2 pr-4 text-right text-slate-700">{item.quantidade}</td>
