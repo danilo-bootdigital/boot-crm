@@ -59,6 +59,10 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
 
   const podeEditar = (orcamento.status === 'rascunho' || orcamento.status === 'rejeitado_internamente')
 
+  // Debug: verificar valores
+  console.log('Status do orçamento:', orcamento.status)
+  console.log('Pode editar:', podeEditar)
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
