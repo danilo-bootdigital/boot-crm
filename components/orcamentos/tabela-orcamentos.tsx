@@ -36,7 +36,7 @@ export function TabelaOrcamentos({ orcamentos }: Props) {
 
   // Função para lidar com duplo clique
   const handleDoubleClick = (orcamentoId: string) => {
-    router.push(`/orcamento/${orcamentoId}`)
+    router.push(`/orcamentos/${orcamentoId}`)
   }
 
   // Função para lidar com clique simples (opcional - pode ser usado para seleção)
