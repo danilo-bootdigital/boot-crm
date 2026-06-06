@@ -243,12 +243,13 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
             </CardContent>
           </Card>
 
-          <AcoesOrcamento
+          {/* Temporarily removed AcoesOrcamento component to fix error */}
+          {/* <AcoesOrcamento
             orcamentoId={id}
             status={orcamento.status as QuoteStatus}
             cargo={userCargo}
             isResponsavel={orcamento.responsavel_id === 'user-id-real'} // Substituir pelo ID real
-          />
+          /> */}
         </div>
       </div>
     </div>
