@@ -62,7 +62,12 @@ export default function OrcamentoDetalhePage({ params }: { params: Promise<{ id:
       <div className="container mx-auto py-6">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-red-600 mb-4">Erro ao carregar orçamento</h1>
-          <p className="text-gray-600">{error}</p>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <div className="space-y-2">
+            <p className="text-sm text-gray-500">ID do orçamento: {id}</p>
+            <p className="text-sm text-gray-500">Profile disponível: {profile ? 'Sim' : 'Não'}</p>
+            <p className="text-sm text-gray-500">Organization ID: {profile?.organization_id}</p>
+          </div>
           <Link href="/orcamentos" className="mt-4 inline-block text-blue-600 hover:underline">
             Voltar para a lista de orçamentos
           </Link>

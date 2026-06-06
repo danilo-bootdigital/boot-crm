@@ -34,6 +34,17 @@ export function TabelaOrcamentos({ orcamentos }: Props) {
   const [dataInicio, setDataInicio] = useState('')
   const [dataFim, setDataFim] = useState('')
 
+  // Função para lidar com duplo clique
+  const handleDoubleClick = (orcamentoId: string) => {
+    router.push(`/orcamentos/${orcamentoId}`)
+  }
+
+  // Função para lidar com clique simples (opcional - pode ser usado para seleção)
+  const handleSingleClick = (orcamentoId: string) => {
+    // Pode ser usado para seleção visual ou outras ações
+    console.log('Orçamento selecionado:', orcamentoId)
+  }
+
   // Filtrar
   const filtrados = orcamentos.filter((o) => {
     // Filtro por texto (nome do lead/contato ou número)
@@ -130,7 +141,8 @@ export function TabelaOrcamentos({ orcamentos }: Props) {
               <tr
                 key={o.id}
                 className="border-b last:border-0 hover:bg-slate-50 cursor-pointer"
-                onClick={() => router.push(`/orcamentos/${o.id}`)}
+                onDoubleClick={() => handleDoubleClick(o.id)}
+                onClick={() => handleSingleClick(o.id)}
               >
                 <td className="px-4 py-3 font-medium text-slate-900">#{o.numero}</td>
                 <td className="px-4 py-3 text-slate-700">{o.contato?.nome ?? o.lead?.nome ?? '—'}</td>
