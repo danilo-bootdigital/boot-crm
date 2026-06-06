@@ -38,7 +38,7 @@ export function useOrcamentoData(id: string) {
             fornecedor:suppliers!supplier_id(nome)
           `)
           .eq('id', id)
-          .eq('organization_id', profile.organization_id)
+          .eq('organization_id', profile!.organization_id)
           .single()
 
         if (!orcamentoData) {

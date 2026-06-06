@@ -39,8 +39,8 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children, initialUser, initialProfile }: AuthProviderProps) {
-  const [user, setUser] = useState<User | null>(initialUser)
-  const [profile, setProfile] = useState<Profile | null>(initialProfile)
+  const [user, setUser] = useState<User | null>(initialUser || null)
+  const [profile, setProfile] = useState<Profile | null>(initialProfile || null)
   const [loading, setLoading] = useState(!initialUser || !initialProfile)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()

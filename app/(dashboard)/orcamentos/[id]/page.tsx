@@ -12,11 +12,14 @@ import { BotaoExportarPdf } from '@/components/orcamentos/botao-exportar-pdf'
 import { formatarMoeda } from '@/lib/utils'
 import { ChevronLeft } from 'lucide-react'
 import { useOrcamentoData } from '@/components/hooks/use-orcamento-data'
-import type { QuoteStatus, QuoteItem } from '@/types/database'
+import type { QuoteStatus, QuoteItem, Organization, UserRole } from '@/types/database'
 import { notFound } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
 export default function OrcamentoDetalhePage({ params }: { params: Promise<{ id: string }> }) {
   const [paramsData, setParamsData] = useState<{ id: string } | null>(null)
+  const [empresa, setEmpresa] = useState<Organization | null>(null)
+  const [loadingEmpresa, setLoadingEmpresa] = useState(true)
 
   useEffect(() => {
     params.then(data => {
@@ -31,7 +34,26 @@ export default function OrcamentoDetalhePage({ params }: { params: Promise<{ id:
   const { id } = paramsData
   const { orcamento, profile, loading, error } = useOrcamentoData(id)
 
-  if (loading) {
+  // Buscar dados da empresa quando o profile estiver disponível
+  useEffect(() => {
+    if (profile && profile.organization_id) {
+      const fetchEmpresa = async () => {
+        const supabase = createClient()
+        const { data } = await supabase
+          .from('organizations')
+          .select('*')
+          .eq('id', profile.organization_id)
+          .single()
+
+        setEmpresa(data)
+        setLoadingEmpresa(false)
+      }
+
+      fetchEmpresa()
+    }
+  }, [profile])
+
+  if (loading || loadingEmpresa) {
     return <div>Carregando...</div>
   }
 
@@ -62,9 +84,6 @@ export default function OrcamentoDetalhePage({ params }: { params: Promise<{ id:
   } else if (dealData?.contato_id) {
     contato = dealData.contato
   }
-
-  // Buscar dados da empresa
-  const empresa = profile.organization
 
   // Buscar itens do orçamento
   const itens = orcamento.itens || []
@@ -150,8 +169,8 @@ export default function OrcamentoDetalhePage({ params }: { params: Promise<{ id:
               email: empresa.email,
               endereco: empresa.endereco,
               logo_url: empresa.logo_url,
-              site: empresa.site,
-              instagram: empresa.instagram,
+              site: null,
+              instagram: null,
             } : null}
             itens={(itens ?? []).map((item: any) => ({
               descricao: item.descricao,
@@ -299,7 +318,7 @@ export default function OrcamentoDetalhePage({ params }: { params: Promise<{ id:
           <AcoesOrcamento
             orcamentoId={id}
             status={orcamento.status as QuoteStatus}
-            cargo={profile.cargo}
+            cargo={profile.cargo as UserRole}
             isResponsavel={orcamento.responsavel_id === profile.id}
           />
         </div>
