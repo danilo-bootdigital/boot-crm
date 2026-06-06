@@ -57,8 +57,7 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
   // Determinar cargo do usuário (simulado - ajustar conforme necessário)
   const userCargo: UserRole = 'admin' // Este valor deve vir da sessão real
 
-  const podeEditar = (orcamento.status === 'rascunho' || orcamento.status === 'rejeitado_internamente') &&
-    (userCargo === 'admin' || userCargo === 'gestor' || orcamento.responsavel_id === 'user-id-real') // Substituir pelo ID real
+  const podeEditar = (orcamento.status === 'rascunho' || orcamento.status === 'rejeitado_internamente')
 
   return (
     <div className="space-y-6">
@@ -243,13 +242,11 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
             </CardContent>
           </Card>
 
-          {/* Temporarily removed AcoesOrcamento component to fix error */}
-          {/* <AcoesOrcamento
-            orcamentoId={id}
-            status={orcamento.status as QuoteStatus}
-            cargo={userCargo}
-            isResponsavel={orcamento.responsavel_id === 'user-id-real'} // Substituir pelo ID real
-          /> */}
+          {podeEditar && (
+            <Link href={`/orcamentos/${id}/editar`}>
+              <Button variant="outline" size="sm">Editar</Button>
+            </Link>
+          )}
         </div>
       </div>
     </div>
