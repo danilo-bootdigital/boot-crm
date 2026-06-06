@@ -8,7 +8,7 @@ import { AcoesOrcamento } from '@/components/orcamentos/acoes-orcamento'
 import { BotaoExportarPdf } from '@/components/orcamentos/botao-exportar-pdf'
 import { formatarMoeda } from '@/lib/utils'
 import { ChevronLeft } from 'lucide-react'
-import format from 'date-fns/format'
+import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import type { QuoteStatus, QuoteItem, Organization, UserRole } from '@/types/database'
 
