@@ -1,31 +1,48 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
 import { Sidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
+import { requireAuth } from '@/lib/auth/server'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const { user, profile } = await requireAuth()
 
-  const { data: perfil } = await supabase
-    .from('profiles')
-    .select('organization_id')
-    .eq('id', user.id)
-    .single()
-
+  // Buscar logo da organização
   let logoUrl: string | null = null
-  if (perfil) {
-    const { data: org } = await supabase
+  if (profile) {
+    const cookieStore = await cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll()
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              )
+            } catch {
+              // Server Component — cookies só podem ser setados em Server Actions
+            }
+          },
+        },
+      }
+    )
+
+    const { data: organization } = await supabase
       .from('organizations')
       .select('logo_url')
-      .eq('id', perfil.organization_id)
+      .eq('id', profile.organization_id)
       .single()
-    logoUrl = org?.logo_url ?? null
+
+    logoUrl = organization?.logo_url || null
   }
 
   return (

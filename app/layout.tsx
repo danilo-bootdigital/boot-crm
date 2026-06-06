@@ -2,6 +2,7 @@ import ProvidersLayout from "./providers-layout"
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { getAuthData } from "../lib/auth/server";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,11 +37,14 @@ export const viewport: Viewport = {
   themeColor: "#0f172a",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Obter dados de autenticação no servidor
+  const authData = await getAuthData()
+
   return (
     <html
       lang="pt-BR"
@@ -60,7 +64,9 @@ export default function RootLayout({
             `,
           }}
         />
-        <ProvidersLayout>{children}</ProvidersLayout>
+        <ProvidersLayout authData={authData}>
+          {children}
+        </ProvidersLayout>
       </body>
     </html>
   );

@@ -1,6 +1,5 @@
-'use client'
-
-import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/server'
+import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -11,63 +10,71 @@ import { AcoesOrcamento } from '@/components/orcamentos/acoes-orcamento'
 import { BotaoExportarPdf } from '@/components/orcamentos/botao-exportar-pdf'
 import { formatarMoeda } from '@/lib/utils'
 import { ChevronLeft } from 'lucide-react'
-import { useOrcamentoData } from '@/components/hooks/use-orcamento-data'
 import type { QuoteStatus, QuoteItem } from '@/types/database'
-import { notFound } from 'next/navigation'
 
-export default function OrcamentoDetalhePage({ params }: { params: Promise<{ id: string }> }) {
-  const [paramsData, setParamsData] = useState<{ id: string } | null>(null)
+export default async function OrcamentoDetalhePage({ params }: { params: Promise<{ id: string }> }) {
+  const supabase = await createClient()
+  const { id } = await params
 
-  useEffect(() => {
-    params.then(data => {
-      setParamsData(data)
-    })
-  }, [params])
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
-  if (!paramsData) {
-    return <div>Carregando...</div>
-  }
+  const { data: perfil } = await supabase
+    .from('profiles')
+    .select('id, organization_id, cargo')
+    .eq('id', user.id)
+    .single()
 
-  const { id } = paramsData
-  const { orcamento, profile, loading, error } = useOrcamentoData(id)
+  if (!perfil) redirect('/login')
 
-  if (loading) {
-    return <div>Carregando...</div>
-  }
+  const { data: orcamento } = await supabase
+    .from('quotes')
+    .select(`
+      *,
+      responsavel:profiles!responsavel_id(nome),
+      lead:leads!lead_id(id, nome, telefone, email, endereco, cpf_cnpj),
+      deal:deals!deal_id(id, titulo, contato_id),
+      aprovador:profiles!aprovacao_interna_por(nome),
+      fornecedor:suppliers!supplier_id(nome)
+    `)
+    .eq('id', id)
+    .eq('organization_id', perfil.organization_id)
+    .single()
 
-  if (error) {
-    return (
-      <div className="container mx-auto py-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Erro ao carregar orçamento</h1>
-          <p className="text-gray-600">{error}</p>
-          <Link href="/orcamentos" className="mt-4 inline-block text-blue-600 hover:underline">
-            Voltar para a lista de orçamentos
-          </Link>
-        </div>
-      </div>
-    )
-  }
-
-  if (!orcamento || !profile) {
-    notFound()
-  }
+  if (!orcamento) notFound()
 
   // Buscar dados completos do contato (prioridade: contato_id direto no orçamento)
   const dealData = Array.isArray(orcamento.deal) ? orcamento.deal[0] : orcamento.deal
   let contato: { nome: string; telefone: string | null; email: string | null; endereco: string | null; cpf_cnpj: string | null } | null = null
 
   if (orcamento.contato_id) {
-    contato = orcamento.contato
+    const { data: c } = await supabase
+      .from('contacts')
+      .select('nome, telefone, email, endereco, cpf_cnpj')
+      .eq('id', orcamento.contato_id)
+      .single()
+    contato = c
   } else if (dealData?.contato_id) {
-    contato = dealData.contato
+    const { data: c } = await supabase
+      .from('contacts')
+      .select('nome, telefone, email, endereco, cpf_cnpj')
+      .eq('id', dealData.contato_id)
+      .single()
+    contato = c
   }
 
   // Buscar dados da empresa
-  const empresa = profile.organization
+  const { data: empresa } = await supabase
+    .from('organizations')
+    .select('nome, nome_fantasia, cnpj, telefone, email, endereco, logo_url, site, instagram')
+    .eq('id', perfil.organization_id)
+    .single()
 
-  // Buscar itens do orçamento
-  const itens = orcamento.itens || []
+  const { data: itens } = await supabase
+    .from('quote_items')
+    .select('*')
+    .eq('quote_id', id)
+    .order('id') as { data: QuoteItem[] | null }
 
   const responsavel = Array.isArray(orcamento.responsavel) ? orcamento.responsavel[0] : orcamento.responsavel
   const lead = Array.isArray(orcamento.lead) ? orcamento.lead[0] : orcamento.lead
@@ -78,7 +85,12 @@ export default function OrcamentoDetalhePage({ params }: { params: Promise<{ id:
   // Buscar nome da transportadora do frete
   let transportadoraNome: string | null = null
   if (orcamento.carrier_id) {
-    transportadoraNome = orcamento.carrier?.nome || null
+    const { data: carrier } = await supabase
+      .from('freight_carriers')
+      .select('nome')
+      .eq('id', orcamento.carrier_id)
+      .single()
+    transportadoraNome = carrier?.nome ?? null
   }
 
   // Se não encontrou contato via deal, buscar pelo telefone ou nome do lead
@@ -87,31 +99,33 @@ export default function OrcamentoDetalhePage({ params }: { params: Promise<{ id:
 
     // Tentar pelo telefone
     if (lead.telefone) {
-      contatoEncontrado = {
-        nome: lead.nome,
-        telefone: lead.telefone,
-        email: lead.email,
-        endereco: lead.endereco,
-        cpf_cnpj: lead.cpf_cnpj
-      }
+      const { data: c } = await supabase
+        .from('contacts')
+        .select('nome, telefone, email, endereco, cpf_cnpj')
+        .eq('organization_id', perfil.organization_id)
+        .eq('telefone', lead.telefone)
+        .limit(1)
+        .single()
+      if (c) contatoEncontrado = c
     }
 
     // Se não encontrou por telefone, tentar pelo nome
     if (!contatoEncontrado && lead.nome) {
-      contatoEncontrado = {
-        nome: lead.nome,
-        telefone: lead.telefone,
-        email: lead.email,
-        endereco: lead.endereco,
-        cpf_cnpj: lead.cpf_cnpj
-      }
+      const { data: c } = await supabase
+        .from('contacts')
+        .select('nome, telefone, email, endereco, cpf_cnpj')
+        .eq('organization_id', perfil.organization_id)
+        .eq('nome', lead.nome)
+        .limit(1)
+        .single()
+      if (c) contatoEncontrado = c
     }
 
     if (contatoEncontrado) contato = contatoEncontrado
   }
 
   const podeEditar = (orcamento.status === 'rascunho' || orcamento.status === 'rejeitado_internamente') &&
-    (profile.cargo === 'admin' || profile.cargo === 'gestor' || orcamento.responsavel_id === profile.id)
+    (perfil.cargo === 'admin' || perfil.cargo === 'gestor' || orcamento.responsavel_id === perfil.id)
 
   return (
     <div className="space-y-6">
@@ -153,7 +167,7 @@ export default function OrcamentoDetalhePage({ params }: { params: Promise<{ id:
               site: empresa.site,
               instagram: empresa.instagram,
             } : null}
-            itens={(itens ?? []).map((item: any) => ({
+            itens={(itens ?? []).map((item) => ({
               descricao: item.descricao,
               quantidade: item.quantidade,
               preco_unitario: item.preco_unitario,
@@ -197,7 +211,7 @@ export default function OrcamentoDetalhePage({ params }: { params: Promise<{ id:
                     </tr>
                   </thead>
                   <tbody>
-                    {(itens ?? []).map((item: any) => (
+                    {(itens ?? []).map((item) => (
                       <tr key={item.id} className="border-b last:border-0">
                         <td className="py-2 pr-4 font-medium text-slate-900">{item.descricao}</td>
                         <td className="py-2 pr-4 text-right text-slate-700">{item.quantidade}</td>
@@ -299,8 +313,8 @@ export default function OrcamentoDetalhePage({ params }: { params: Promise<{ id:
           <AcoesOrcamento
             orcamentoId={id}
             status={orcamento.status as QuoteStatus}
-            cargo={profile.cargo}
-            isResponsavel={orcamento.responsavel_id === profile.id}
+            cargo={perfil.cargo}
+            isResponsavel={orcamento.responsavel_id === perfil.id}
           />
         </div>
       </div>

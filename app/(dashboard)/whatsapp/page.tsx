@@ -61,9 +61,18 @@ function ConversasError({ error }: { error: string }) {
 }
 
 export default async function WhatsappPage() {
+  console.log('WhatsappPage: Iniciando...')
+
   const supabase = await createClient()
+  console.log('WhatsappPage: Supabase criado')
+
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  console.log('WhatsappPage: Verificando usuário:', user?.id || 'Nenhum usuário')
+
+  if (!user) {
+    console.log('WhatsappPage: Usuário não encontrado, redirecionando')
+    redirect('/login')
+  }
 
   const { data: perfil } = await supabase
     .from('profiles')
@@ -71,7 +80,12 @@ export default async function WhatsappPage() {
     .eq('id', user.id)
     .single()
 
-  if (!perfil) redirect('/login')
+  if (!perfil) {
+    console.log('WhatsappPage: Perfil não encontrado, redirecionando')
+    redirect('/login')
+  }
+
+  console.log('WhatsappPage: Perfil encontrado:', perfil.id)
 
   // Buscar instâncias
   const { data: instancias, error: instanciasError } = await supabase

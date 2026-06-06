@@ -4,15 +4,14 @@ import type { NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
   const isLoginPage = request.nextUrl.pathname === '/login'
-  const isPainelRoute = request.nextUrl.pathname.startsWith('/painel')
   const isWebhookRoute = request.nextUrl.pathname.startsWith('/api/webhook')
-  const isOrcamentoPublico = request.nextUrl.pathname.startsWith('/orcamento/')
   const isStaticAsset = request.nextUrl.pathname.startsWith('/_next') ||
                        request.nextUrl.pathname.startsWith('/favicon.ico') ||
                        request.nextUrl.pathname.match(/\.(svg|png|jpg|jpeg|gif|webp)$/)
+  const isTestRoute = request.nextUrl.pathname.startsWith('/whatsapp/test')
 
   // Rotas públicas que não requerem verificação
-  if (isStaticAsset || isWebhookRoute || isOrcamentoPublico) {
+  if (isStaticAsset || isWebhookRoute || isTestRoute) {
     return NextResponse.next({ request })
   }
 
@@ -56,6 +55,7 @@ export async function middleware(request: NextRequest) {
 
     // Usuário não autenticado tentando acessar rotas protegidas
     if (!user) {
+      console.log('Usuário não autenticado, redirecionando para login')
       const url = request.nextUrl.clone()
       url.pathname = '/login'
       return NextResponse.redirect(url)
