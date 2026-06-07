@@ -60,7 +60,7 @@ export function AuthProvider({ children, initialUser, initialProfile }: AuthProv
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
-        setUser(session.user)
+        setUser(session.user as any)
         // Buscar profile do usuário
         const { data: profileData } = await supabase
           .from('profiles')
