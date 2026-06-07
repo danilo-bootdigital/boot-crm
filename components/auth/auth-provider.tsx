@@ -45,6 +45,39 @@ export function AuthProvider({ children, initialUser, initialProfile }: AuthProv
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
+  // Efeito para garantir que os dados estão carregados
+  useEffect(() => {
+    if (initialUser && initialProfile) {
+      setUser(initialUser)
+      setProfile(initialProfile)
+      setLoading(false)
+    }
+  }, [initialUser, initialProfile])
+
+  // Efeito para lidar com mudanças de autenticação
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        setUser(session.user)
+        // Buscar profile do usuário
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single()
+
+        setProfile(profileData || null)
+        setLoading(false)
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null)
+        setProfile(null)
+        setLoading(false)
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
   useEffect(() => {
     if (initialUser && initialProfile) {
       setUser(initialUser)

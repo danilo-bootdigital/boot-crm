@@ -11,7 +11,7 @@ export function useOrcamentoData(id: string) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Aguardar a autenticação inicial
+    // Se estiver carregando a autenticação, aguardar
     if (authLoading) {
       setLoading(true)
       return
@@ -20,11 +20,15 @@ export function useOrcamentoData(id: string) {
     // Se não houver usuário ou perfil, não carrega nada
     if (!user || !profile) {
       setLoading(false)
+      setError('Usuário não autenticado')
       return
     }
 
     async function loadData() {
       try {
+        setLoading(true)
+        setError(null)
+
         const supabase = createClient()
 
         const { data: orcamentoData } = await supabase
@@ -38,7 +42,7 @@ export function useOrcamentoData(id: string) {
             fornecedor:suppliers!supplier_id(nome)
           `)
           .eq('id', id)
-          .eq('organization_id', profile!.organization_id)
+          .eq('organization_id', profile.organization_id)
           .single()
 
         if (!orcamentoData) {

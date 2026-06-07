@@ -1,15 +1,11 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-import { notFound } from 'next/navigation'
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { BadgeStatusOrcamento } from '@/components/orcamentos/badge-status-orcamento'
-import { AcoesOrcamento } from '@/components/orcamentos/acoes-orcamento'
+import { AcoesOrcamentoDetalhe } from '@/components/orcamentos/acoes-orcamento-detalhe'
 import { BotaoExportarPdf } from '@/components/orcamentos/botao-exportar-pdf'
 import { formatarMoeda } from '@/lib/utils'
 import { ChevronLeft } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { notFound } from 'next/navigation'
 import type { QuoteStatus, QuoteItem, Organization, UserRole } from '@/types/database'
 
 export default async function OrcamentoDetalhePage({ params }: { params: Promise<{ id: string }> }) {
@@ -192,6 +188,13 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
               </CardContent>
             </Card>
           )}
+
+          {/* Seção de Ações */}
+          <AcoesOrcamentoDetalhe
+            orcamentoId={id}
+            status={orcamento.status}
+            cargo={userCargo}
+          />
         </div>
 
         <div className="space-y-4">
@@ -245,12 +248,6 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
               )}
             </CardContent>
           </Card>
-
-          {podeEditar && (
-            <Link href={`/orcamentos/${id}/editar`}>
-              <Button variant="outline" size="sm">Editar</Button>
-            </Link>
-          )}
         </div>
       </div>
     </div>
