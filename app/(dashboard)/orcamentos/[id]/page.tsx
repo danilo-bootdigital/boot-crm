@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft } from 'lucide-react'
 import { OrcamentoDetalhe } from '@/components/orcamentos/orcamento-detalhe'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { Quote } from '@/types/database'
 
 export default async function OrcamentoDetalhePage({ params }: { params: Promise<{ id: string }> }) {
@@ -39,7 +38,6 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
     notFound()
   }
 
-  // Tela de auditoria para verificar fluxo de renderização
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
@@ -53,49 +51,11 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-slate-900">Auditoria de Renderização</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Orçamento #{orcamento.numero}</h1>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Dados Recebidos pelo Componente</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <pre className="text-xs bg-slate-100 p-3 rounded overflow-auto">
-            {JSON.stringify({
-              id: orcamento.id,
-              numero: orcamento.numero,
-              status: orcamento.status,
-              itens: orcamento.itens?.length || 0,
-              fornecedor: orcamento.fornecedor?.nome || 'NENHUM',
-              lead: orcamento.lead?.nome || 'NENHUM',
-              contato: orcamento.contato?.nome || 'NENHUM',
-              total: orcamento.valor_total
-            }, null, 2)}
-          </pre>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Teste de Renderização do Componente</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <p className="text-sm"><strong>Importando OrcamentoDetalhe...</strong></p>
-
-            <div className="border border-blue-200 p-3 rounded">
-              <p className="text-sm mb-2"><strong>Componente OrcamentoDetalhe:</strong></p>
-              <OrcamentoDetalhe orcamento={orcamento} />
-            </div>
-
-            <p className="text-xs text-slate-500">
-              Se o componente acima não aparecer, há um erro no componente.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <OrcamentoDetalhe orcamento={orcamento} />
     </div>
   )
 }

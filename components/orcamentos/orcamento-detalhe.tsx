@@ -9,6 +9,7 @@ type OrcamentoDetalheProps = {
   orcamento: Quote & {
     responsavel: { nome: string } | null
     lead: { id: string; nome: string; telefone: string; email: string; endereco: string; cpf_cnpj: string } | null
+    contato: { id: string; nome: string; telefone: string; email: string } | null
     deal: { id: string; titulo: string; contato_id: string } | null
     fornecedor: { nome: string } | null
     itens: QuoteItem[]
@@ -77,35 +78,55 @@ export function OrcamentoDetalhe({ orcamento }: OrcamentoDetalheProps) {
       )}
 
       {/* Dados do Cliente/Lead */}
-      {(orcamento.lead || orcamento.contato_id) && (
+      {orcamento.lead ? (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Cliente</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {orcamento.lead ? (
-              <>
-                <p className="font-medium">{orcamento.lead.nome}</p>
-                {orcamento.lead.telefone && (
-                  <p className="text-sm text-slate-600">Telefone: {orcamento.lead.telefone}</p>
-                )}
-                {orcamento.lead.email && (
-                  <p className="text-sm text-slate-600">E-mail: {orcamento.lead.email}</p>
-                )}
-                {orcamento.lead.endereco && (
-                  <p className="text-sm text-slate-600">Endereço: {orcamento.lead.endereco}</p>
-                )}
-              </>
-            ) : orcamento.contato_id && (
-              <p className="text-sm text-slate-500">
-                Cliente não vinculado ao orçamento
-              </p>
-            )}
+            <>
+              <p className="font-medium">{orcamento.lead.nome}</p>
+              {orcamento.lead.telefone && (
+                <p className="text-sm text-slate-600">Telefone: {orcamento.lead.telefone}</p>
+              )}
+              {orcamento.lead.email && (
+                <p className="text-sm text-slate-600">E-mail: {orcamento.lead.email}</p>
+              )}
+              {orcamento.lead.endereco && (
+                <p className="text-sm text-slate-600">Endereço: {orcamento.lead.endereco}</p>
+              )}
+            </>
           </CardContent>
         </Card>
-      )}
-
-      {!orcamento.lead && !orcamento.contato_id && (
+      ) : orcamento.contato ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Cliente</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <>
+              <p className="font-medium">{orcamento.contato.nome}</p>
+              {orcamento.contato.telefone && (
+                <p className="text-sm text-slate-600">Telefone: {orcamento.contato.telefone}</p>
+              )}
+              {orcamento.contato.email && (
+                <p className="text-sm text-slate-600">E-mail: {orcamento.contato.email}</p>
+              )}
+            </>
+          </CardContent>
+        </Card>
+      ) : orcamento.contato_id ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Cliente</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-slate-500">
+              Contato vinculado, dados não carregados
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Cliente</CardTitle>
