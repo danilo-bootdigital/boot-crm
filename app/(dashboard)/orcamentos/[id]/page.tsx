@@ -3,6 +3,7 @@ import { AcoesOrcamentoDetalhe } from '@/components/orcamentos/acoes-orcamento-d
 import { BotaoExportarPdf } from '@/components/orcamentos/botao-exportar-pdf'
 import { BadgeStatusOrcamento } from '@/components/orcamentos/badge-status-orcamento'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatarMoeda } from '@/lib/utils'
 import { ChevronLeft } from 'lucide-react'
 import { format } from 'date-fns'
