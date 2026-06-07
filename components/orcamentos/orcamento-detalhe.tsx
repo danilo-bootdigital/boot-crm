@@ -54,13 +54,24 @@ export function OrcamentoDetalhe({ orcamento }: OrcamentoDetalheProps) {
       </Card>
 
       {/* Dados do Fornecedor */}
-      {orcamento.fornecedor && (
+      {orcamento.fornecedor ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Fornecedor</CardTitle>
+            <CardTitle className="text-base">Fornecedor/Laboratório</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm">{orcamento.fornecedor.nome}</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Fornecedor/Laboratório</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-slate-500">
+              Fornecedor não informado
+            </p>
           </CardContent>
         </Card>
       )}
@@ -72,7 +83,7 @@ export function OrcamentoDetalhe({ orcamento }: OrcamentoDetalheProps) {
             <CardTitle className="text-base">Cliente</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {orcamento.lead && (
+            {orcamento.lead ? (
               <>
                 <p className="font-medium">{orcamento.lead.nome}</p>
                 {orcamento.lead.telefone && (
@@ -85,12 +96,24 @@ export function OrcamentoDetalhe({ orcamento }: OrcamentoDetalheProps) {
                   <p className="text-sm text-slate-600">Endereço: {orcamento.lead.endereco}</p>
                 )}
               </>
-            )}
-            {!orcamento.lead && orcamento.contato_id && (
+            ) : orcamento.contato_id && (
               <p className="text-sm text-slate-500">
-                Contato ID: {orcamento.contato_id} (dados não disponíveis)
+                Cliente não vinculado ao orçamento
               </p>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {!orcamento.lead && !orcamento.contato_id && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Cliente</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-slate-500">
+              Nenhum cliente vinculado a este orçamento
+            </p>
           </CardContent>
         </Card>
       )}
@@ -108,7 +131,7 @@ export function OrcamentoDetalhe({ orcamento }: OrcamentoDetalheProps) {
       )}
 
       {/* Endereço de Entrega */}
-      {orcamento.endereco_entrega && (
+      {orcamento.endereco_entrega ? (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Endereço de Entrega</CardTitle>
@@ -117,15 +140,26 @@ export function OrcamentoDetalhe({ orcamento }: OrcamentoDetalheProps) {
             <p className="text-sm">{orcamento.endereco_entrega}</p>
           </CardContent>
         </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Endereço de Entrega</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-slate-500">
+              Endereço de entrega não informado
+            </p>
+          </CardContent>
+        </Card>
       )}
 
       {/* Itens do Orçamento */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Itens</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {orcamento.itens && orcamento.itens.length > 0 ? (
+      {orcamento.itens && orcamento.itens.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Itens do Orçamento</CardTitle>
+          </CardHeader>
+          <CardContent>
             <div className="space-y-3">
               {orcamento.itens.map((item) => (
                 <div key={item.id} className="border rounded p-3 text-sm">
@@ -148,11 +182,20 @@ export function OrcamentoDetalhe({ orcamento }: OrcamentoDetalheProps) {
                 </div>
               ))}
             </div>
-          ) : (
-            <p className="text-sm text-slate-500">Nenhum item encontrado</p>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Itens do Orçamento</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-slate-500">
+              Nenhum item encontrado neste orçamento
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Valores */}
       <Card>
@@ -186,7 +229,7 @@ export function OrcamentoDetalhe({ orcamento }: OrcamentoDetalheProps) {
       </Card>
 
       {/* Observações */}
-      {orcamento.observacoes && (
+      {orcamento.observacoes ? (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Observações</CardTitle>
@@ -195,10 +238,21 @@ export function OrcamentoDetalhe({ orcamento }: OrcamentoDetalheProps) {
             <p className="text-sm whitespace-pre-wrap">{orcamento.observacoes}</p>
           </CardContent>
         </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Observações</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-slate-500">
+              Nenhuma observação informada
+            </p>
+          </CardContent>
+        </Card>
       )}
 
       {/* Forma de Pagamento */}
-      {orcamento.forma_pagamento && (
+      {orcamento.forma_pagamento ? (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Forma de Pagamento</CardTitle>
@@ -207,16 +261,38 @@ export function OrcamentoDetalhe({ orcamento }: OrcamentoDetalheProps) {
             <p className="text-sm">{orcamento.forma_pagamento}</p>
           </CardContent>
         </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Forma de Pagamento</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-slate-500">
+              Forma de pagamento não informada
+            </p>
+          </CardContent>
+        </Card>
       )}
 
       {/* Responsável */}
-      {orcamento.responsavel && (
+      {orcamento.responsavel ? (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Responsável</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm">{orcamento.responsavel.nome}</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Responsável</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-slate-500">
+              Responsável não informado
+            </p>
           </CardContent>
         </Card>
       )}
