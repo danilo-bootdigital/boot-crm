@@ -1,7 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/server'
+import { useState, useEffect } from 'react'
 import type { UserRole } from '@/types/database'
 
 export function useUserRole() {
@@ -11,17 +10,10 @@ export function useUserRole() {
   useEffect(() => {
     async function getCargo() {
       try {
-        const supabase = await createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-
-        if (user) {
-          const { data: perfil } = await supabase
-            .from('profiles')
-            .select('cargo')
-            .eq('id', user.id)
-            .single()
-
-          setCargo(perfil?.cargo || null)
+        const response = await fetch('/api/user/cargo')
+        if (response.ok) {
+          const data = await response.json()
+          setCargo(data.cargo)
         }
       } catch (error) {
         console.error('Erro ao obter cargo do usuário:', error)
