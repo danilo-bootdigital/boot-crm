@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { AcoesOrcamentoDetalhe } from '@/components/orcamentos/acoes-orcamento-detalhe'
 import { BotaoExportarPdf } from '@/components/orcamentos/botao-exportar-pdf'
+import { BadgeStatusOrcamento } from '@/components/orcamentos/badge-status-orcamento'
 import { Button } from '@/components/ui/button'
 import { formatarMoeda } from '@/lib/utils'
 import { ChevronLeft } from 'lucide-react'
