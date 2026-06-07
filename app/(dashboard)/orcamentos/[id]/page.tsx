@@ -2,7 +2,6 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { AcoesOrcamentoDetalhe } from '@/components/orcamentos/acoes-orcamento-detalhe'
 import { BotaoExportarPdf } from '@/components/orcamentos/botao-exportar-pdf'
 import { BadgeStatusOrcamento } from '@/components/orcamentos/badge-status-orcamento'
-import { useUserRole } from '@/components/hooks/use-user-role'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatarMoeda } from '@/lib/utils'
@@ -11,31 +10,52 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import type { QuoteStatus, QuoteItem, Organization } from '@/types/database'
+import type { QuoteStatus, QuoteItem, Organization, UserRole } from '@/types/database'
 
 export default async function OrcamentoDetalhePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = createAdminClient()
 
   // Buscar dados do orçamento
-  const { data: orcamento } = await supabase
-    .from('quotes')
-    .select(`
-      *,
-      responsavel:profiles!responsavel_id(nome, cargo),
-      lead:leads!lead_id(id, nome, telefone, email, endereco, cpf_cnpj),
-      deal:deals!deal_id(id, titulo, contato_id),
-      aprovador:profiles!aprovacao_interna_por(nome),
-      fornecedor:suppliers!supplier_id(nome),
-      itens:quote_items(
-        id, descricao, quantidade, preco_unitario, desconto_item, subtotal
-      ),
-      contato:contacts!contato_id(id, nome, telefone, email, endereco, cpf_cnpj)
-    `)
-    .eq('id', id)
-    .single()
+  let orcamento
+  try {
+    const { data } = await supabase
+      .from('quotes')
+      .select(`
+        id,
+        numero,
+        status,
+        valor_subtotal,
+        desconto_geral,
+        valor_total,
+        observacoes,
+        forma_pagamento,
+        criado_em,
+        endereco_entrega,
+        frete,
+        frete_regiao,
+        carrier,
+        aprovacao_interna_comentario,
+        organization_id,
+        responsavel:profiles!responsavel_id(nome, cargo),
+        lead:leads!lead_id(id, nome, telefone, email, endereco, cpf_cnpj),
+        deal:deals!deal_id(id, titulo, contato_id),
+        aprovador:profiles!aprovacao_interna_por(nome),
+        fornecedor:suppliers!supplier_id(nome),
+        itens:quote_items(
+          id, descricao, quantidade, preco_unitario, desconto_item, subtotal
+        ),
+        contato:contacts!contato_id(id, nome, telefone, email, endereco, cpf_cnpj)
+      `)
+      .eq('id', id)
+      .single()
 
-  if (!orcamento) {
+    if (!data) {
+      throw new Error('Orçamento não encontrado')
+    }
+    orcamento = data
+  } catch (error) {
+    console.error('Erro ao buscar orçamento:', error)
     notFound()
   }
 
@@ -55,14 +75,7 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
   const fornecedor = Array.isArray(orcamento.fornecedor) ? orcamento.fornecedor[0] : orcamento.fornecedor
   const contato = Array.isArray(orcamento.contato) ? orcamento.contato[0] : orcamento.contato
 
-  const { cargo: userCargo, loading: loadingCargo } = useUserRole()
-
-  const podeEditar = (orcamento.status === 'rascunho' || orcamento.status === 'rejeitado_internamente') && !loadingCargo
-
-  // Debug: verificar valores
-  console.log('Status do orçamento:', orcamento.status)
-  console.log('Cargo do usuário:', userCargo)
-  console.log('Pode editar:', podeEditar)
+  const podeEditar = (orcamento.status === 'rascunho' || orcamento.status === 'rejeitado_internamente')
 
   return (
     <div className="space-y-6">
@@ -81,56 +94,50 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
           <BadgeStatusOrcamento status={orcamento.status as QuoteStatus} />
         </div>
         <div className="flex gap-2">
-          {loadingCargo ? (
-            <div>Carregando...</div>
-          ) : (
-            <>
-              <BotaoExportarPdf
-                numero={orcamento.numero}
-                responsavel={responsavel?.nome ?? '—'}
-                lead={lead?.nome ?? null}
-                fornecedor={fornecedor?.nome ?? null}
-                cliente={(() => {
-                  const nome = contato?.nome ?? lead?.nome ?? ''
-                  const cpf_cnpj = contato?.cpf_cnpj ?? lead?.cpf_cnpj ?? null
-                  const telefone = contato?.telefone ?? lead?.telefone ?? null
-                  const email = contato?.email ?? lead?.email ?? null
-                  const endereco = orcamento.endereco_entrega ?? contato?.endereco ?? lead?.endereco ?? null
-                  return nome ? { nome, cpf_cnpj, telefone, email, endereco } : null
-                })()}
-                empresa={empresa ? {
-                  nome_fantasia: empresa.nome_fantasia,
-                  cnpj: empresa.cnpj,
-                  telefone: empresa.telefone,
-                  email: empresa.email,
-                  endereco: empresa.endereco,
-                  logo_url: empresa.logo_url,
-                  site: null,
-                  instagram: null,
-                } : null}
-                itens={(itens ?? []).map((item: any) => ({
-                  descricao: item.descricao,
-                  quantidade: item.quantidade,
-                  preco_unitario: item.preco_unitario,
-                  desconto_item: item.desconto_item,
-                  subtotal: item.subtotal,
-                }))}
-                valorSubtotal={orcamento.valor_subtotal}
-                descontoGeral={orcamento.desconto_geral}
-                frete={orcamento.frete ?? 0}
-                transportadora={orcamento.carrier?.nome || null}
-                freteRegiao={orcamento.frete_regiao ?? null}
-                valorTotal={orcamento.valor_total}
-                formaPagamento={orcamento.forma_pagamento ?? null}
-                observacoes={orcamento.observacoes}
-                criadoEm={format(new Date(orcamento.criado_em), "dd/MM/yyyy", { locale: ptBR })}
-              />
-              {podeEditar && (
-                <Link href={`/orcamentos/${id}/editar`}>
-                  <Button variant="outline" size="sm">Editar</Button>
-                </Link>
-              )}
-            </>
+          <BotaoExportarPdf
+            numero={orcamento.numero}
+            responsavel={responsavel?.nome ?? '—'}
+            lead={lead?.nome ?? null}
+            fornecedor={fornecedor?.nome ?? null}
+            cliente={(() => {
+              const nome = contato?.nome ?? lead?.nome ?? ''
+              const cpf_cnpj = contato?.cpf_cnpj ?? lead?.cpf_cnpj ?? null
+              const telefone = contato?.telefone ?? lead?.telefone ?? null
+              const email = contato?.email ?? lead?.email ?? null
+              const endereco = orcamento.endereco_entrega ?? contato?.endereco ?? lead?.endereco ?? null
+              return nome ? { nome, cpf_cnpj, telefone, email, endereco } : null
+            })()}
+            empresa={empresa ? {
+              nome_fantasia: empresa.nome_fantasia,
+              cnpj: empresa.cnpj,
+              telefone: empresa.telefone,
+              email: empresa.email,
+              endereco: empresa.endereco,
+              logo_url: empresa.logo_url,
+              site: null,
+              instagram: null,
+            } : null}
+            itens={(itens ?? []).map((item: any) => ({
+              descricao: item.descricao,
+              quantidade: item.quantidade,
+              preco_unitario: item.preco_unitario,
+              desconto_item: item.desconto_item,
+              subtotal: item.subtotal,
+            }))}
+            valorSubtotal={orcamento.valor_subtotal}
+            descontoGeral={orcamento.desconto_geral}
+            frete={orcamento.frete ?? 0}
+            transportadora={orcamento.carrier?.nome || null}
+            freteRegiao={orcamento.frete_regiao ?? null}
+            valorTotal={orcamento.valor_total}
+            formaPagamento={orcamento.forma_pagamento ?? null}
+            observacoes={orcamento.observacoes}
+            criadoEm={format(new Date(orcamento.criado_em), "dd/MM/yyyy", { locale: ptBR })}
+          />
+          {podeEditar && (
+            <Link href={`/orcamentos/${id}/editar`}>
+              <Button variant="outline" size="sm">Editar</Button>
+            </Link>
           )}
         </div>
       </div>
@@ -204,6 +211,7 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
           <AcoesOrcamentoDetalhe
             orcamentoId={id}
             status={orcamento.status}
+            cargo="admin" // temporário - será obtido via API depois
           />
         </div>
 
