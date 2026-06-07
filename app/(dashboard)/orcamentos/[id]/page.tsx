@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-import { AcoesOrcamentoDetalhe } from '@/components/orcamentos/acoes-orcamento-detalhe'
+import { AcoesWrapper } from '@/components/orcamentos/acoes-wrapper'
 import { BotaoExportarPdf } from '@/components/orcamentos/botao-exportar-pdf'
 import { BadgeStatusOrcamento } from '@/components/orcamentos/badge-status-orcamento'
 import { Button } from '@/components/ui/button'
@@ -208,10 +208,9 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
           )}
 
           {/* Seção de Ações */}
-          <AcoesOrcamentoDetalhe
+          <AcoesWrapper
             orcamentoId={id}
             status={orcamento.status}
-            cargo="admin" // temporário - será obtido via API depois
           />
         </div>
 
