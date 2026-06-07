@@ -5,7 +5,6 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { transformarEmPedido } from '@/app/(dashboard)/orcamentos/actions'
 import Link from 'next/link'
 import type { QuoteStatus, UserRole } from '@/types/database'
 
@@ -22,10 +21,24 @@ export function AcoesOrcamentoDetalhe({ orcamentoId, status, cargo }: Props) {
 
   const isAdminGestor = cargo === 'admin' || cargo === 'gestor'
 
-  const converterParaPedido = () => {
+  const converterParaPedido = async () => {
     startTransition(async () => {
       try {
-        await transformarEmPedido(orcamentoId, motivo)
+        const response = await fetch('/api/orcamentos/transformar-em-pedido', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            orcamentoId,
+            motivo: motivo || 'Conversão manual',
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error('Falha ao converter orçamento em pedido')
+        }
+
         toast.success('Pedido gerado com sucesso!')
         setPedidoGerado(true)
         // Forçar refresh dos dados
@@ -80,84 +93,56 @@ export function AcoesOrcamentoDetalhe({ orcamentoId, status, cargo }: Props) {
 
         {/* Botão para enviar aprovação - quando status for rascunho */}
         {status === 'rascunho' && (
-          <form action={async () => {
-            'use server'
-            await transformarEmPedido(orcamentoId, 'Aprovação automática')
-            toast.success('Pedido gerado com sucesso!')
-            setPedidoGerado(true)
-            setTimeout(() => window.location.reload(), 1000)
-          }}>
-            <Button
-              type="submit"
-              disabled={isPending}
-              variant="default"
-              className="w-full"
-            >
-              {isPending ? 'Processando...' : 'Enviar para Aprovação'}
-            </Button>
-          </form>
+          <Button
+            onClick={() => {
+              window.location.href = `/orcamentos/${orcamentoId}/aprovar`
+            }}
+            disabled={isPending}
+            variant="default"
+            className="w-full"
+          >
+            Enviar para Aprovação
+          </Button>
         )}
 
         {/* Botão para aprovar internamente - quando status for aguardando aprovação */}
         {status === 'aguardando_aprovacao_interna' && isAdminGestor && (
-          <div className="space-y-2">
-            <form action={async () => {
-              'use server'
-              await transformarEmPedido(orcamentoId, 'Aprovação interna')
-              toast.success('Pedido gerado com sucesso!')
-              setPedidoGerado(true)
-              setTimeout(() => window.location.reload(), 1000)
-            }}>
-              <Button
-                type="submit"
-                disabled={isPending}
-                variant="default"
-                className="w-full"
-              >
-                {isPending ? 'Processando...' : 'Aprovar Internamente'}
-              </Button>
-            </form>
-          </div>
+          <Button
+            onClick={() => {
+              window.location.href = `/orcamentos/${orcamentoId}/aprovar`
+            }}
+            disabled={isPending}
+            variant="default"
+            className="w-full"
+          >
+            Aprovar Internamente
+          </Button>
         )}
 
         {/* Botão para enviar ao cliente - quando status for aprovado internamente */}
         {status === 'aprovado_internamente' && (
-          <form action={async () => {
-            'use server'
-            await transformarEmPedido(orcamentoId, 'Envio ao cliente')
-            toast.success('Pedido gerado com sucesso!')
-            setPedidoGerado(true)
-            setTimeout(() => window.location.reload(), 1000)
-          }}>
-            <Button
-              type="submit"
-              disabled={isPending}
-              variant="default"
-              className="w-full"
-            >
-              {isPending ? 'Processando...' : 'Enviar ao Cliente'}
-            </Button>
-          </form>
+          <Button
+            onClick={() => {
+              window.location.href = `/orcamentos/${orcamentoId}/enviar-cliente`
+            }}
+            disabled={isPending}
+            variant="default"
+            className="w-full"
+          >
+            Enviar ao Cliente
+          </Button>
         )}
 
         {/* Botão para marcar como aprovado pelo cliente */}
         {status === 'enviado_ao_cliente' && (
-          <form action={async () => {
-            'use server'
-            await transformarEmPedido(orcamentoId, 'Cliente aprovou')
-            toast.success('Pedido gerado com sucesso!')
-            setPedidoGerado(true)
-            setTimeout(() => window.location.reload(), 1000)
-          }}>
-            <Button
-              type="submit"
-              disabled={isPending}
-              variant="default"
-              className="w-full"
-            >
-              {isPending ? 'Processando...' : 'Cliente Aprovou'}
-            </Button>
-          </form>
+          <Button
+            onClick={converterParaPedido}
+            disabled={isPending}
+            variant="default"
+            className="w-full"
+          >
+            {isPending ? 'Processando...' : 'Cliente Aprovou'}
+          </Button>
         )}
 
         {/* Cliente recusou */}
