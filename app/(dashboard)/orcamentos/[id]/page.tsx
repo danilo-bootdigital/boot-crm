@@ -8,7 +8,7 @@ import type { Quote } from '@/types/database'
 
 export default async function OrcamentoDetalhePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // Buscar dados do orçamento
   const { data: orcamento, error } = await supabase
