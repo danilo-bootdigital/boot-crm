@@ -385,13 +385,26 @@ export async function transformarEmPedido(orcamentoId: string, motivo?: string) 
       .eq('organization_id', perfil.organization_id)
       .single()
 
+    console.log('=== Dados do Orçamento (actions.ts) ===')
+    console.log('ID:', orcamentoId)
+    console.log('Status:', orcamento?.status)
+    console.log('Itens:', orcamento?.itens?.length)
+    console.log('Contato ID:', orcamento?.contato_id)
+    console.log('Lead ID:', orcamento?.lead_id)
+    console.log('=====================================')
+
     if (!orcamento) {
       throw new Error('Orçamento não encontrado.')
     }
 
     // Validações
+    console.log('=== Validações do Orçamento ===')
+    console.log('Status atual:', orcamento.status)
+    console.log('Status esperado: aprovado_pelo_cliente')
+    console.log('================================')
+
     if (orcamento.status !== 'aprovado_pelo_cliente') {
-      throw new Error('Apenas orçamentos aprovados pelo cliente podem ser transformados em pedidos.')
+      throw new Error(`Apenas orçamentos aprovados pelo cliente podem ser transformados em pedidos. Status atual: ${orcamento.status}`)
     }
 
     if (!orcamento.itens || orcamento.itens.length === 0) {
@@ -405,17 +418,22 @@ export async function transformarEmPedido(orcamentoId: string, motivo?: string) 
     // Verificar se já existe pedido para este orçamento
     const { data: pedidoExistente } = await supabase
       .from('orders')
-      .select('id')
+      .select('id, numero, status')
       .eq('quote_id', orcamentoId)
-    .eq('organization_id', perfil.organization_id)
-    .single()
+      .eq('organization_id', perfil.organization_id)
+      .single()
 
-  if (pedidoExistente) {
-    console.error('Pedido já existe:', pedidoExistente)
-    throw new Error('Já existe um pedido gerado para este orçamento. Entre em contato com o administrador para gerar um novo.')
-  }
+    console.log('=== Verificação de Pedido Existente (actions.ts) ===')
+    console.log('Orçamento ID:', orcamentoId)
+    console.log('Pedido encontrado:', pedidoExistente)
+    console.log('===================================================')
 
-  console.log('Nenhum pedido existente encontrado')
+    if (pedidoExistente) {
+      console.error('Pedido já existe:', pedidoExistente)
+      throw new Error(`Já existe um pedido gerado para este orçamento (Pedido #${pedidoExistente.numero}). Entre em contato com o administrador para gerar um novo.`)
+    }
+
+    console.log('Nenhum pedido existente encontrado')
 
   // 2. Buscar contato vinculado (prioridade: contato_id direto no orçamento)
   console.log('Buscando contato vinculado...')
@@ -539,12 +557,19 @@ export async function marcarAprovadoCliente(orcamentoId: string) {
 export async function verificarPedidoGerado(orcamentoId: string) {
   const { supabase, perfil } = await getUsuarioEOrg()
 
+  console.log('=== verificandoPedidoGerado ===')
+  console.log('Orçamento ID:', orcamentoId)
+  console.log('Organization ID:', perfil.organization_id)
+
   const { data: pedido } = await supabase
     .from('orders')
     .select('id, numero, status')
     .eq('quote_id', orcamentoId)
     .eq('organization_id', perfil.organization_id)
     .single()
+
+  console.log('Pedido encontrado:', pedido)
+  console.log('================================')
 
   return pedido || null
 }

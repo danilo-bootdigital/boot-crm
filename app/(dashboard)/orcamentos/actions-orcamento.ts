@@ -4,7 +4,12 @@ import { transformarEmPedido, verificarPedidoGerado } from '@/app/(dashboard)/or
 
 export async function handleVerificarEPedirConfirmacao(orcamentoId: string) {
   console.log('=== handleVerificarEPedirConfirmacao (server) ===', orcamentoId)
+  console.log('Verificando se já existe pedido...')
+
   const pedido = await verificarPedidoGerado(orcamentoId)
+
+  console.log('Pedido encontrado:', pedido)
+
   if (pedido) {
     // Já existe pedido, mostrar link
     return { type: 'exists', pedido }

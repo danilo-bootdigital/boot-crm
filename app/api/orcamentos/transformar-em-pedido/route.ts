@@ -38,11 +38,20 @@ export async function POST(request: NextRequest) {
       .eq('organization_id', perfil.organization_id)
       .single()
 
+    console.log('=== Dados do Orçamento ===')
+    console.log('ID:', orcamentoId)
+    console.log('Status:', orcamento?.status)
+    console.log('Itens:', orcamento?.itens?.length)
+    console.log('Contato ID:', orcamento?.contato_id)
+    console.log('Lead ID:', orcamento?.lead_id)
+    console.log('========================')
+
     if (!orcamento) {
       return NextResponse.json({ error: 'Orçamento não encontrado.' }, { status: 404 })
     }
 
     // Validações
+    console.log('Status do orçamento:', orcamento.status)
     if (orcamento.status !== 'aprovado_pelo_cliente') {
       return NextResponse.json({ error: 'Apenas orçamentos aprovados pelo cliente podem ser transformados em pedidos.' }, { status: 400 })
     }
@@ -58,13 +67,21 @@ export async function POST(request: NextRequest) {
     // Verificar se já existe pedido para este orçamento
     const { data: pedidoExistente } = await supabase
       .from('orders')
-      .select('id')
+      .select('id, numero, status')
       .eq('quote_id', orcamentoId)
       .eq('organization_id', perfil.organization_id)
       .single()
 
+    console.log('=== Verificação de Pedido Existente ===')
+    console.log('Orçamento ID:', orcamentoId)
+    console.log('Pedido encontrado:', pedidoExistente)
+    console.log('====================================')
+
     if (pedidoExistente) {
-      return NextResponse.json({ error: 'Já existe um pedido gerado para este orçamento. Entre em contato com o administrador para gerar um novo.' }, { status: 400 })
+      console.error('Pedido já existe:', pedidoExistente)
+      return NextResponse.json({
+        error: `Já existe um pedido gerado para este orçamento (Pedido #${pedidoExistente.numero}). Entre em contato com o administrador para gerar um novo.`
+      }, { status: 400 })
     }
 
     // Buscar contato vinculado (prioridade: contato_id direto no orçamento)

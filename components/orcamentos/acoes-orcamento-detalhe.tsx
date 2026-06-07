@@ -5,21 +5,22 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useUserRole } from '@/components/hooks/use-user-role'
 import Link from 'next/link'
-import type { QuoteStatus, UserRole } from '@/types/database'
+import type { QuoteStatus } from '@/types/database'
 
 type Props = {
   orcamentoId: string
   status: QuoteStatus
-  cargo: UserRole
 }
 
-export function AcoesOrcamentoDetalhe({ orcamentoId, status, cargo }: Props) {
+export function AcoesOrcamentoDetalhe({ orcamentoId, status }: Props) {
   const [isPending, startTransition] = useTransition()
   const [motivo, setMotivo] = useState('')
   const [pedidoGerado, setPedidoGerado] = useState(false)
+  const { cargo: userCargo, loading: loadingCargo } = useUserRole()
 
-  const isAdminGestor = cargo === 'admin' || cargo === 'gestor'
+  const isAdminGestor = userCargo === 'admin' || userCargo === 'gestor'
 
   const converterParaPedido = async () => {
     startTransition(async () => {
@@ -56,8 +57,12 @@ export function AcoesOrcamentoDetalhe({ orcamentoId, status, cargo }: Props) {
         <CardTitle className="text-base">Ações</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* Botão para converter em pedido - apenas quando status for aprovado pelo cliente */}
-        {status === 'aprovado_pelo_cliente' && !pedidoGerado && (
+        {loadingCargo ? (
+          <div>Carregando...</div>
+        ) : (
+          <>
+            {/* Botão para converter em pedido - apenas quando status for aprovado pelo cliente */}
+            {status === 'aprovado_pelo_cliente' && !pedidoGerado && (
           <div className="space-y-2">
             <p className="text-sm text-slate-600">Converter este orçamento em pedido:</p>
             <Input
@@ -138,7 +143,9 @@ export function AcoesOrcamentoDetalhe({ orcamentoId, status, cargo }: Props) {
         {/* Botão para marcar como aprovado pelo cliente */}
         {status === 'enviado_ao_cliente' && (
           <Button
-            onClick={converterParaPedido}
+            onClick={() => {
+              window.location.href = `/orcamentos/${orcamentoId}/aprovar`
+            }}
             disabled={isPending}
             variant="default"
             className="w-full"
@@ -158,6 +165,8 @@ export function AcoesOrcamentoDetalhe({ orcamentoId, status, cargo }: Props) {
             <p className="text-sm text-green-600 font-medium">✓ Orçamento Aprovado</p>
             <p className="text-xs text-slate-500">O orçamento foi aprovado pelo cliente</p>
           </div>
+        )}
+          </>
         )}
       </CardContent>
     </Card>
