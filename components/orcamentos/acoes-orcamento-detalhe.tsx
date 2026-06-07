@@ -80,14 +80,15 @@ export function AcoesOrcamentoDetalhe({ orcamentoId, status, cargo }: Props) {
           <div className="text-center space-y-2">
             <p className="text-sm text-green-600 font-medium">✓ Pedido Gerado</p>
             <p className="text-xs text-slate-500">Este orçamento já foi convertido em pedido</p>
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-              className="w-full"
-            >
-              <Link href={`/pedidos?quote_id=${orcamentoId}`}>Ver Pedidos Gerados</Link>
-            </Button>
+            <Link href={`/pedidos?quote_id=${orcamentoId}`}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+              >
+                Ver Pedidos Gerados
+              </Button>
+            </Link>
           </div>
         )}
 
