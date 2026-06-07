@@ -3,50 +3,16 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft } from 'lucide-react'
+import { OrcamentoDetalhe } from '@/components/orcamentos/orcamento-detalhe'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import type { Quote } from '@/types/database'
 
 export default async function OrcamentoDetalhePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
 
-  // Logs de diagnóstico
-  console.log('=== DIAGNÓSTICO ORÇAMENTO ===')
-  console.log('ID recebido pela rota:', id)
-
-  // Buscar dados do usuário para verificação
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
-  console.log('Usuário autenticado:', user ? user.id : 'NENHUM')
-  console.log('Erro de autenticação:', userError)
-
-  // Buscar perfil do usuário
-  let organizationId = null
-  if (user) {
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('organization_id')
-      .eq('id', user.id)
-      .single()
-
-    console.log('Perfil encontrado:', profile)
-    console.log('Erro de perfil:', profileError)
-    organizationId = profile?.organization_id
-  }
-
-  console.log('Organization ID do usuário:', organizationId)
-
-  // Query A - Básica (sem joins)
-  const { data: orcamentoBasico, error: erroBasico } = await supabase
-    .from('quotes')
-    .select('id, numero, status, organization_id')
-    .eq('id', id)
-    .single()
-
-  console.log('Query A - Básica:')
-  console.log('Dados retornados:', orcamentoBasico)
-  console.log('Erro:', erroBasico)
-
-  // Query B - Completa (com joins)
-  const { data: orcamentoCompleto, error: erroCompleto } = await supabase
+  // Buscar dados do orçamento
+  const { data: orcamento, error } = await supabase
     .from('quotes')
     .select(`
       *,
@@ -69,11 +35,11 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
     .eq('id', id)
     .single()
 
-  console.log('Query B - Completa:')
-  console.log('Dados retornados:', orcamentoCompleto)
-  console.log('Erro:', erroCompleto)
+  if (error || !orcamento) {
+    notFound()
+  }
 
-  // Tela de diagnóstico segura
+  // Tela de auditoria para verificar fluxo de renderização
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
@@ -87,74 +53,46 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-slate-900">Diagnóstico do Orçamento</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Auditoria de Renderização</h1>
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Informações da Requisição</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <p className="text-sm"><strong>ID recebido:</strong> {id}</p>
-          <p className="text-sm"><strong>Usuário autenticado:</strong> {user ? user.id : 'NENHUM'}</p>
-          <p className="text-sm"><strong>Organization ID:</strong> {organizationId || 'NENHUM'}</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Query A - Básica (sem joins)</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <p className="text-sm"><strong>Sucesso:</strong> {orcamentoBasico ? 'SIM' : 'NÃO'}</p>
-          <p className="text-sm"><strong>Erro:</strong> {erroBasico ? erroBasico.message : 'NENHUM'}</p>
-          {orcamentoBasico && (
-            <>
-              <p className="text-sm"><strong>ID no banco:</strong> {orcamentoBasico.id}</p>
-              <p className="text-sm"><strong>Número:</strong> {orcamentoBasico.numero}</p>
-              <p className="text-sm"><strong>Status:</strong> {orcamentoBasico.status}</p>
-              <p className="text-sm"><strong>Organization ID:</strong> {orcamentoBasico.organization_id}</p>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Query B - Completa (com joins)</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <p className="text-sm"><strong>Sucesso:</strong> {orcamentoCompleto ? 'SIM' : 'NÃO'}</p>
-          <p className="text-sm"><strong>Erro:</strong> {erroCompleto ? erroCompleto.message : 'NENHUM'}</p>
-          {orcamentoCompleto && (
-            <>
-              <p className="text-sm"><strong>Itens encontrados:</strong> {orcamentoCompleto.itens?.length || 0}</p>
-              <p className="text-sm"><strong>Lead encontrado:</strong> {orcamentoCompleto.lead ? 'SIM' : 'NÃO'}</p>
-              <p className="text-sm"><strong>Fornecedor encontrado:</strong> {orcamentoCompleto.fornecedor ? 'SIM' : 'NÃO'}</p>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Análise</CardTitle>
+          <CardTitle className="text-base">Dados Recebidos pelo Componente</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-sm space-y-2">
-            {orcamentoBasico && orcamentoCompleto && (
-              <p className="text-green-600">✅ Ambas as queries funcionaram. O problema pode estar no componente de exibição.</p>
-            )}
-            {orcamentoBasico && !orcamentoCompleto && (
-              <p className="text-red-600">❌ Query A funcionou, mas Query B falhou. Problema nos joins/relacionamentos.</p>
-            )}
-            {!orcamentoBasico && orcamentoCompleto && (
-              <p className="text-red-600">❌ Query A falhou, mas Query B funcionou. Inconsistência detectada.</p>
-            )}
-            {!orcamentoBasico && !orcamentoCompleto && (
-              <p className="text-red-600">❌ Ambas as queries falharam. Problema no acesso ao orçamento.</p>
-            )}
+          <pre className="text-xs bg-slate-100 p-3 rounded overflow-auto">
+            {JSON.stringify({
+              id: orcamento.id,
+              numero: orcamento.numero,
+              status: orcamento.status,
+              itens: orcamento.itens?.length || 0,
+              fornecedor: orcamento.fornecedor?.nome || 'NENHUM',
+              lead: orcamento.lead?.nome || 'NENHUM',
+              contato: orcamento.contato?.nome || 'NENHUM',
+              total: orcamento.valor_total
+            }, null, 2)}
+          </pre>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Teste de Renderização do Componente</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <p className="text-sm"><strong>Importando OrcamentoDetalhe...</strong></p>
+
+            <div className="border border-blue-200 p-3 rounded">
+              <p className="text-sm mb-2"><strong>Componente OrcamentoDetalhe:</strong></p>
+              <OrcamentoDetalhe orcamento={orcamento} />
+            </div>
+
+            <p className="text-xs text-slate-500">
+              Se o componente acima não aparecer, há um erro no componente.
+            </p>
           </div>
         </CardContent>
       </Card>
