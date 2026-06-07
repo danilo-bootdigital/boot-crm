@@ -1,18 +1,37 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ChevronLeft } from 'lucide-react'
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { ChevronLeft } from 'lucide-react'
+import { OrcamentoDetalhe } from '@/components/orcamentos/orcamento-detalhe'
+import type { Quote } from '@/types/database'
 
 export default async function OrcamentoDetalhePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = createAdminClient()
 
-  // Buscar dados do orçamento de forma simples
+  // Buscar dados do orçamento completo
   const { data: orcamento } = await supabase
     .from('quotes')
-    .select('id, numero, status')
+    .select(`
+      *,
+      responsavel:profiles!responsavel_id(nome),
+      lead:leads!lead_id(id, nome, telefone, email, endereco, cpf_cnpj),
+      contato:contacts!contato_id(id, nome, telefone, email),
+      deal:deals!deal_id(id, titulo, contato_id),
+      aprovador:profiles!aprovacao_interna_por(nome),
+      fornecedor:suppliers!supplier_id(nome),
+      itens:quote_items!quote_id(
+        id,
+        descricao,
+        quantidade,
+        preco_unitario,
+        desconto_item,
+        subtotal,
+        product_id,
+        unidade
+      )
+    `)
     .eq('id', id)
     .single()
 
@@ -31,25 +50,7 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
         </Link>
       </div>
 
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-slate-900">Orçamento #{orcamento.numero}</h1>
-          <span className="px-2 py-1 bg-slate-100 text-slate-800 text-xs font-medium rounded">
-            {orcamento.status}
-          </span>
-        </div>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Detalhes do Orçamento</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-slate-600">ID: {orcamento.id}</p>
-          <p className="text-sm text-slate-600">Número: {orcamento.numero}</p>
-          <p className="text-sm text-slate-600">Status: {orcamento.status}</p>
-        </CardContent>
-      </Card>
+      <OrcamentoDetalhe orcamento={orcamento} />
     </div>
   )
 }
