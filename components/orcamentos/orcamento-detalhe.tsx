@@ -20,167 +20,134 @@ export function OrcamentoDetalhe({ orcamento }: OrcamentoDetalheProps) {
   return (
     <div className="space-y-6">
       {/* Cabeçalho */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
           <h1 className="text-2xl font-bold text-slate-900">Orçamento #{orcamento.numero}</h1>
           <BadgeStatusOrcamento status={orcamento.status} />
         </div>
       </div>
 
-      {/* Dados do Orçamento */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Dados do Orçamento</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-slate-500">ID:</span>
-              <p className="font-mono text-xs">{orcamento.id}</p>
-            </div>
-            <div>
+      {/* Grid organizado */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Dados do Orçamento */}
+        <Card className="md:col-span-2 lg:col-span-1">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-medium text-slate-700">Dados do Orçamento</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="text-sm">
               <span className="text-slate-500">Número:</span>
-              <p>#{orcamento.numero}</p>
+              <p className="font-medium">#{orcamento.numero}</p>
             </div>
-            <div>
+            <div className="text-sm">
               <span className="text-slate-500">Status:</span>
-              <p>{orcamento.status}</p>
+              <p className="font-medium">{orcamento.status}</p>
             </div>
-            <div>
+            <div className="text-sm">
               <span className="text-slate-500">Criado em:</span>
-              <p>{new Date(orcamento.criado_em).toLocaleDateString('pt-BR')}</p>
+              <p className="font-medium">{new Date(orcamento.criado_em).toLocaleDateString('pt-BR')}</p>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Dados do Fornecedor */}
-      {orcamento.fornecedor ? (
+        {/* Cliente */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Fornecedor/Laboratório</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-medium text-slate-700">Cliente</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm">{orcamento.fornecedor.nome}</p>
+          <CardContent className="space-y-3">
+            {orcamento.lead ? (
+              <>
+                <p className="font-medium text-sm">{orcamento.lead.nome}</p>
+                {orcamento.lead.telefone && (
+                  <p className="text-xs text-slate-600">Telefone: {orcamento.lead.telefone}</p>
+                )}
+                {orcamento.lead.email && (
+                  <p className="text-xs text-slate-600">E-mail: {orcamento.lead.email}</p>
+                )}
+              </>
+            ) : orcamento.contato ? (
+              <>
+                <p className="font-medium text-sm">{orcamento.contato.nome}</p>
+                {orcamento.contato.telefone && (
+                  <p className="text-xs text-slate-600">Telefone: {orcamento.contato.telefone}</p>
+                )}
+                {orcamento.contato.email && (
+                  <p className="text-xs text-slate-600">E-mail: {orcamento.contato.email}</p>
+                )}
+              </>
+            ) : orcamento.contato_id ? (
+              <p className="text-xs text-slate-500">Contato vinculado, dados não carregados</p>
+            ) : (
+              <p className="text-xs text-slate-500">Nenhum cliente vinculado</p>
+            )}
           </CardContent>
         </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Fornecedor/Laboratório</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-slate-500">
-              Fornecedor não informado
-            </p>
-          </CardContent>
-        </Card>
-      )}
 
-      {/* Dados do Cliente/Lead */}
-      {orcamento.lead ? (
+        {/* Fornecedor */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Cliente</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <>
-              <p className="font-medium">{orcamento.lead.nome}</p>
-              {orcamento.lead.telefone && (
-                <p className="text-sm text-slate-600">Telefone: {orcamento.lead.telefone}</p>
-              )}
-              {orcamento.lead.email && (
-                <p className="text-sm text-slate-600">E-mail: {orcamento.lead.email}</p>
-              )}
-              {orcamento.lead.endereco && (
-                <p className="text-sm text-slate-600">Endereço: {orcamento.lead.endereco}</p>
-              )}
-            </>
-          </CardContent>
-        </Card>
-      ) : orcamento.contato ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Cliente</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <>
-              <p className="font-medium">{orcamento.contato.nome}</p>
-              {orcamento.contato.telefone && (
-                <p className="text-sm text-slate-600">Telefone: {orcamento.contato.telefone}</p>
-              )}
-              {orcamento.contato.email && (
-                <p className="text-sm text-slate-600">E-mail: {orcamento.contato.email}</p>
-              )}
-            </>
-          </CardContent>
-        </Card>
-      ) : orcamento.contato_id ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Cliente</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-medium text-slate-700">Fornecedor/Laboratório</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-slate-500">
-              Contato vinculado, dados não carregados
-            </p>
+            {orcamento.fornecedor ? (
+              <p className="font-medium text-sm">{orcamento.fornecedor.nome}</p>
+            ) : (
+              <p className="text-xs text-slate-500">Fornecedor não informado</p>
+            )}
           </CardContent>
         </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Cliente</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-slate-500">
-              Nenhum cliente vinculado a este orçamento
-            </p>
-          </CardContent>
-        </Card>
-      )}
 
-      {/* Negociação/Deal */}
-      {orcamento.deal && (
+        {/* Endereço de Entrega */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Negociação</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-medium text-slate-700">Endereço de Entrega</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm">{orcamento.deal.titulo}</p>
+            {orcamento.endereco_entrega ? (
+              <p className="text-sm">{orcamento.endereco_entrega}</p>
+            ) : (
+              <p className="text-xs text-slate-500">Endereço não informado</p>
+            )}
           </CardContent>
         </Card>
-      )}
 
-      {/* Endereço de Entrega */}
-      {orcamento.endereco_entrega ? (
+        {/* Forma de Pagamento */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Endereço de Entrega</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-medium text-slate-700">Forma de Pagamento</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm">{orcamento.endereco_entrega}</p>
+            {orcamento.forma_pagamento ? (
+              <p className="text-sm">{orcamento.forma_pagamento}</p>
+            ) : (
+              <p className="text-xs text-slate-500">Não informada</p>
+            )}
           </CardContent>
         </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Endereço de Entrega</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-slate-500">
-              Endereço de entrega não informado
-            </p>
-          </CardContent>
-        </Card>
-      )}
 
-      {/* Itens do Orçamento */}
-      {orcamento.itens && orcamento.itens.length > 0 ? (
+        {/* Responsável */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Itens do Orçamento</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-medium text-slate-700">Responsável</CardTitle>
           </CardHeader>
           <CardContent>
+            {orcamento.responsavel ? (
+              <p className="font-medium text-sm">{orcamento.responsavel.nome}</p>
+            ) : (
+              <p className="text-xs text-slate-500">Não informado</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Itens do Orçamento - Largura total */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-medium text-slate-700">Itens do Orçamento</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {orcamento.itens && orcamento.itens.length > 0 ? (
             <div className="space-y-3">
               {orcamento.itens.map((item) => (
                 <div key={item.id} className="border rounded p-3 text-sm">
@@ -203,25 +170,16 @@ export function OrcamentoDetalhe({ orcamento }: OrcamentoDetalheProps) {
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Itens do Orçamento</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-slate-500">
-              Nenhum item encontrado neste orçamento
-            </p>
-          </CardContent>
-        </Card>
-      )}
+          ) : (
+            <p className="text-sm text-slate-500">Nenhum item encontrado neste orçamento</p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Valores */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Valores</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-medium text-slate-700">Valores</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="flex justify-between text-sm">
@@ -231,7 +189,7 @@ export function OrcamentoDetalhe({ orcamento }: OrcamentoDetalheProps) {
           {orcamento.desconto_geral > 0 && (
             <div className="flex justify-between text-sm">
               <span>Desconto ({orcamento.desconto_geral}%):</span>
-              <span>-{formatarMoeda(orcamento.valor_subtotal * orcamento.desconto_geral / 100)}</span>
+              <span className="text-red-600">-{formatarMoeda(orcamento.valor_subtotal * orcamento.desconto_geral / 100)}</span>
             </div>
           )}
           {orcamento.frete > 0 && (
@@ -241,79 +199,22 @@ export function OrcamentoDetalhe({ orcamento }: OrcamentoDetalheProps) {
             </div>
           )}
           <div className="border-t pt-2 mt-2">
-            <div className="flex justify-between font-medium">
+            <div className="flex justify-between font-medium text-base">
               <span>Total:</span>
-              <span>{formatarMoeda(orcamento.valor_total)}</span>
+              <span className="text-blue-600">{formatarMoeda(orcamento.valor_total)}</span>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Observações */}
-      {orcamento.observacoes ? (
+      {/* Observações - Apenas se tiver conteúdo */}
+      {orcamento.observacoes && (
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Observações</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-medium text-slate-700">Observações</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm whitespace-pre-wrap">{orcamento.observacoes}</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Observações</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-slate-500">
-              Nenhuma observação informada
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Forma de Pagamento */}
-      {orcamento.forma_pagamento ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Forma de Pagamento</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm">{orcamento.forma_pagamento}</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Forma de Pagamento</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-slate-500">
-              Forma de pagamento não informada
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Responsável */}
-      {orcamento.responsavel ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Responsável</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm">{orcamento.responsavel.nome}</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Responsável</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-slate-500">
-              Responsável não informado
-            </p>
           </CardContent>
         </Card>
       )}
