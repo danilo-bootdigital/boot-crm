@@ -54,6 +54,8 @@ export function AuthProvider({ children, initialUser, initialProfile }: AuthProv
     }
   }, [initialUser, initialProfile])
 
+  const supabase = createClient()
+
   // Efeito para lidar com mudanças de autenticação
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
