@@ -5,7 +5,6 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { transformarEmPedido } from '@/app/(dashboard)/orcamentos/actions'
 import Link from 'next/link'
 import type { QuoteStatus, UserRole } from '@/types/database'
 
@@ -40,7 +39,8 @@ export function AcoesOrcamentoDetalhe({ orcamentoId, status, cargo }: Props) {
           throw new Error('Falha ao converter orçamento em pedido')
         }
 
-        toast.success('Pedido gerado com sucesso!')
+        const data = await response.json()
+        toast.success(data.message || 'Pedido gerado com sucesso!')
         setPedidoGerado(true)
         // Forçar refresh dos dados
         setTimeout(() => window.location.reload(), 1000)
@@ -95,22 +95,16 @@ export function AcoesOrcamentoDetalhe({ orcamentoId, status, cargo }: Props) {
 
         {/* Botão para enviar aprovação - quando status for rascunho */}
         {status === 'rascunho' && (
-          <form action={async () => {
-            'use server'
-            await transformarEmPedido(orcamentoId, 'Aprovação automática')
-            toast.success('Pedido gerado com sucesso!')
-            setPedidoGerado(true)
-            setTimeout(() => window.location.reload(), 1000)
-          }}>
-            <Button
-              type="submit"
-              disabled={isPending}
-              variant="default"
-              className="w-full"
-            >
-              {isPending ? 'Processando...' : 'Enviar para Aprovação'}
-            </Button>
-          </form>
+          <Button
+            onClick={() => {
+              window.location.href = `/orcamentos/${orcamentoId}/aprovar`
+            }}
+            disabled={isPending}
+            variant="default"
+            className="w-full"
+          >
+            Enviar para Aprovação
+          </Button>
         )}
 
         {/* Botão para aprovar internamente - quando status for aguardando aprovação */}
