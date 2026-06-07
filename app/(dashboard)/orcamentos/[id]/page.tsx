@@ -63,8 +63,7 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
         preco_unitario,
         desconto_item,
         subtotal,
-        product_id,
-        unidade
+        product_id
       )
     `)
     .eq('id', id)
