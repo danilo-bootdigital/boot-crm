@@ -37,6 +37,17 @@ export async function GET(
         aprovador:profiles!aprovacao_interna_por(nome),
         fornecedor:suppliers!supplier_id(nome),
         carrier:freight_carriers!carrier_id(nome),
+        organizacao:organizations!organization_id(
+          nome,
+          nome_fantasia,
+          cnpj,
+          telefone,
+          email,
+          endereco,
+          logo_url,
+          site,
+          instagram
+        ),
         itens:quote_items!quote_id(
           id,
           descricao,

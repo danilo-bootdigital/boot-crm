@@ -32,6 +32,17 @@ interface OrcamentoData {
   aprovador: { nome: string } | null
   fornecedor: { nome: string } | null
   carrier: { nome: string } | null
+  organizacao: {
+    nome: string
+    nome_fantasia: string | null
+    cnpj: string | null
+    telefone: string | null
+    email: string | null
+    endereco: string | null
+    logo_url: string | null
+    site: string | null
+    instagram: string | null
+  } | null
   itens: OrcamentoItem[]
   valor_subtotal: number
   desconto_geral: number
@@ -61,31 +72,92 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   const margin = 14
   const headerBottom = 44
 
-  // === CABEÇALHO (layout modelo) ===
+  // === CABEÇALHO (com dados reais da organização) ===
 
   // Logo à esquerda (área generosa)
   let logoAreaEnd = margin + 44
-  // TODO: Implementar logo quando necessário por agora sem logo
+  const organizacao = orcamento.organizacao
+
+  // Carregar logo se existir
+  if (organizacao?.logo_url) {
+    try {
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve()
+        img.onerror = () => reject()
+        img.src = organizacao.logo_url!
+      })
+      const canvas = document.createElement('canvas')
+      canvas.width = img.naturalWidth
+      canvas.height = img.naturalHeight
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(img, 0, 0)
+      const imgData = canvas.toDataURL('image/png')
+
+      const maxW = 40
+      const maxH = 30
+      const ratio = img.naturalWidth / img.naturalHeight
+      let logoW = maxW
+      let logoH = logoW / ratio
+      if (logoH > maxH) {
+        logoH = maxH
+        logoW = logoH * ratio
+      }
+      const logoY = 6 + (headerBottom - 12 - logoH) / 2
+      doc.addImage(imgData, 'PNG', margin + 2, logoY, logoW, logoH)
+      logoAreaEnd = margin + logoW + 8
+    } catch {
+      // Falha ao carregar logo, continua sem
+    }
+  }
 
   // Separador vertical verde
   doc.setDrawColor(...GREEN_DARK)
   doc.setLineWidth(0.8)
   doc.line(logoAreaEnd, 8, logoAreaEnd, headerBottom - 6)
 
-  // Dados da empresa (padrão do sistema)
+  // Dados da empresa (reais)
   const empresaX = logoAreaEnd + 5
   doc.setTextColor(...DARK_TEXT)
   doc.setFontSize(12)
   doc.setFont(undefined!, 'bold')
-  doc.text('Sistema DPRIME', empresaX, 15)
+  const nomeEmpresa = organizacao?.nome_fantasia || organizacao?.nome || 'Empresa'
+  doc.text(nomeEmpresa, empresaX, 15)
 
   doc.setFontSize(8.5)
   doc.setFont(undefined!, 'normal')
   doc.setTextColor(...GRAY_TEXT)
   let empY = 21
-  doc.text('www.sistemadprime.com.br', empresaX, empY)
-  empY += 5
-  doc.text('contato@sistemadprime.com.br', empresaX, empY)
+
+  // CNPJ
+  if (organizacao?.cnpj) {
+    doc.text(`CNPJ: ${organizacao.cnpj}`, empresaX, empY)
+    empY += 5
+  }
+
+  // Telefone
+  if (organizacao?.telefone) {
+    doc.text(`Tel: ${organizacao.telefone}`, empresaX, empY)
+    empY += 5
+  }
+
+  // Email
+  if (organizacao?.email) {
+    doc.text(`E-mail: ${organizacao.email}`, empresaX, empY)
+    empY += 5
+  }
+
+  // Site
+  if (organizacao?.site) {
+    doc.text(`Site: ${organizacao.site}`, empresaX, empY)
+    empY += 5
+  }
+
+  // Instagram
+  if (organizacao?.instagram) {
+    doc.text(`Instagram: ${organizacao.instagram}`, empresaX, empY)
+  }
 
   // "ORÇAMENTO" grande em verde escuro (centro-direita)
   doc.setTextColor(...GREEN_DARK)
@@ -173,7 +245,7 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     cy += 6
   }
 
-  // Endereço:
+  // Endereço do cliente:
   if (cliente?.endereco) {
     doc.setFont(undefined!, 'bold')
     doc.text('Endereço:', margin + 4, cy)
@@ -192,6 +264,21 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   }
 
   y += clienteHeight + 6
+
+  // === ENDEREÇO DE ENTREGA ===
+  const enderecoEntrega = orcamento.endereco_entrega || cliente?.endereco || 'Endereço não informado'
+  const enderecoEntregaHeight = enderecoEntrega === 'Endereço não informado' ? 20 : 26
+
+  doc.setFillColor(...GREEN_LIGHT)
+  doc.rect(margin, y - 4, pageWidth - margin * 2, enderecoEntregaHeight, 'F')
+  doc.setFontSize(8.5)
+  doc.setFont(undefined!, 'bold')
+  doc.setTextColor(...GREEN_DARK)
+  doc.text('ENDEREÇO DE ENTREGA:', margin + 4, y + 2)
+  doc.setFont(undefined!, 'normal')
+  doc.setTextColor(...DARK_TEXT)
+  doc.text(enderecoEntrega, margin + 28, y + 7)
+  y += enderecoEntregaHeight + 6
 
   // === FORNECEDOR ===
   if (orcamento.fornecedor) {
