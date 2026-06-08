@@ -16,6 +16,7 @@ export type QuoteStatus =
   | 'aprovado_internamente'
   | 'rejeitado_internamente'
   | 'enviado_ao_cliente'
+  | 'aguardando_confirmacao_vendedor'
   | 'aprovado_pelo_cliente'
   | 'recusado_pelo_cliente'
 
@@ -313,6 +314,11 @@ export type Quote = {
   aprovacao_interna_por: string | null
   aprovacao_interna_em: string | null
   aprovacao_interna_comentario: string | null
+  validade_em: string | null
+  cliente_aprovado_em: string | null
+  cliente_recusado_em: string | null
+  vendedor_confirmado_em: string | null
+  ultima_alteracao_validada_em: string | null
   observacoes: string | null
   criado_em: string
   atualizado_em: string
@@ -399,4 +405,16 @@ export type DealStageLog = {
   estagio_anterior_id: string | null
   estagio_novo_id: string
   criado_em: string
+}
+
+export type QuoteToken = {
+  id: string
+  quote_id: string
+  token_hash: string
+  status: 'pendente' | 'aprovado' | 'recusado' | 'expirado' | 'revogado'
+  cliente_ip: string | null
+  cliente_ua: string | null
+  criado_em: string
+  expira_em: string
+  usado_em: string | null
 }

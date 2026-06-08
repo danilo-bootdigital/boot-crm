@@ -52,10 +52,6 @@ export default function ConfiguracaoAvancada() {
   const [error, setError] = useState<string | null>(null)
   const supabase = createClient()
 
-  useEffect(() => {
-    carregarConfiguracao()
-  }, [])
-
   const carregarConfiguracao = async () => {
     setLoading(true)
     setError(null)
@@ -107,6 +103,11 @@ export default function ConfiguracaoAvancada() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    carregarConfiguracao()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const salvarConfiguracao = async () => {
     setSalvando(true)

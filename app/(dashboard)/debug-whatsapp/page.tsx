@@ -11,10 +11,6 @@ export default function DebugWhatsAppPage() {
   const [error, setError] = useState<string | null>(null)
   const [dados, setDados] = useState<any>(null)
 
-  useEffect(() => {
-    verificarConexao()
-  }, [])
-
   const verificarConexao = async () => {
     try {
       setStatus('loading')
@@ -42,6 +38,11 @@ export default function DebugWhatsAppPage() {
       setStatus('error')
     }
   }
+
+  useEffect(() => {
+    verificarConexao()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div className="container mx-auto py-6 space-y-6">

@@ -11,6 +11,11 @@ const CONFIG: Record<QuoteStatus, { label: string; classe: string; descricao?: s
     classe: 'bg-amber-100 text-amber-700',
     descricao: 'Em análise interna'
   },
+  aguardando_confirmacao_vendedor: {
+    label: 'Aguardando confirmação',
+    classe: 'bg-orange-100 text-orange-700',
+    descricao: 'Cliente aprovou, aguardando vendedor'
+  },
   aprovado_internamente: {
     label: 'Aprovado internamente',
     classe: 'bg-blue-100 text-blue-700',

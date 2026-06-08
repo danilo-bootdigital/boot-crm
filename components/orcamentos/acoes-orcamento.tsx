@@ -70,6 +70,11 @@ export function AcoesOrcamento({ orcamentoId, status, cargo, isResponsavel }: Pr
       onClick: isAdminGestor ? actionHandlers.aprovarInterno : null,
       cor: 'default',
     },
+    aguardando_confirmacao_vendedor: {
+      acao: 'Confirmar Aprovação',
+      onClick: null,
+      cor: 'default',
+    },
     aprovado_internamente: {
       acao: 'Enviar ao Cliente',
       onClick: actionHandlers.enviarAoCliente,
