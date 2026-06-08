@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft, FileDown } from 'lucide-react'
 import { OrcamentoDetalhe } from '@/components/orcamentos/orcamento-detalhe'
 import { BadgeStatusOrcamento } from '@/components/orcamentos/badge-status-orcamento'
 import type { Quote } from '@/types/database'
@@ -55,6 +55,18 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold text-slate-900">Orçamento #{orcamento.numero}</h1>
           <BadgeStatusOrcamento status={orcamento.status} />
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+          >
+            <Link href={`/api/orcamentos/${id}/pdf`}>
+              <FileDown className="h-4 w-4" />
+              Exportar PDF
+            </Link>
+          </Button>
         </div>
       </div>
 
