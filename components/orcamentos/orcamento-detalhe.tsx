@@ -12,6 +12,7 @@ type OrcamentoDetalheProps = {
     contato: { id: string; nome: string; telefone: string; email: string } | null
     deal: { id: string; titulo: string; contato_id: string } | null
     fornecedor: { nome: string } | null
+    carrier: { nome: string } | null
     itens: QuoteItem[]
   }
 }
@@ -19,16 +20,8 @@ type OrcamentoDetalheProps = {
 export function OrcamentoDetalhe({ orcamento }: OrcamentoDetalheProps) {
   return (
     <div className="space-y-6">
-      {/* Cabeçalho */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Orçamento #{orcamento.numero}</h1>
-          <BadgeStatusOrcamento status={orcamento.status} />
-        </div>
-      </div>
-
       {/* Grid organizado */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Dados do Orçamento */}
         <Card className="md:col-span-2 lg:col-span-1">
           <CardHeader className="pb-3">
@@ -98,34 +91,6 @@ export function OrcamentoDetalhe({ orcamento }: OrcamentoDetalheProps) {
           </CardContent>
         </Card>
 
-        {/* Endereço de Entrega */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-medium text-slate-700">Endereço de Entrega</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {orcamento.endereco_entrega ? (
-              <p className="text-sm">{orcamento.endereco_entrega}</p>
-            ) : (
-              <p className="text-xs text-slate-500">Endereço não informado</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Forma de Pagamento */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-medium text-slate-700">Forma de Pagamento</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {orcamento.forma_pagamento ? (
-              <p className="text-sm">{orcamento.forma_pagamento}</p>
-            ) : (
-              <p className="text-xs text-slate-500">Não informada</p>
-            )}
-          </CardContent>
-        </Card>
-
         {/* Responsável */}
         <Card>
           <CardHeader className="pb-3">
@@ -136,6 +101,53 @@ export function OrcamentoDetalhe({ orcamento }: OrcamentoDetalheProps) {
               <p className="font-medium text-sm">{orcamento.responsavel.nome}</p>
             ) : (
               <p className="text-xs text-slate-500">Não informado</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Grid de Endereços e Logística */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Endereço do Cliente */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-medium text-slate-700">Endereço do Cliente</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {orcamento.lead?.endereco ? (
+              <p className="text-sm whitespace-pre-wrap">{orcamento.lead.endereco}</p>
+            ) : (
+              <p className="text-xs text-slate-500">Endereço do cliente não informado</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Endereço de Entrega */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-medium text-slate-700">Endereço de Entrega</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {orcamento.endereco_entrega ? (
+              <p className="text-sm whitespace-pre-wrap">{orcamento.endereco_entrega}</p>
+            ) : orcamento.lead?.endereco ? (
+              <p className="text-sm text-slate-500">Utilizando endereço do cliente</p>
+            ) : (
+              <p className="text-xs text-slate-500">Endereço de entrega não informado</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Logística */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-medium text-slate-700">Logística</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {orcamento.carrier?.nome ? (
+              <p className="font-medium text-sm">{orcamento.carrier.nome}</p>
+            ) : (
+              <p className="text-xs text-slate-500">Transportadora não informada</p>
             )}
           </CardContent>
         </Card>
@@ -179,7 +191,7 @@ export function OrcamentoDetalhe({ orcamento }: OrcamentoDetalheProps) {
       {/* Valores */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base font-medium text-slate-700">Valores</CardTitle>
+          <CardTitle className="text-base font-medium text-slate-700">Resumo Financeiro</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="flex justify-between text-sm">
@@ -192,10 +204,15 @@ export function OrcamentoDetalhe({ orcamento }: OrcamentoDetalheProps) {
               <span className="text-red-600">-{formatarMoeda(orcamento.valor_subtotal * orcamento.desconto_geral / 100)}</span>
             </div>
           )}
-          {orcamento.frete > 0 && (
+          {orcamento.frete > 0 ? (
             <div className="flex justify-between text-sm">
               <span>Frete:</span>
               <span>{formatarMoeda(orcamento.frete)}</span>
+            </div>
+          ) : (
+            <div className="flex justify-between text-sm">
+              <span>Frete:</span>
+              <span className="text-slate-500">R$ 0,00</span>
             </div>
           )}
           <div className="border-t pt-2 mt-2">

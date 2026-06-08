@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft } from 'lucide-react'
 import { OrcamentoDetalhe } from '@/components/orcamentos/orcamento-detalhe'
+import { BadgeStatusOrcamento } from '@/components/orcamentos/badge-status-orcamento'
 import type { Quote } from '@/types/database'
 
 export default async function OrcamentoDetalhePage({ params }: { params: Promise<{ id: string }> }) {
@@ -21,6 +22,7 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
       deal:deals!deal_id(id, titulo, contato_id),
       aprovador:profiles!aprovacao_interna_por(nome),
       fornecedor:suppliers!supplier_id(nome),
+      carrier:carriers!carrier_id(nome),
       itens:quote_items!quote_id(
         id,
         descricao,
@@ -52,6 +54,7 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold text-slate-900">Orçamento #{orcamento.numero}</h1>
+          <BadgeStatusOrcamento status={orcamento.status} />
         </div>
       </div>
 
