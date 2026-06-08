@@ -71,7 +71,7 @@ export function AcoesOrcamento({ orcamentoId, status, cargo, isResponsavel }: Pr
       cor: 'default',
     },
     aguardando_confirmacao_vendedor: {
-      acao: 'Confirmar Aprovação',
+      acao: null,
       onClick: null,
       cor: 'default',
     },
@@ -81,8 +81,8 @@ export function AcoesOrcamento({ orcamentoId, status, cargo, isResponsavel }: Pr
       cor: 'default',
     },
     enviado_ao_cliente: {
-      acao: 'Cliente Aprovou',
-      onClick: actionHandlers.marcarAprovadoCliente,
+      acao: null,
+      onClick: null,
       cor: 'default',
     },
     aprovado_pelo_cliente: {
@@ -91,9 +91,9 @@ export function AcoesOrcamento({ orcamentoId, status, cargo, isResponsavel }: Pr
       cor: 'default',
     },
     recusado_pelo_cliente: {
-      acao: 'Cliente Recusou',
-      onClick: actionHandlers.marcarRecusadoCliente,
-      cor: 'destructive',
+      acao: null,
+      onClick: null,
+      cor: 'default',
     },
     rejeitado_internamente: {
       acao: 'Reenviar para Aprovação',
