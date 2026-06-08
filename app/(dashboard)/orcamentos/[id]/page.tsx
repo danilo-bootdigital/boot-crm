@@ -22,7 +22,7 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
       deal:deals!deal_id(id, titulo, contato_id),
       aprovador:profiles!aprovacao_interna_por(nome),
       fornecedor:suppliers!supplier_id(nome),
-      carrier:carriers!carrier_id(nome),
+      carrier:freight_carriers!carrier_id(nome),
       itens:quote_items!quote_id(
         id,
         descricao,
