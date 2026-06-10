@@ -74,30 +74,57 @@ export async function gerarPdf(orcamento: OrcamentoData) {
 
   // === CABEÇALHO (com dados reais da organização) ===
 
-  // Logo à esquerda (área generosa)
-  let logoAreaEnd = margin + 44
-  const organizacao = orcamento.organizacao
+  // Helper para extrair dimensões de PNG ou JPEG via buffer (server-side)
+async function getImageDimensions(
+  logoUrl: string
+): Promise<{ data: string; width: number; height: number } | null> {
+  const response = await fetch(logoUrl)
+  if (!response.ok) return null
 
-  // Carregar logo se existir
-  if (organizacao?.logo_url) {
-    try {
-      const img = new Image()
-      img.crossOrigin = 'anonymous'
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve()
-        img.onerror = () => reject()
-        img.src = organizacao.logo_url!
-      })
-      const canvas = document.createElement('canvas')
-      canvas.width = img.naturalWidth
-      canvas.height = img.naturalHeight
-      const ctx = canvas.getContext('2d')!
-      ctx.drawImage(img, 0, 0)
-      const imgData = canvas.toDataURL('image/png')
+  const contentType = response.headers.get('content-type') || 'image/png'
+  const buffer = await response.arrayBuffer()
+  const uint8 = new Uint8Array(buffer)
+  let width = 40
+  let height = 40
 
+  // PNG: dimensões nos bytes 16-23
+  if (contentType.includes('png') || uint8[0] === 0x89) {
+    width = (uint8[16] << 24) | (uint8[17] << 16) | (uint8[18] << 8) | uint8[19]
+    height = (uint8[20] << 24) | (uint8[21] << 16) | (uint8[22] << 8) | uint8[23]
+  }
+  // JPEG: procurar marcadores SOF0/SOF1/SOF2 (0xFF 0xC0-0xC2)
+  else if (contentType.includes('jpeg') || uint8[0] === 0xff && uint8[1] === 0xd8) {
+    let i = 2
+    while (i < uint8.length - 8) {
+      if (uint8[i] !== 0xff) { i++; continue }
+      const marker = uint8[i + 1]
+      // SOF0, SOF1, SOF2
+      if (marker >= 0xc0 && marker <= 0xc2) {
+        height = (uint8[i + 5] << 8) | uint8[i + 6]
+        width = (uint8[i + 7] << 8) | uint8[i + 8]
+        break
+      }
+      const len = (uint8[i + 2] << 8) | uint8[i + 3]
+      i += 2 + len
+    }
+  }
+
+  const base64 = Buffer.from(buffer).toString('base64')
+  return { data: `data:${contentType};base64,${base64}`, width, height }
+}
+
+// Logo à esquerda (área generosa)
+let logoAreaEnd = margin + 44
+const organizacao = orcamento.organizacao
+
+// Carregar logo se existir (server-side: usar fetch + buffer)
+if (organizacao?.logo_url) {
+  try {
+    const imgInfo = await getImageDimensions(organizacao.logo_url)
+    if (imgInfo) {
       const maxW = 40
       const maxH = 30
-      const ratio = img.naturalWidth / img.naturalHeight
+      const ratio = imgInfo.width / imgInfo.height
       let logoW = maxW
       let logoH = logoW / ratio
       if (logoH > maxH) {
@@ -105,12 +132,13 @@ export async function gerarPdf(orcamento: OrcamentoData) {
         logoW = logoH * ratio
       }
       const logoY = 6 + (headerBottom - 12 - logoH) / 2
-      doc.addImage(imgData, 'PNG', margin + 2, logoY, logoW, logoH)
+      doc.addImage(imgInfo.data, 'PNG', margin + 2, logoY, logoW, logoH)
       logoAreaEnd = margin + logoW + 8
-    } catch {
-      // Falha ao carregar logo, continua sem
     }
+  } catch {
+    // Falha ao carregar logo, continua sem
   }
+}
 
   // Separador vertical verde
   doc.setDrawColor(...GREEN_DARK)
