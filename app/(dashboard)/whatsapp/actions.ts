@@ -120,7 +120,6 @@ export async function enviarMensagem(conversaId: string, texto: string) {
     .update(updateData)
     .eq('id', conversaId)
     .eq('organization_id', perfil.organization_id)
-    .eq('organization_id', perfil.organization_id)
 
   await supabase.from('audit_logs').insert({
     organization_id: perfil.organization_id,
@@ -589,7 +588,6 @@ export async function enviarMidia(conversaId: string, formData: FormData) {
     .from('conversations')
     .update(updateData)
     .eq('id', conversaId)
-    .eq('organization_id', perfil.organization_id)
     .eq('organization_id', perfil.organization_id)
 
   revalidatePath('/whatsapp')

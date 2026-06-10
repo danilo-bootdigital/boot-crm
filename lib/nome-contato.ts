@@ -205,10 +205,8 @@ export async function backfillNomesConversas(organizationId: string): Promise<{ 
         telefone_externo,
         nome_contato,
         lead_id,
-        lead:leads!lead_id(nome, telefone),
-        messages!messages_conversation_id_fkey(
-          pushName
-        )
+        whatsapp_push_name,
+        lead:leads!lead_id(nome, telefone)
       `)
       .eq('organization_id', organizationId)
       .or(
@@ -224,12 +222,8 @@ export async function backfillNomesConversas(organizationId: string): Promise<{ 
 
     for (const conversa of conversas) {
       try {
-        // Obter pushName da última mensagem
-        let pushName = ''
-        if (conversa.messages && conversa.messages.length > 0) {
-          const ultimaMsg = conversa.messages[conversa.messages.length - 1]
-          pushName = ultimaMsg.pushName || ''
-        }
+        // Usar whatsapp_push_name que já está na conversa
+        const pushName = (conversa as any).whatsapp_push_name || ''
 
         // Resolver nome
         const resolved = await resolverNomeContato(

@@ -10,9 +10,7 @@ type Conversa = {
   id: string
   nome_contato: string
   telefone: string
-  ultima_mensagem: string | null
   ultima_mensagem_em: string | null
-  nao_lidas: number
   status: string
 }
 
@@ -68,11 +66,16 @@ export function ListaConversas({
         async () => {
           const { data } = await supabase
             .from('conversations')
-            .select('id, nome_contato, telefone, ultima_mensagem, ultima_mensagem_em, nao_lidas, status')
+            .select('id, nome_contato, telefone_externo, ultima_mensagem_em, status')
             .order('ultima_mensagem_em', { ascending: false })
 
           if (data) {
-            setConversasRealtime(data as Conversa[])
+            // Mapear telefone_externo para telefone para manter compatibilidade com o tipo
+            const mappedData = data.map((c) => ({
+              ...c,
+              telefone: c.telefone_externo,
+            }))
+            setConversasRealtime(mappedData as Conversa[])
           }
         }
       )
@@ -129,15 +132,12 @@ export function ListaConversas({
               </p>
             </div>
 
-            {conversa.nao_lidas > 0 && (
-              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-green-500 px-1 text-[11px] font-bold text-white">
-                {conversa.nao_lidas}
-              </span>
-            )}
           </div>
 
           <p className="mt-1 truncate text-xs text-slate-500">
-            {conversa.ultima_mensagem || 'Sem mensagens'}
+            {conversa.ultima_mensagem_em
+              ? `Última atividade ${new Date(conversa.ultima_mensagem_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`
+              : 'Sem mensagens'}
           </p>
         </Link>
       ))}
