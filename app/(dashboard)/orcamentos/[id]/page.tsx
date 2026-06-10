@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, Edit, User, Building2, Truck, MapPin, Calendar } from 'lucide-react'
@@ -7,6 +7,8 @@ import { OrcamentoDetalhe } from '@/components/orcamentos/orcamento-detalhe'
 import { BadgeStatusOrcamento } from '@/components/orcamentos/badge-status-orcamento'
 import { AcoesOrcamento } from './acoes-orcamento'
 import { ExportarPdfButton } from '@/components/orcamentos/exportar-pdf-button'
+import { canEditQuote } from '@/lib/quote-permissions'
+import type { QuoteStatus, UserRole } from '@/types/database'
 
 export default async function OrcamentoDetalhePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -47,6 +49,25 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
     .select('id, numero')
     .eq('quote_id', id)
     .maybeSingle()
+
+  // Buscar usuário atual e perfil para verificar permissão de edição
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: perfil } = await supabase
+    .from('profiles')
+    .select('id, cargo')
+    .eq('id', user.id)
+    .single()
+
+  // Verificar se o usuário pode editar este orçamento
+  const podeEditar = perfil ? canEditQuote({
+    quoteStatus: orcamento.status as QuoteStatus,
+    userRole: perfil.cargo as UserRole,
+    quoteOwnerId: orcamento.responsavel_id,
+    currentUserId: user.id,
+    hasOrder: !!pedidoExistente,
+  }) : false
 
   // Dados do cliente para exibir no header
   const cliente = orcamento.lead ?? orcamento.contato
@@ -103,12 +124,14 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
             pedidoExistente={pedidoExistente}
           />
           <ExportarPdfButton orcamentoId={id} numero={orcamento.numero} />
-          <Link href={`/orcamentos/${id}/editar`}>
-            <Button variant="default" size="sm" className="gap-1.5 h-9">
-              <Edit className="h-4 w-4" />
-              <span className="hidden sm:inline">Editar</span>
-            </Button>
-          </Link>
+          {podeEditar && (
+            <Link href={`/orcamentos/${id}/editar`}>
+              <Button variant="default" size="sm" className="gap-1.5 h-9">
+                <Edit className="h-4 w-4" />
+                <span className="hidden sm:inline">Editar</span>
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
 

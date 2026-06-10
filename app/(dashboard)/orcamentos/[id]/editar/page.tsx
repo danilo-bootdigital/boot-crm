@@ -1,7 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import { FormOrcamento } from '@/components/orcamentos/form-orcamento'
-import type { QuoteItem } from '@/types/database'
+import { canEditQuote } from '@/lib/quote-permissions'
+import type { QuoteItem, QuoteStatus, UserRole } from '@/types/database'
 
 export default async function EditarOrcamentoPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient()
@@ -27,13 +28,25 @@ export default async function EditarOrcamentoPage({ params }: { params: Promise<
 
   if (!orcamento) notFound()
 
-  if (orcamento.status !== 'rascunho' && orcamento.status !== 'rejeitado_internamente') {
+  // Buscar pedido existente para verificar se já foi convertido
+  const { data: pedidoExistente } = await supabase
+    .from('orders')
+    .select('id')
+    .eq('quote_id', id)
+    .maybeSingle()
+
+  // Verificar permissão usando a função centralizada
+  const podeEditar = canEditQuote({
+    quoteStatus: orcamento.status as QuoteStatus,
+    userRole: perfil.cargo as UserRole,
+    quoteOwnerId: orcamento.responsavel_id,
+    currentUserId: user.id,
+    hasOrder: !!pedidoExistente,
+  })
+
+  if (!podeEditar) {
     redirect(`/orcamentos/${id}`)
   }
-  if (perfil.cargo === 'vendedor' && orcamento.responsavel_id !== perfil.id) {
-    redirect(`/orcamentos/${id}`)
-  }
-  if (perfil.cargo === 'atendimento') redirect(`/orcamentos/${id}`)
 
   const { data: itens } = await supabase
     .from('quote_items')
