@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { BadgeStatusPedido } from '@/components/pedidos/badge-status-pedido'
 import { TimelineStatus } from '@/components/pedidos/timeline-status'
 import { BotoesPedido } from '@/components/pedidos/botoes-pedido'
-import { User, Building2, Truck, MapPin, Calendar, FileText, Package, CreditCard } from 'lucide-react'
+import { ChevronLeft, FileText, Package, CreditCard, User, MapPin, Calendar } from 'lucide-react'
 
 export default async function PedidoDetalhePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -97,7 +97,7 @@ export default async function PedidoDetalhePage({ params }: { params: Promise<{ 
         {/* Left: Back + Title */}
         <div className="space-y-1">
           <Link href="/pedidos" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-emerald-600 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            <ChevronLeft className="h-4 w-4" />
             Voltar para Pedidos
           </Link>
 
