@@ -8,7 +8,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Settings, BarChart3, AlertTriangle, Loader2 } from 'lucide-react'
 import { WhatsAppInstanceManager } from '@/components/whatsapp/whatsapp-instance-manager'
 import { Suspense } from 'react'
-import { obterNomeContato } from '@/lib/nome-contato'
 
 // Componente de loading
 function ConversasLoading() {
@@ -167,11 +166,7 @@ export default async function WhatsappPage() {
       responsavel:profiles!responsavel_id(nome),
       lead:leads!lead_id(id, nome, telefone),
       contato:contacts!contato_id(id, nome, telefone),
-      instancia:whatsapp_instances!whatsapp_instance_id(nome),
-      nome_contato,
-      name_source,
-      whatsapp_push_name,
-      is_name_manually_edited
+      instancia:whatsapp_instances!whatsapp_instance_id(nome)
     `)
     .eq('organization_id', perfil.organization_id)
     .order('ultima_mensagem_em', { ascending: false, nullsFirst: false })
@@ -348,34 +343,14 @@ export default async function WhatsappPage() {
 
   // Transformar conversas para o formato esperado pelo componente
   const conversasFormatadas = await Promise.all((conversasRaw ?? []).map(async (conversa) => {
-    // Se o nome já estiver salvo e não foi editado manualmente, usar o cache
-    if (conversa.nome_contato && conversa.is_name_manually_edited) {
-      return {
-        id: conversa.id,
-        nome_contato: conversa.nome_contato,
-        telefone: conversa.telefone_externo,
-        ultima_mensagem: ultimasMensagens[conversa.id] || '',
-        ultima_mensagem_em: conversa.ultima_mensagem_em,
-        ultima_mensagem_em_formatada: formatarDataServer(conversa.ultima_mensagem_em),
-        nao_lidas: 0,
-        status: conversa.status,
-      }
-    }
-
-    // Caso contrário, resolver o nome com a função unificada
-    const nomeResolvido = await obterNomeContato(
-      conversa.telefone_externo,
-      perfil.organization_id,
-      {
-        leadId: (conversa.lead as any)?.id,
-        pushName: conversa.whatsapp_push_name,
-        conversationId: conversa.id
-      }
-    )
+    // Nome vem dos JOINs (lead ou contato), fallback para telefone ou texto genérico
+    const nomeDoLead = (conversa.lead as any)?.nome
+    const nomeDoContato = (conversa.contato as any)?.nome
+    const nomeContato = nomeDoLead || nomeDoContato || `Contato ${conversa.telefone_externo}` || 'Contato WhatsApp'
 
     return {
       id: conversa.id,
-      nome_contato: nomeResolvido,
+      nome_contato: nomeContato,
       telefone: conversa.telefone_externo,
       ultima_mensagem: ultimasMensagens[conversa.id] || '',
       ultima_mensagem_em: conversa.ultima_mensagem_em,

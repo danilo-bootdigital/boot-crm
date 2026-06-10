@@ -67,14 +67,20 @@ export function ListaConversas({
         async () => {
           const { data } = await supabase
             .from('conversations')
-            .select('id, nome_contato, telefone_externo, ultima_mensagem_em, status')
+            .select('id, telefone_externo, ultima_mensagem_em, status, lead:leads!lead_id(nome), contato:contacts!contato_id(nome)')
             .order('ultima_mensagem_em', { ascending: false })
 
           if (data) {
-            // Mapear telefone_externo para telefone para manter compatibilidade com o tipo
+            // Mapear dados para formato esperado pelo componente
             const mappedData = data.map((c) => ({
-              ...c,
+              id: c.id,
               telefone: c.telefone_externo,
+              ultima_mensagem_em: c.ultima_mensagem_em,
+              ultima_mensagem_em_formatada: c.ultima_mensagem_em
+                ? new Date(c.ultima_mensagem_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })
+                : null,
+              status: c.status,
+              nome_contato: (c as any).lead?.nome || (c as any).contato?.nome || `Contato ${c.telefone_externo}` || 'Contato WhatsApp',
             }))
             setConversasRealtime(mappedData as Conversa[])
           }
