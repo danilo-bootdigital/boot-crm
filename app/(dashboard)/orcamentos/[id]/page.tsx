@@ -103,14 +103,12 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
             pedidoExistente={pedidoExistente}
           />
           <ExportarPdfButton orcamentoId={id} numero={orcamento.numero} />
-          <Button
-            variant="default"
-            size="sm"
-            className="gap-1.5 h-9"
-          >
-            <Edit className="h-4 w-4" />
-            <span className="hidden sm:inline">Editar</span>
-          </Button>
+          <Link href={`/orcamentos/${id}/editar`}>
+            <Button variant="default" size="sm" className="gap-1.5 h-9">
+              <Edit className="h-4 w-4" />
+              <span className="hidden sm:inline">Editar</span>
+            </Button>
+          </Link>
         </div>
       </div>
 
