@@ -27,7 +27,20 @@ interface OrcamentoData {
   criado_em: string
   responsavel: { nome: string } | null
   lead: { id: string; nome: string; telefone: string; email: string; endereco: string; cpf_cnpj: string } | null
-  contato: { id: string; nome: string; telefone: string; email: string } | null
+  contato: {
+    id: string
+    nome: string
+    telefone: string | null
+    email: string | null
+    cpf_cnpj: string | null
+    endereco: string | null
+    endereco_numero: string | null
+    endereco_complemento: string | null
+    endereco_bairro: string | null
+    endereco_cidade: string | null
+    endereco_estado: string | null
+    endereco_cep: string | null
+  } | null
   deal: { id: string; titulo: string; contato_id: string } | null
   aprovador: { nome: string } | null
   fornecedor: { nome: string } | null
@@ -214,10 +227,10 @@ if (organizacao?.logo_url) {
   doc.setFillColor(...GREEN_DARK)
   doc.rect(margin, headerBottom, pageWidth - margin * 2, 3, 'F')
 
-  // === SEÇÃO CLIENTE ===
+  // === SEÇÃO CLIENTE (dados cadastrais) ===
   let y = headerBottom + 10
 
-  // Barra verde "CLIENTE"
+  // Barra verde "DADOS DO COMPRADOR"
   doc.setFillColor(...GREEN_MID)
   doc.rect(margin, y, pageWidth - margin * 2, 8, 'F')
   doc.setTextColor(...WHITE)
@@ -227,86 +240,164 @@ if (organizacao?.logo_url) {
 
   y += 12
 
-  // Fundo verde claro para dados do cliente
+  // Identificar cliente (contato ou lead)
   const cliente = orcamento.contato ? {
+    tipo: 'contato' as const,
     nome: orcamento.contato.nome,
+    cpf_cnpj: orcamento.contato.cpf_cnpj,
     telefone: orcamento.contato.telefone,
     email: orcamento.contato.email,
-    endereco: undefined,
-    cpf_cnpj: undefined
+    // Endereço completo do contato
+    logradouro: orcamento.contato.endereco,
+    numero: orcamento.contato.endereco_numero,
+    complemento: orcamento.contato.endereco_complemento,
+    bairro: orcamento.contato.endereco_bairro,
+    cidade: orcamento.contato.endereco_cidade,
+    estado: orcamento.contato.endereco_estado,
+    cep: orcamento.contato.endereco_cep,
   } : orcamento.lead ? {
+    tipo: 'lead' as const,
     nome: orcamento.lead.nome,
+    cpf_cnpj: orcamento.lead.cpf_cnpj,
     telefone: orcamento.lead.telefone,
     email: orcamento.lead.email,
-    endereco: orcamento.lead.endereco,
-    cpf_cnpj: orcamento.lead.cpf_cnpj
+    // Endereço simples do lead (logradouro único)
+    logradouro: orcamento.lead.endereco,
+    numero: null,
+    complemento: null,
+    bairro: null,
+    cidade: null,
+    estado: null,
+    cep: null,
   } : null
 
   const nomeCliente = cliente?.nome || 'Não informado'
 
-  // Calcular altura do bloco baseado nos dados disponíveis
+  // Montar endereço completo do cliente (para exibir no bloco de dados)
+  function montarEnderecoCliente(): string | null {
+    if (!cliente) return null
+    if (cliente.tipo === 'contato') {
+      // Contato tem endereço estruturado
+      const partes: string[] = []
+      if (cliente.logradouro) partes.push(cliente.logradouro)
+      if (cliente.numero) partes.push(cliente.numero)
+      if (cliente.complemento) partes.push(cliente.complemento)
+      if (cliente.bairro) partes.push(cliente.bairro)
+      if (cliente.cidade || cliente.estado || cliente.cep) {
+        const cidadeUFCEP: string[] = []
+        if (cliente.cidade) cidadeUFCEP.push(cliente.cidade)
+        if (cliente.estado) cidadeUFCEP.push(cliente.estado)
+        if (cliente.cep) cidadeUFCEP.push(cliente.cep)
+        if (cidadeUFCEP.length > 0) partes.push(cidadeUFCEP.join(' - '))
+      }
+      return partes.length > 0 ? partes.join(', ') : null
+    } else {
+      // Lead tem endereço simples
+      return cliente.logradouro || null
+    }
+  }
+
+  const enderecoCliente = montarEnderecoCliente()
+
+  // Calcular altura do bloco de dados do comprador
   let clienteLines = 1 // nome sempre presente
   if (cliente?.cpf_cnpj) clienteLines++
-  if (cliente?.endereco) clienteLines++
+  if (enderecoCliente) clienteLines++
   if (cliente?.telefone) clienteLines++
-  const clienteHeight = 6 + clienteLines * 6
+  if (cliente?.email) clienteLines++
+  const clienteHeight = 6 + clienteLines * 5.5
 
+  // Fundo verde claro para dados do cliente
   doc.setFillColor(...GREEN_LIGHT)
   doc.rect(margin, y - 4, pageWidth - margin * 2, clienteHeight, 'F')
 
   let cy = y + 1
-  // Cliente:
+
+  // Nome/Razão Social
   doc.setTextColor(...DARK_TEXT)
   doc.setFontSize(8.5)
   doc.setFont(undefined!, 'bold')
   doc.text('Cliente:', margin + 4, cy)
   doc.setFont(undefined!, 'normal')
   doc.text(nomeCliente.trim(), margin + 28, cy)
-  cy += 6
+  cy += 5.5
 
-  // CPF/CNPJ:
+  // CPF/CNPJ
   if (cliente?.cpf_cnpj) {
     doc.setFont(undefined!, 'bold')
-    doc.text('CPF/CNPJ:', margin + 4, cy)
+    doc.text('CNPJ/CPF:', margin + 4, cy)
     doc.setFont(undefined!, 'normal')
     doc.text(cliente.cpf_cnpj.trim(), margin + 28, cy)
-    cy += 6
+    cy += 5.5
   }
 
-  // Endereço do cliente:
-  if (cliente?.endereco) {
+  // Endereço cadastral completo
+  if (enderecoCliente) {
     doc.setFont(undefined!, 'bold')
     doc.text('Endereço:', margin + 4, cy)
     doc.setFont(undefined!, 'normal')
-    doc.text(cliente.endereco.trim(), margin + 28, cy)
-    cy += 6
+    const linhasEnd = doc.splitTextToSize(enderecoCliente.trim(), pageWidth - margin * 2 - 32)
+    doc.text(linhasEnd, margin + 28, cy)
+    cy += linhasEnd.length * 5
   }
 
-  // Telefone:
+  // Telefone
   if (cliente?.telefone) {
     doc.setFont(undefined!, 'bold')
     doc.text('Telefone:', margin + 4, cy)
     doc.setFont(undefined!, 'normal')
     doc.text(cliente.telefone.trim(), margin + 28, cy)
-    cy += 6
+    cy += 5.5
+  }
+
+  // E-mail
+  if (cliente?.email) {
+    doc.setFont(undefined!, 'bold')
+    doc.text('E-mail:', margin + 4, cy)
+    doc.setFont(undefined!, 'normal')
+    doc.text(cliente.email.trim(), margin + 28, cy)
+    cy += 5.5
   }
 
   y += clienteHeight + 6
 
-  // === ENDEREÇO DE ENTREGA ===
-  const enderecoEntrega = orcamento.endereco_entrega || cliente?.endereco || 'Endereço não informado'
-  const enderecoEntregaHeight = enderecoEntrega === 'Endereço não informado' ? 20 : 26
+  // === ENDEREÇO DE ENTREGA (bloco separado) ===
+  const temEntrega = orcamento.endereco_entrega && orcamento.endereco_entrega.trim().length > 0
 
+  // Calcular altura do bloco de entrega
+  let entregaLines = 1
+  if (temEntrega) {
+    // Quebrar endereço em múltiplas linhas se necessário
+    const linhasEntrega = doc.splitTextToSize(orcamento.endereco_entrega!, pageWidth - margin * 2 - 34)
+    entregaLines = linhasEntrega.length
+  }
+  const entregaHeight = 10 + entregaLines * 5
+
+  // Barra de fundo para endereço de entrega
   doc.setFillColor(...GREEN_LIGHT)
-  doc.rect(margin, y - 4, pageWidth - margin * 2, enderecoEntregaHeight, 'F')
+  doc.rect(margin, y - 4, pageWidth - margin * 2, entregaHeight, 'F')
+
+  // Barra lateral verde para título
+  doc.setFillColor(...GREEN_DARK)
+  doc.rect(margin, y - 4, 3, entregaHeight, 'F')
+
+  // Título
   doc.setFontSize(8.5)
   doc.setFont(undefined!, 'bold')
   doc.setTextColor(...GREEN_DARK)
-  doc.text('ENDEREÇO DE ENTREGA:', margin + 4, y + 2)
+  doc.text('ENDEREÇO DE ENTREGA', margin + 6, y + 2)
+
+  // Conteúdo do endereço
   doc.setFont(undefined!, 'normal')
   doc.setTextColor(...DARK_TEXT)
-  doc.text(enderecoEntrega, margin + 28, y + 7)
-  y += enderecoEntregaHeight + 6
+  if (temEntrega) {
+    const linhasEntrega = doc.splitTextToSize(orcamento.endereco_entrega!, pageWidth - margin * 2 - 34)
+    doc.text(linhasEntrega, margin + 6, y + 7)
+  } else {
+    doc.text('Mesmo endereço do comprador', margin + 6, y + 7)
+  }
+
+  y += entregaHeight + 6
 
   // === FORNECEDOR ===
   if (orcamento.fornecedor) {
