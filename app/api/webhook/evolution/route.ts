@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { distribuirLead } from '@/lib/distribuicao'
 import { criarDealParaLead } from '@/lib/pipeline-lead'
 import { baixarMidia } from '@/lib/evolution'
+import { resolverNomeConversa } from '@/lib/whatsapp/resolver-nome-conversa'
 
 function normalizarTelefone(jid: string): string {
   return jid.replace(/@.*$/, '').replace(/:\d+$/, '')
@@ -153,13 +154,27 @@ export async function POST(req: NextRequest) {
 
     // Se a conversa existe mas está vinculada a outra instância, atualizar para a instância atual
     if (conversaAtual && conversaAtual.whatsapp_instance_id !== instancia.id) {
+      // Resolver nome oficial: manual > contact > lead > pushname > phone
+      const nome = await resolverNomeConversa({
+        orgId: instancia.organization_id,
+        telefone,
+        leadId: conversaAtual.lead_id ?? null,
+        pushName,
+        conversationId: conversaAtual.id,
+      })
+      // So atualiza nome_contato se NAO for manual (manual NAO pode ser sobrescrito)
+      const updatePayload: Record<string, unknown> = {
+        whatsapp_instance_id: instancia.id,
+        atualizado_em: new Date().toISOString(),
+        whatsapp_push_name: pushName,
+      }
+      if (nome.source !== 'manual') {
+        updatePayload.nome_contato = nome.display
+        updatePayload.name_source = nome.source
+      }
       await supabase
         .from('conversations')
-        .update({
-          whatsapp_instance_id: instancia.id,
-          atualizado_em: new Date().toISOString(),
-          whatsapp_push_name: pushName
-        })
+        .update(updatePayload)
         .eq('id', conversaAtual.id)
     }
 
@@ -168,6 +183,13 @@ export async function POST(req: NextRequest) {
     if (!conversaAtual) {
       if (fromMe) {
         // Mensagem enviada pelo vendedor (prospecção) — NÃO criar lead nem card
+        // Resolver nome oficial: manual > contact > lead > pushname > phone
+        const nomeProspeccao = await resolverNomeConversa({
+          orgId: instancia.organization_id,
+          telefone,
+          leadId: null,
+          pushName,
+        })
         const { data: novaConversa, error: errNovaConversa } = await supabase
           .from('conversations')
           .insert({
@@ -177,7 +199,9 @@ export async function POST(req: NextRequest) {
             ultima_mensagem_em: enviadoEm,
             status: 'aguardando_resposta',
             responsavel_id: instancia.vendedor_id ?? null,
-            whatsapp_push_name: pushName
+            whatsapp_push_name: pushName,
+            nome_contato: nomeProspeccao.display,
+            name_source: nomeProspeccao.source,
           })
           .select('id, lead_id, status, responsavel_id, whatsapp_instance_id')
           .single()
@@ -280,6 +304,13 @@ export async function POST(req: NextRequest) {
         }
 
         // Criar conversa para mensagem recebida
+        // Resolver nome oficial: manual > contact > lead > pushname > phone
+        const nomeCliente = await resolverNomeConversa({
+          orgId: instancia.organization_id,
+          telefone,
+          leadId,
+          pushName,
+        })
         const { data: novaConversa, error: errNovaConversa } = await supabase
           .from('conversations')
           .insert({
@@ -290,7 +321,9 @@ export async function POST(req: NextRequest) {
             ultima_mensagem_em: enviadoEm,
             status: 'nao_atendida',
             responsavel_id: instancia.vendedor_id ?? null,
-            whatsapp_push_name: pushName
+            whatsapp_push_name: pushName,
+            nome_contato: nomeCliente.display,
+            name_source: nomeCliente.source,
           })
           .select('id, lead_id, status, responsavel_id, whatsapp_instance_id')
           .single()
@@ -448,9 +481,24 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Atualizar pushName se vierdo WhatsApp e não foi editado manualmente
+      // Atualizar pushName + nome_contato se vindo do WhatsApp
       if (!fromMe && pushName && pushName.trim()) {
         updateData.whatsapp_push_name = pushName.trim()
+      }
+
+      // Resolver nome oficial: manual > contact > lead > pushname > phone
+      // A funcao ja respeita is_name_manually_edited (retorna source='manual' se for o caso)
+      const nomeFinal = await resolverNomeConversa({
+        orgId: instancia.organization_id,
+        telefone,
+        leadId,
+        pushName,
+        conversationId: conversaAtual.id,
+      })
+      // So atualiza se NAO for manual (manual NAO pode ser sobrescrito)
+      if (nomeFinal.source !== 'manual') {
+        updateData.nome_contato = nomeFinal.display
+        updateData.name_source = nomeFinal.source
       }
 
       await supabase

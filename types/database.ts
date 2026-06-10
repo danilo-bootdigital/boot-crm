@@ -170,6 +170,8 @@ export type Task = {
   lead_id: string | null
   contato_id: string | null
   deal_id: string | null
+  // Migration 045: vinculo opcional com conversa de origem
+  conversation_id: string | null
   criado_em: string
   atualizado_em: string
 }
@@ -212,6 +214,13 @@ export type Conversation = {
   status: ConversaStatus
   responsavel_id: string | null
   ultima_mensagem_em: string | null
+  // Migration 045: Central de Atendimento WhatsApp
+  nao_lidas: number
+  arquivada_em: string | null
+  nome_contato: string | null
+  name_source: string | null
+  whatsapp_push_name: string | null
+  is_name_manually_edited: boolean
   criado_em: string
   atualizado_em: string
 }
@@ -417,4 +426,51 @@ export type QuoteToken = {
   criado_em: string
   expira_em: string
   usado_em: string | null
+}
+
+// ============================================================
+// Sub-fase 2.1: tipos auxiliares para a Central de Atendimento
+// WhatsApp. NAO espelham schema - sao compostos para UI.
+// ============================================================
+
+/**
+ * KPIs do WhatsApp exibidos nos 5 cards clicaveis do header.
+ * Espelha o retorno de lib/queries/kpis-whatsapp.ts.
+ */
+export type KPIWhatsApp = {
+  abertas: number
+  naoLidas: number
+  emAtendimento: number
+  aguardandoCliente: number
+  finalizadasHoje: number
+}
+
+/**
+ * Totais agregados do cliente para o painel lateral.
+ * Espelha o retorno de lib/queries/totais-cliente.ts.
+ */
+export type TotaisCliente = {
+  totalCompras: number
+  totalPedidos: number
+  totalOrcamentos: number
+  totalOrcamentosValor: number
+  totalEmAberto: number
+}
+
+/**
+ * Filtros aceitos pela query de conversas e pela URL.
+ * Todos os campos sao opcionais; combinacoes sao permitidas.
+ * Espelha o parametro de lib/queries/conversas.ts.
+ */
+export type FiltrosConversa = {
+  busca?: string
+  status?: ConversaStatus | null
+  responsavelId?: string | null
+  tagIds?: string[]
+  instanciaId?: string | null
+  somenteNaoLidas?: boolean
+  semResponsavel?: boolean
+  comLead?: boolean | null
+  comContato?: boolean | null
+  arquivada?: boolean
 }
