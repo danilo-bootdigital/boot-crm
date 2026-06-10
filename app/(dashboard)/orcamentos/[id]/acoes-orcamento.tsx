@@ -4,8 +4,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { CheckCircle, ShoppingCart, ExternalLink } from 'lucide-react'
-import { aprovarOrcamento, transformarEmPedido } from '../actions'
+import { CheckCircle, ShoppingCart, ExternalLink, Send } from 'lucide-react'
+import { enviarAoCliente, aprovarOrcamento, transformarEmPedido } from '../actions'
 import type { QuoteStatus } from '@/types/database'
 import Link from 'next/link'
 
@@ -20,8 +20,24 @@ export function AcoesOrcamento({ orcamentoId, status, pedidoExistente }: Props) 
   const [isPending, setIsPending] = useState(false)
   const [acao, setAcao] = useState<string | null>(null)
 
+  const podeEnviarAoCliente = status === 'rascunho'
   const podeAprovarCliente = status === 'enviado_ao_cliente' || status === 'aprovado_internamente'
   const podeConverter = status === 'aprovado_pelo_cliente' && !pedidoExistente
+
+  const handleEnviarAoCliente = async () => {
+    setIsPending(true)
+    setAcao('enviar')
+    try {
+      await enviarAoCliente(orcamentoId)
+      toast.success('Orçamento enviado ao cliente!')
+      router.refresh()
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao enviar orçamento')
+    } finally {
+      setIsPending(false)
+      setAcao(null)
+    }
+  }
 
   const handleAprovarCliente = async () => {
     setIsPending(true)
@@ -67,6 +83,18 @@ export function AcoesOrcamento({ orcamentoId, status, pedidoExistente }: Props) 
 
   return (
     <>
+      {podeEnviarAoCliente && (
+        <Button
+          variant="default"
+          size="sm"
+          className="gap-1.5 bg-blue-600 hover:bg-blue-700"
+          onClick={handleEnviarAoCliente}
+          disabled={isPending}
+        >
+          <Send className="h-4 w-4" />
+          {isPending && acao === 'enviar' ? 'Enviando...' : 'Enviar ao Cliente'}
+        </Button>
+      )}
       {podeAprovarCliente && (
         <Button
           variant="default"

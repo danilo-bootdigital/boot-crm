@@ -321,7 +321,8 @@ export async function rejeitarInterno(orcamentoId: string, comentario: string) {
 }
 
 export async function enviarAoCliente(orcamentoId: string) {
-  await alterarStatus(orcamentoId, 'enviado_ao_cliente', ['aprovado_internamente'])
+  // Permite enviar ao cliente a partir de rascunho ou após aprovação interna
+  await alterarStatus(orcamentoId, 'enviado_ao_cliente', ['rascunho', 'aprovado_internamente'])
 }
 
 export async function aprovarOrcamento(orcamentoId: string) {
