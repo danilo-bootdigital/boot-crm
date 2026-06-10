@@ -76,7 +76,7 @@ BEGIN
   -- 8. LOCK no orçamento para evitar race condition
   PERFORM 1 FROM quotes WHERE id = p_quote_id FOR UPDATE;
 
-  -- 9. Inserir pedido
+  -- 9. Inserir pedido com RETURNING
   INSERT INTO orders (
     organization_id, quote_id, lead_id, contato_id, deal_id,
     responsavel_id, supplier_id, carrier_id, status,
@@ -101,13 +101,10 @@ BEGIN
     endereco_entrega,
     forma_pagamento
   FROM quotes
-  WHERE id = p_quote_id;
+  WHERE id = p_quote_id
+  RETURNING id, numero INTO v_order_id, v_order_numero;
 
-  -- 10. Obter ID e número do pedido criado
-  v_order_id := currval('orders_id_seq');
-  SELECT numero INTO v_order_numero FROM orders WHERE id = v_order_id;
-
-  -- 11. Copiar itens do orçamento
+  -- 10. Copiar itens do orçamento
   INSERT INTO order_items (order_id, product_id, descricao, quantidade, preco_unitario, desconto_item, subtotal)
   SELECT
     v_order_id,
@@ -147,7 +144,6 @@ BEGIN
   -- 14. Atualizar orçamento com data de aprovação
   UPDATE quotes
   SET
-    cliente_aprovado_em = COALESCE(cliente_aprovado_em, now()),
     aprovado_cliente_em = COALESCE(aprovado_cliente_em, now()),
     aprovado_cliente_por = COALESCE(aprovado_cliente_por, v_user_id),
     atualizado_em = now()
