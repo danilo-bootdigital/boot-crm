@@ -59,30 +59,38 @@ export function ListaItensInbox({ mensagens, tarefas, atividades }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+      {/* Tabs */}
+      <div className="flex gap-1 rounded-xl bg-slate-100/80 p-1.5">
         {tabs.map((t) => (
-          <Button
+          <button
             key={t.valor}
-            variant={tab === t.valor ? 'default' : 'ghost'}
-            size="sm"
-            className="flex-1 gap-1.5 text-xs"
             onClick={() => setTab(t.valor)}
+            className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${
+              tab === t.valor
+                ? 'bg-white text-slate-800 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+            }`}
           >
             {t.label}
             {t.contagem > 0 && (
-              <span className={`rounded-full px-1.5 py-0.5 text-[12px] font-bold ${
-                tab === t.valor ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
+              <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                tab === t.valor
+                  ? 'bg-emerald-100 text-emerald-700'
+                  : 'bg-slate-200 text-slate-600'
               }`}>
                 {t.contagem}
               </span>
             )}
-          </Button>
+          </button>
         ))}
       </div>
 
       {!temItens && (
         <div className="py-12 text-center">
-          <p className="text-sm text-slate-400">Nenhum item pendente. Tudo em dia! 🎉</p>
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-slate-100">
+            <span className="text-2xl">🎉</span>
+          </div>
+          <p className="text-sm text-slate-500">Nenhum item pendente. Tudo em dia!</p>
         </div>
       )}
 

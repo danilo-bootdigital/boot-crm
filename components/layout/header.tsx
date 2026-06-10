@@ -39,15 +39,18 @@ export async function Header({ logoUrl }: { logoUrl?: string | null }) {
             <BadgePerfil perfil={profile.cargo as UserRole} />
           </span>
         )}
-        <div className="flex items-center gap-2 md:gap-3">
-          <Avatar className="h-8 w-8">
-            <AvatarFallback className="bg-slate-200 text-slate-700 text-xs">
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:block text-right">
+            <p className="text-sm font-medium text-slate-700 leading-tight">
+              {profile?.nome ?? user?.email}
+            </p>
+            <p className="text-xs text-slate-400">Online</p>
+          </div>
+          <Avatar className="h-9 w-9 border-2 border-slate-100">
+            <AvatarFallback className="bg-emerald-100 text-emerald-700 text-sm font-semibold">
               {iniciais}
             </AvatarFallback>
           </Avatar>
-          <span className="hidden sm:block text-sm font-medium text-slate-700">
-            {profile?.nome ?? user?.email}
-          </span>
         </div>
         <BotaoSair />
       </div>

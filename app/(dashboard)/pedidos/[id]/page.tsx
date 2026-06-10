@@ -1,12 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { BadgeStatusPedido } from '@/components/pedidos/badge-status-pedido'
 import { TimelineStatus } from '@/components/pedidos/timeline-status'
 import { BotoesPedido } from '@/components/pedidos/botoes-pedido'
+import { User, Building2, Truck, MapPin, Calendar, FileText, Package, CreditCard } from 'lucide-react'
 
 export default async function PedidoDetalhePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -22,6 +22,7 @@ export default async function PedidoDetalhePage({ params }: { params: Promise<{ 
 
   if (!perfil) redirect('/login')
 
+  // NÃO ALTERAR QUERY - Apenas visual premium
   const { data: pedido } = await supabase
     .from('orders')
     .select(`
@@ -39,7 +40,7 @@ export default async function PedidoDetalhePage({ params }: { params: Promise<{ 
 
   if (!pedido) notFound()
 
-  // Fallback: buscar contato via orçamento se não está direto no pedido
+  // Fallback: buscar contato via orçamento - NÃO ALTERAR LÓGICA
   let contatoFallback: { id: string; nome: string; telefone: string | null; email: string | null } | null = null
   const contatoDireto = Array.isArray(pedido.contato) ? pedido.contato[0] : pedido.contato
   const leadDireto = Array.isArray(pedido.lead) ? pedido.lead[0] : pedido.lead
@@ -84,21 +85,53 @@ export default async function PedidoDetalhePage({ params }: { params: Promise<{ 
   const contato = Array.isArray(pedido.contato) ? pedido.contato[0] : pedido.contato
   const cliente = contato || lead || contatoFallback
 
+  // Dados do cliente para header
+  const nomeCliente = cliente?.nome ?? 'Cliente não vinculado'
+  const telefoneCliente = cliente?.telefone
+  const emailCliente = cliente?.email
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Link href="/pedidos">
-          <Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
-        </Link>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-slate-900">Pedido #{pedido.numero}</h1>
+    <div className="space-y-5">
+      {/* Header Premium */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+        {/* Left: Back + Title */}
+        <div className="space-y-1">
+          <Link href="/pedidos" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-emerald-600 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            Voltar para Pedidos
+          </Link>
+
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-xl font-bold text-slate-900">
+              Pedido #{pedido.numero}
+            </h1>
             <BadgeStatusPedido status={pedido.status} />
           </div>
-          <p className="mt-1 text-sm text-slate-500">
-            Criado em {new Date(pedido.criado_em).toLocaleDateString('pt-BR')} · Responsável: {responsavel?.nome ?? '—'}
-          </p>
+
+          {/* Cliente Info Row */}
+          {cliente && (
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-semibold text-emerald-700">
+                {nomeCliente.charAt(0).toUpperCase()}
+              </div>
+              <span className="font-medium text-slate-700">{nomeCliente}</span>
+              {emailCliente && (
+                <>
+                  <span className="text-slate-300">•</span>
+                  <span>{emailCliente}</span>
+                </>
+              )}
+              {telefoneCliente && (
+                <>
+                  <span className="text-slate-300">•</span>
+                  <span>{telefoneCliente}</span>
+                </>
+              )}
+            </div>
+          )}
         </div>
+
+        {/* Right: Actions - NÃO ALTERAR FUNCIONALIDADE */}
         <BotoesPedido
           pedidoId={id}
           status={pedido.status}
@@ -116,76 +149,223 @@ export default async function PedidoDetalhePage({ params }: { params: Promise<{ 
         />
       </div>
 
-      <TimelineStatus statusAtual={pedido.status} />
+      {/* Timeline de Status - Premium */}
+      <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm">
+        <TimelineStatus statusAtual={pedido.status} />
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          {/* Itens */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Itens do Pedido</CardTitle>
+      {/* Info Cards Row - Dados rápidos */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Valor Total */}
+        <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50">
+              <span className="text-base font-bold text-emerald-600">R$</span>
+            </div>
+            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Valor Total</span>
+          </div>
+          <p className="text-xl font-bold text-slate-900">
+            {Number(pedido.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 })}
+          </p>
+        </div>
+
+        {/* Data de Criação */}
+        <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
+              <Calendar className="h-4 w-4 text-blue-600" />
+            </div>
+            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Criado em</span>
+          </div>
+          <p className="text-base font-semibold text-slate-700">
+            {new Date(pedido.criado_em).toLocaleDateString('pt-BR')}
+          </p>
+        </div>
+
+        {/* Responsável */}
+        <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-50">
+              <User className="h-4 w-4 text-purple-600" />
+            </div>
+            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Responsável</span>
+          </div>
+          <p className="text-base font-semibold text-slate-700 truncate">
+            {responsavel?.nome ?? '—'}
+          </p>
+        </div>
+
+        {/* Forma de Pagamento */}
+        <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50">
+              <CreditCard className="h-4 w-4 text-amber-600" />
+            </div>
+            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Pagamento</span>
+          </div>
+          <p className="text-base font-semibold text-slate-700 truncate">
+            {pedido.forma_pagamento ?? '—'}
+          </p>
+        </div>
+      </div>
+
+      {/* Main Content - Grid Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Coluna Principal - Itens + Histórico */}
+        <div className="lg:col-span-2 space-y-5">
+          {/* Itens do Pedido - Tabela Premium */}
+          <Card className="overflow-hidden">
+            <CardHeader className="pb-3 bg-slate-50/50">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100">
+                  <Package className="h-4 w-4 text-emerald-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-sm font-semibold text-slate-700">Itens do Pedido</CardTitle>
+                  <p className="text-xs text-slate-500 mt-0.5">{itens?.length ?? 0} item(s)</p>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-left text-xs text-slate-500">
-                      <th className="pb-2 pr-3">Descrição</th>
-                      <th className="pb-2 pr-3 text-right">Qtd</th>
-                      <th className="pb-2 pr-3 text-right">Preço Unit.</th>
-                      <th className="pb-2 pr-3 text-right">Desc.</th>
-                      <th className="pb-2 text-right">Subtotal</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(itens ?? []).map((item) => (
-                      <tr key={item.id} className="border-b last:border-0">
-                        <td className="py-2 pr-3 text-slate-700">{item.descricao}</td>
-                        <td className="py-2 pr-3 text-right text-slate-600">{Number(item.quantidade)}</td>
-                        <td className="py-2 pr-3 text-right text-slate-600">
-                          {Number(item.preco_unitario).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </td>
-                        <td className="py-2 pr-3 text-right text-slate-500">{Number(item.desconto_item)}%</td>
-                        <td className="py-2 text-right font-medium text-slate-800">
-                          {Number(item.subtotal).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </td>
+            <CardContent className="p-0">
+              {itens && itens.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-white">
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide w-12">#</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Descrição</th>
+                        <th className="px-5 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide w-20">Qtd</th>
+                        <th className="px-5 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide w-32">Preço Unit.</th>
+                        <th className="px-5 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide w-20">Desc.</th>
+                        <th className="px-5 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide w-32">Subtotal</th>
                       </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t">
-                      <td colSpan={4} className="pt-3 text-right text-sm font-medium text-slate-600">Total:</td>
-                      <td className="pt-3 text-right text-base font-bold text-slate-900">
-                        {Number(pedido.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
+                    </thead>
+                    <tbody>
+                      {itens.map((item, index) => (
+                        <tr key={item.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors">
+                          <td className="px-5 py-3.5 text-slate-400 text-xs">{index + 1}</td>
+                          <td className="px-5 py-3.5">
+                            <p className="font-medium text-slate-800">{item.descricao}</p>
+                          </td>
+                          <td className="px-5 py-3.5 text-center text-slate-600">{Number(item.quantidade)}</td>
+                          <td className="px-5 py-3.5 text-right text-slate-600">
+                            {Number(item.preco_unitario).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          </td>
+                          <td className="px-5 py-3.5 text-center">
+                            {Number(item.desconto_item) > 0 ? (
+                              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                                {Number(item.desconto_item)}%
+                              </span>
+                            ) : (
+                              <span className="text-slate-300 text-xs">—</span>
+                            )}
+                          </td>
+                          <td className="px-5 py-3.5 text-right">
+                            <span className="font-semibold text-slate-800">
+                              {Number(item.subtotal).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="py-8 text-center">
+                  <p className="text-sm text-slate-400">Nenhum item encontrado neste pedido</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Resumo Financeiro - Card com destaque */}
+          <Card className="overflow-hidden border-2 border-emerald-100">
+            <CardHeader className="pb-3 bg-emerald-50/30">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100">
+                  <FileText className="h-4 w-4 text-emerald-600" />
+                </div>
+                <CardTitle className="text-sm font-semibold text-slate-700">Resumo Financeiro</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <div className="flex flex-col sm:flex-row gap-6">
+                {/* Coluna esquerda: detalhamento */}
+                <div className="flex-1 space-y-3">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-500">Subtotal</span>
+                    <span className="font-medium text-slate-700">
+                      {Number(pedido.valor_total + (pedido.desconto_geral * pedido.valor_total / 100) - Number(pedido.frete)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </span>
+                  </div>
+
+                  {Number(pedido.desconto_geral) > 0 && (
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-500">Desconto ({pedido.desconto_geral}%)</span>
+                      <span className="font-medium text-red-600">
+                        -{Number(pedido.valor_total * pedido.desconto_geral / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-500">Frete</span>
+                    <span className={Number(pedido.frete) > 0 ? 'font-medium text-slate-700' : 'text-slate-400'}>
+                      {Number(pedido.frete) > 0 ? Number(pedido.frete).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Separador */}
+                <div className="hidden sm:block w-px bg-slate-200" />
+
+                {/* Coluna direita: total */}
+                <div className="sm:w-48 flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2">
+                  <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Valor Total</span>
+                  <span className="text-2xl font-bold text-emerald-600">
+                    {Number(pedido.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </span>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Histórico */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Histórico de Status</CardTitle>
+          {/* Histórico de Status */}
+          <Card className="overflow-hidden">
+            <CardHeader className="pb-3 bg-slate-50/50">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200">
+                  <FileText className="h-4 w-4 text-slate-600" />
+                </div>
+                <CardTitle className="text-sm font-semibold text-slate-700">Histórico de Status</CardTitle>
+              </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               {(!historico || historico.length === 0) ? (
-                <p className="text-sm text-slate-400">Nenhum registro.</p>
+                <p className="text-sm text-slate-400 italic">Nenhum registro.</p>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {historico.map((h) => {
                     const autor = Array.isArray(h.autor) ? h.autor[0] : h.autor
                     return (
-                      <div key={h.id} className="flex items-start gap-3 text-sm">
-                        <div className="mt-1 h-2 w-2 rounded-full bg-slate-300 shrink-0" />
-                        <div>
-                          <p className="text-slate-700">
-                            {h.status_anterior ? `${h.status_anterior} → ` : ''}<span className="font-medium">{h.status_novo}</span>
+                      <div key={h.id} className="flex items-start gap-4">
+                        <div className="flex flex-col items-center">
+                          <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 shrink-0 mt-1.5" />
+                          {historico.indexOf(h) < historico.length - 1 && (
+                            <div className="w-px h-8 bg-slate-200 mt-2" />
+                          )}
+                        </div>
+                        <div className="flex-1 pb-4">
+                          <p className="text-sm text-slate-700">
+                            {h.status_anterior && (
+                              <span className="text-slate-500">{h.status_anterior} → </span>
+                            )}
+                            <span className="font-medium text-slate-800">{h.status_novo}</span>
                           </p>
-                          {h.observacao && <p className="text-xs text-slate-500 mt-0.5">{h.observacao}</p>}
-                          <p className="text-xs text-slate-400 mt-0.5">
+                          {h.observacao && (
+                            <p className="text-xs text-slate-500 mt-1 bg-slate-50 px-2 py-1 rounded">{h.observacao}</p>
+                          )}
+                          <p className="text-xs text-slate-400 mt-1">
                             {autor?.nome ?? 'Sistema'} · {new Date(h.criado_em).toLocaleString('pt-BR')}
                           </p>
                         </div>
@@ -198,65 +378,104 @@ export default async function PedidoDetalhePage({ params }: { params: Promise<{ 
           </Card>
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Cliente</CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm space-y-1">
-              {cliente ? (
-                <>
-                  <p className="font-medium text-slate-800">{cliente.nome}</p>
-                  {cliente.telefone && <p className="text-slate-500">{cliente.telefone}</p>}
-                  {cliente.email && <p className="text-slate-500">{cliente.email}</p>}
-                </>
-              ) : (
-                <p className="text-slate-400">Sem cliente vinculado</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Detalhes</CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm space-y-2">
-              {pedido.forma_pagamento && (
-                <div><span className="text-slate-500">Pagamento:</span> <span className="text-slate-700">{pedido.forma_pagamento}</span></div>
-              )}
-              {pedido.endereco_entrega && (
-                <div><span className="text-slate-500">Entrega:</span> <span className="text-slate-700">{pedido.endereco_entrega}</span></div>
-              )}
-              {Number(pedido.frete) > 0 && (
-                <div><span className="text-slate-500">Frete:</span> <span className="text-slate-700">{Number(pedido.frete).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
-              )}
-              {Number(pedido.desconto_geral) > 0 && (
-                <div><span className="text-slate-500">Desconto:</span> <span className="text-slate-700">{Number(pedido.desconto_geral)}%</span></div>
-              )}
-              {pedido.observacoes && (
-                <div><span className="text-slate-500">Obs:</span> <span className="text-slate-700">{pedido.observacoes}</span></div>
-              )}
-              {pedido.motivo_cancelamento && (
-                <div className="rounded bg-red-50 p-2 border border-red-200">
-                  <span className="text-red-700 text-xs font-medium">Motivo cancelamento:</span>
-                  <p className="text-red-600 text-xs mt-0.5">{pedido.motivo_cancelamento}</p>
+        {/* Sidebar - Informações */}
+        <div className="space-y-4">
+          {/* Cliente */}
+          <Card className="overflow-hidden">
+            <CardHeader className="pb-3 bg-slate-50/50">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100">
+                  <User className="h-4 w-4 text-emerald-600" />
                 </div>
+                <CardTitle className="text-sm font-semibold text-slate-700">Cliente</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {cliente ? (
+                <div className="space-y-2">
+                  <p className="font-medium text-slate-800">{cliente.nome}</p>
+                  {cliente.telefone && <p className="text-sm text-slate-500">{cliente.telefone}</p>}
+                  {cliente.email && <p className="text-sm text-slate-500">{cliente.email}</p>}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-400 italic">Sem cliente vinculado</p>
               )}
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Orçamento Original</CardTitle>
+          {/* Endereço de Entrega */}
+          <Card className="overflow-hidden">
+            <CardHeader className="pb-3 bg-slate-50/50">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100">
+                  <MapPin className="h-4 w-4 text-blue-600" />
+                </div>
+                <CardTitle className="text-sm font-semibold text-slate-700">Endereço de Entrega</CardTitle>
+              </div>
             </CardHeader>
-            <CardContent>
-              <Link href={`/orcamentos/${pedido.quote_id}`} className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline">
-                <FileText className="h-4 w-4" />
-                Ver orçamento
-              </Link>
+            <CardContent className="pt-4">
+              {pedido.endereco_entrega ? (
+                <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{pedido.endereco_entrega}</p>
+              ) : (
+                <p className="text-sm text-slate-400 italic">Não informado</p>
+              )}
             </CardContent>
           </Card>
+
+          {/* Observações */}
+          {pedido.observacoes && (
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-3 bg-slate-50/50">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200">
+                    <FileText className="h-4 w-4 text-slate-600" />
+                  </div>
+                  <CardTitle className="text-sm font-semibold text-slate-700">Observações</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{pedido.observacoes}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Motivo Cancelamento */}
+          {pedido.motivo_cancelamento && (
+            <Card className="overflow-hidden border-red-200">
+              <CardHeader className="pb-3 bg-red-50/50">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-600"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                  </div>
+                  <CardTitle className="text-sm font-semibold text-red-700">Motivo Cancelamento</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <p className="text-sm text-red-600">{pedido.motivo_cancelamento}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Orçamento Original */}
+          {pedido.quote_id && (
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-3 bg-slate-50/50">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100">
+                    <FileText className="h-4 w-4 text-purple-600" />
+                  </div>
+                  <CardTitle className="text-sm font-semibold text-slate-700">Orçamento Original</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <Link href={`/orcamentos/${pedido.quote_id}`} className="inline-flex items-center gap-2 text-sm text-emerald-600 hover:text-emerald-700 font-medium transition-colors">
+                  <FileText className="h-4 w-4" />
+                  Ver orçamento
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                </Link>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
