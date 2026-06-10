@@ -585,3 +585,85 @@ export async function excluirPedido(orderId: string, senhaAdmin: string) {
   revalidatePath('/pedidos')
   redirect('/pedidos')
 }
+
+// Transições permitidas para correção de status
+const TRANSICOES_CORRECAO: Record<string, string[]> = {
+  pronto: ['em_producao'],
+  concluido: ['pronto', 'em_producao'],
+  em_producao: ['pendente'],
+}
+
+export async function corrigirStatusPedido(orderId: string, novoStatus: string, motivo: string) {
+  if (!motivo?.trim()) throw new Error('Motivo da correção é obrigatório.')
+
+  const { supabase, perfil } = await getUsuarioEOrg()
+
+  // Buscar pedido atual
+  const { data: pedido } = await supabase
+    .from('orders')
+    .select('id, status, lead_id, deal_id, numero, quote_id')
+    .eq('id', orderId)
+    .eq('organization_id', perfil.organization_id)
+    .single()
+
+  if (!pedido) throw new Error('Pedido não encontrado.')
+
+  // Bloquear status cancelado
+  if (pedido.status === 'cancelado') {
+    throw new Error('Não é possível corrigir status de um pedido cancelado.')
+  }
+
+  // Validar transição permitida
+  const transicoesPermitidas = TRANSICOES_CORRECAO[pedido.status as string]
+  if (!transicoesPermitidas || !transicoesPermitidas.includes(novoStatus)) {
+    throw new Error(`Transição de status não permitida: ${STATUS_LABELS[pedido.status] || pedido.status} → ${STATUS_LABELS[novoStatus] || novoStatus}`)
+  }
+
+  const agora = new Date().toISOString()
+
+  // Atualizar orders.status
+  const { error } = await supabase
+    .from('orders')
+    .update({
+      status: novoStatus as OrderStatus,
+      atualizado_em: agora,
+    })
+    .eq('id', orderId)
+    .eq('organization_id', perfil.organization_id)
+
+  if (error) throw new Error(`Erro ao corrigir status: ${error.message}`)
+
+  // Inserir order_status_history
+  await supabase.from('order_status_history').insert({
+    organization_id: perfil.organization_id,
+    order_id: orderId,
+    status_anterior: pedido.status,
+    status_novo: novoStatus,
+    observacao: motivo.trim(),
+    autor_id: perfil.id,
+  })
+
+  // Chamar registrarAuditoriaPedido se existir padrão no arquivo
+  await registrarAuditoriaPedido({
+    orderId,
+    quoteId: (pedido as any).quote_id,
+    usuarioId: perfil.id,
+    acao: 'ALTERACAO_STATUS',
+    camposAlterados: [
+      { campo: 'status', anterior: pedido.status, novo: novoStatus },
+    ],
+    motivo: motivo.trim(),
+  })
+
+  await supabase.from('activities').insert({
+    organization_id: perfil.organization_id,
+    tipo: 'pedido_status',
+    descricao: `Pedido #${pedido.numero} teve status corrigido para ${STATUS_LABELS[novoStatus] || novoStatus}. Motivo: ${motivo.trim()}`,
+    lead_id: pedido.lead_id || null,
+    deal_id: pedido.deal_id || null,
+    autor_id: perfil.id,
+  })
+
+  revalidatePath('/pedidos')
+  revalidatePath(`/pedidos/${orderId}`)
+}
