@@ -13,7 +13,7 @@ const ETAPAS = [
 export function TimelineStatus({ statusAtual }: { statusAtual: string }) {
   if (statusAtual === 'cancelado') {
     return (
-      <div className="flex items-center gap-2 rounded-md bg-red-50 border border-red-200 px-4 py-3">
+      <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
         <X className="h-5 w-5 text-red-500" />
         <span className="text-sm font-medium text-red-700">Pedido Cancelado</span>
       </div>
@@ -33,7 +33,7 @@ export function TimelineStatus({ statusAtual }: { statusAtual: string }) {
               <div
                 className={cn(
                   'flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors',
-                  concluida && 'border-green-500 bg-green-500 text-white',
+                  concluida && 'border-emerald-500 bg-emerald-500 text-white',
                   atual && 'border-blue-500 bg-blue-50 text-blue-600',
                   !concluida && !atual && 'border-slate-200 bg-white text-slate-300'
                 )}
@@ -43,7 +43,7 @@ export function TimelineStatus({ statusAtual }: { statusAtual: string }) {
               <span
                 className={cn(
                   'text-[11px] whitespace-nowrap',
-                  concluida && 'text-green-700 font-medium',
+                  concluida && 'text-emerald-700 font-medium',
                   atual && 'text-blue-700 font-semibold',
                   !concluida && !atual && 'text-slate-400'
                 )}
@@ -55,7 +55,7 @@ export function TimelineStatus({ statusAtual }: { statusAtual: string }) {
               <div
                 className={cn(
                   'h-0.5 w-6 mx-1 mt-[-16px]',
-                  i < indexAtual ? 'bg-green-500' : 'bg-slate-200'
+                  i < indexAtual ? 'bg-emerald-500' : 'bg-slate-200'
                 )}
               />
             )}
