@@ -88,31 +88,33 @@ export function KanbanCard({ deal, podeArrastar, onDoubleClick }: Props) {
       {...attributes}
       onDoubleClick={onDoubleClick}
       className={cn(
-        'select-none rounded-lg border bg-white p-3 shadow-sm transition-shadow',
-        podeArrastar && 'cursor-grab hover:shadow-md active:cursor-grabbing',
-        isDragging && 'opacity-40',
+        'select-none rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-sm transition-all duration-200',
+        podeArrastar && 'cursor-grab active:cursor-grabbing',
+        isDragging && 'opacity-40 shadow-md',
+        !isDragging && 'hover:shadow-md hover:border-slate-300/80'
       )}
     >
-      <div className="flex items-start gap-2">
+      {/* Header with Avatar and Name */}
+      <div className="flex items-start gap-2.5">
         {fotoUrl ? (
           <img
             src={fotoUrl}
             alt={nomeExibido}
-            className="h-8 w-8 shrink-0 rounded-full object-cover"
+            className="h-8 w-8 shrink-0 rounded-full object-cover ring-2 ring-slate-100"
           />
         ) : (
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-700">
             {inicial}
           </div>
         )}
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-slate-900">
+          <p className="truncate text-sm font-medium text-slate-800">
             {nomeExibido}
           </p>
 
           {telefone && (
-            <p className="flex items-center gap-1 text-xs text-slate-500">
+            <p className="flex items-center gap-1 text-xs text-slate-400 mt-0.5">
               <Phone className="h-3 w-3 shrink-0" />
               {telefone}
             </p>
@@ -120,8 +122,9 @@ export function KanbanCard({ deal, podeArrastar, onDoubleClick }: Props) {
         </div>
       </div>
 
+      {/* Last Message Preview */}
       {deal.ultima_mensagem && (
-        <div className="mt-2 flex items-start gap-1.5">
+        <div className="flex items-start gap-1.5 mt-2.5">
           <MessageSquare className="mt-0.5 h-3 w-3 shrink-0 text-slate-400" />
           <p className="line-clamp-2 text-xs text-slate-500">
             {deal.ultima_mensagem}
@@ -129,10 +132,11 @@ export function KanbanCard({ deal, podeArrastar, onDoubleClick }: Props) {
         </div>
       )}
 
-      <div className="mt-2 flex flex-wrap items-center gap-2">
+      {/* Metrics Row */}
+      <div className="flex items-center gap-3 mt-2.5">
         {deal.valor_estimado !== null && deal.valor_estimado > 0 && (
           <span className="flex items-center gap-1 text-xs font-medium text-slate-700">
-            <DollarSign className="h-3 w-3 shrink-0" />
+            <DollarSign className="h-3 w-3 shrink-0 text-emerald-500" />
             {deal.valor_estimado.toLocaleString('pt-BR', {
               style: 'currency',
               currency: 'BRL',
@@ -145,7 +149,7 @@ export function KanbanCard({ deal, podeArrastar, onDoubleClick }: Props) {
           <span className="flex items-center gap-1 text-xs text-slate-400">
             <Calendar className="h-3 w-3 shrink-0" />
             {formatDistanceToNow(new Date(deal.ultima_mensagem_em), {
-              addSuffix: true,
+              addSuffix: false,
               locale: ptBR,
             })}
           </span>
@@ -163,18 +167,13 @@ export function KanbanCard({ deal, podeArrastar, onDoubleClick }: Props) {
         )}
       </div>
 
-      {deal.lead?.origem && (
-        <div className="mt-2">
-          <BadgeOrigem origem={deal.lead.origem} />
-        </div>
-      )}
-
+      {/* Tags */}
       {tags.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-1 mt-2.5">
           {tags.map((tag) => (
             <span
               key={tag.id}
-              className="rounded-full px-2 py-0.5 text-[12px] font-medium text-white"
+              className="rounded-md px-1.5 py-0.5 text-[10px] font-medium text-white"
               style={{ backgroundColor: tag.cor }}
             >
               {tag.nome}
@@ -183,37 +182,31 @@ export function KanbanCard({ deal, podeArrastar, onDoubleClick }: Props) {
         </div>
       )}
 
-      {deal.responsavel && (
-        <div className="mt-2 flex items-center gap-1.5">
-          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[12px] font-semibold text-slate-600">
-            {deal.responsavel.nome.charAt(0).toUpperCase()}
+      {/* Footer Row */}
+      <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-100">
+        {deal.responsavel && (
+          <div className="flex items-center gap-1.5">
+            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-[10px] font-semibold text-slate-600">
+              {deal.responsavel.nome.charAt(0).toUpperCase()}
+            </div>
+            <span className="text-xs text-slate-500">
+              {deal.responsavel.nome.split(' ')[0]}
+            </span>
           </div>
+        )}
 
-          <span className="truncate text-xs text-slate-500">
-            {deal.responsavel.nome.split(' ')[0]}
-          </span>
-        </div>
-      )}
-
-      {deal.status_conversa && (
-        <div className="mt-2">
-          <StatusBadge status={deal.status_conversa} />
-        </div>
-      )}
-
-      {deal.conversa_id && (
-        <div className="mt-2">
+        {deal.conversa_id && (
           <Link
             href={`/whatsapp/${deal.conversa_id}`}
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
-            className="inline-flex items-center gap-1 rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 transition-colors hover:bg-green-100"
+            className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
           >
-            <MessageCircle className="h-3.5 w-3.5" />
+            <MessageCircle className="h-3 w-3" />
             WhatsApp
           </Link>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
@@ -222,19 +215,19 @@ function StatusBadge({ status }: { status: string }) {
   const config: Record<string, { label: string; className: string }> = {
     nao_atendida: {
       label: 'Não atendida',
-      className: 'bg-red-100 text-red-700',
+      className: 'bg-red-50 text-red-700',
     },
     em_atendimento: {
       label: 'Em atendimento',
-      className: 'bg-blue-100 text-blue-700',
+      className: 'bg-blue-50 text-blue-700',
     },
     aguardando_cliente: {
       label: 'Aguardando cliente',
-      className: 'bg-yellow-100 text-yellow-700',
+      className: 'bg-amber-50 text-amber-700',
     },
     finalizada: {
       label: 'Finalizada',
-      className: 'bg-green-100 text-green-700',
+      className: 'bg-emerald-50 text-emerald-700',
     },
   }
 
