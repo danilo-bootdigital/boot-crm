@@ -2,10 +2,11 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { ChevronLeft, FileDown, Edit, User, Building2, Truck, MapPin, Calendar } from 'lucide-react'
+import { ChevronLeft, Edit, User, Building2, Truck, MapPin, Calendar } from 'lucide-react'
 import { OrcamentoDetalhe } from '@/components/orcamentos/orcamento-detalhe'
 import { BadgeStatusOrcamento } from '@/components/orcamentos/badge-status-orcamento'
 import { AcoesOrcamento } from './acoes-orcamento'
+import { ExportarPdfButton } from '@/components/orcamentos/exportar-pdf-button'
 
 export default async function OrcamentoDetalhePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -101,14 +102,7 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
             status={orcamento.status}
             pedidoExistente={pedidoExistente}
           />
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 h-9"
-          >
-            <FileDown className="h-4 w-4" />
-            <span className="hidden sm:inline">Exportar PDF</span>
-          </Button>
+          <ExportarPdfButton orcamentoId={id} numero={orcamento.numero} />
           <Button
             variant="default"
             size="sm"
