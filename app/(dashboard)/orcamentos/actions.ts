@@ -388,9 +388,11 @@ export async function transformarEmPedido(orcamentoId: string, motivo?: string) 
   }
 
   // Chamar a RPC para conversão atômica
+  const { data: { user } } = await supabase.auth.getUser()
   const { data, error } = await supabase.rpc('convert_orcamento_to_pedido', {
     p_quote_id: orcamentoId,
-    p_motivo: motivo || null
+    p_motivo: motivo || null,
+    p_user_id: user?.id || null
   })
 
   if (error) {
