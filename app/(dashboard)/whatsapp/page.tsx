@@ -334,6 +334,18 @@ export default async function WhatsappPage() {
 
   const usuarios = (usuariosRaw ?? []) as { id: string; nome: string }[]
 
+  // Helper para formatar data no server (evita hydration mismatch)
+  function formatarDataServer(dataIso: string | null): string | null {
+    if (!dataIso) return null
+    return new Date(dataIso).toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'America/Sao_Paulo'
+    })
+  }
+
   // Transformar conversas para o formato esperado pelo componente
   const conversasFormatadas = await Promise.all((conversasRaw ?? []).map(async (conversa) => {
     // Se o nome já estiver salvo e não foi editado manualmente, usar o cache
@@ -344,6 +356,7 @@ export default async function WhatsappPage() {
         telefone: conversa.telefone_externo,
         ultima_mensagem: ultimasMensagens[conversa.id] || '',
         ultima_mensagem_em: conversa.ultima_mensagem_em,
+        ultima_mensagem_em_formatada: formatarDataServer(conversa.ultima_mensagem_em),
         nao_lidas: 0,
         status: conversa.status,
       }
@@ -366,6 +379,7 @@ export default async function WhatsappPage() {
       telefone: conversa.telefone_externo,
       ultima_mensagem: ultimasMensagens[conversa.id] || '',
       ultima_mensagem_em: conversa.ultima_mensagem_em,
+      ultima_mensagem_em_formatada: formatarDataServer(conversa.ultima_mensagem_em),
       nao_lidas: 0,
       status: conversa.status,
     }

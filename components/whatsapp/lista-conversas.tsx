@@ -11,6 +11,7 @@ type Conversa = {
   nome_contato: string
   telefone: string
   ultima_mensagem_em: string | null
+  ultima_mensagem_em_formatada?: string | null
   status: string
 }
 
@@ -135,9 +136,7 @@ export function ListaConversas({
           </div>
 
           <p className="mt-1 truncate text-xs text-slate-500">
-            {conversa.ultima_mensagem_em
-              ? `Última atividade ${new Date(conversa.ultima_mensagem_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`
-              : 'Sem mensagens'}
+            {conversa.ultima_mensagem_em_formatada || 'Sem mensagens'}
           </p>
         </Link>
       ))}
