@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { ChevronLeft, FileDown, Edit } from 'lucide-react'
 import { OrcamentoDetalhe } from '@/components/orcamentos/orcamento-detalhe'
 import { BadgeStatusOrcamento } from '@/components/orcamentos/badge-status-orcamento'
-import type { Quote } from '@/types/database'
+import { AcoesOrcamento } from './acoes-orcamento'
 
 export default async function OrcamentoDetalhePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -40,6 +40,13 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
     notFound()
   }
 
+  // Buscar pedido existente vinculado a este orçamento
+  const { data: pedidoExistente } = await supabase
+    .from('orders')
+    .select('id, numero')
+    .eq('quote_id', id)
+    .maybeSingle()
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
@@ -57,6 +64,11 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
           <BadgeStatusOrcamento status={orcamento.status} />
         </div>
         <div className="flex items-center gap-2">
+          <AcoesOrcamento
+            orcamentoId={id}
+            status={orcamento.status}
+            pedidoExistente={pedidoExistente}
+          />
           <Button
             variant="outline"
             size="sm"
