@@ -178,7 +178,7 @@ export function ListaConversas({
 
               <button
                 onClick={(e) => handleFinalizarClick(e, conversa)}
-                className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md hover:bg-green-50 text-green-600 transition-all"
+                className="opacity-50 hover:opacity-100 p-1.5 rounded-md hover:bg-green-50 text-green-600 transition-all"
                 title="Finalizar atendimento"
               >
                 <Check className="h-4 w-4" />

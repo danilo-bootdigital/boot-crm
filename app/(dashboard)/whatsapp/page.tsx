@@ -1,5 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+
+// Forçar renderização no servidor para sempre receber searchParams atualizados
+export const dynamic = 'force-dynamic'
+
 import Link from 'next/link'
 import { listarConversas, type FiltrosConversa, type ConversaResumo } from '@/lib/queries/conversas'
 import { buscarKPIsWhatsApp } from '@/lib/queries/kpis-whatsapp'
