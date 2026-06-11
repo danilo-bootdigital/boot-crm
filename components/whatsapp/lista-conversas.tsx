@@ -150,45 +150,44 @@ export function ListaConversas({
         </div>
       ) : (
         conversas.map((conversa) => (
-          <Link
-            key={conversa.id}
-            href={`/whatsapp/${conversa.id}`}
-            className={cn(
-              'border-b px-4 py-3 transition-colors hover:bg-slate-50 group',
-              conversa.id === conversaAtivaId && 'bg-slate-100'
-            )}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="truncate text-sm font-medium text-slate-800">
-                    {conversa.nome_contato}
-                  </h3>
-                  <EditarNome
-                    conversaId={conversa.id}
-                    nomeAtual={conversa.nome_contato}
-                    telefone={conversa.telefone}
-                    onEditComplete={(novoNome) => handleNomeEditado(conversa.id, novoNome)}
-                  />
+          <div key={conversa.id} className="border-b flex items-center">
+            <Link
+              href={`/whatsapp/${conversa.id}`}
+              className={cn(
+                'flex-1 px-4 py-3 transition-colors hover:bg-slate-50',
+                conversa.id === conversaAtivaId && 'bg-slate-100'
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="truncate text-sm font-medium text-slate-800">
+                      {conversa.nome_contato}
+                    </h3>
+                    <EditarNome
+                      conversaId={conversa.id}
+                      nomeAtual={conversa.nome_contato}
+                      telefone={conversa.telefone}
+                      onEditComplete={(novoNome) => handleNomeEditado(conversa.id, novoNome)}
+                    />
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {conversa.telefone}
+                  </p>
                 </div>
-                <p className="text-xs text-slate-400 mt-1">
-                  {conversa.telefone}
-                </p>
               </div>
-
-              <button
-                onClick={(e) => handleFinalizarClick(e, conversa)}
-                className="opacity-50 hover:opacity-100 p-1.5 rounded-md hover:bg-green-50 text-green-600 transition-all"
-                title="Finalizar atendimento"
-              >
-                <Check className="h-4 w-4" />
-              </button>
-            </div>
-
-            <p className="mt-1 truncate text-xs text-slate-500">
-              {conversa.ultima_mensagem_em_formatada || 'Sem mensagens'}
-            </p>
-          </Link>
+              <p className="mt-1 truncate text-xs text-slate-500">
+                {conversa.ultima_mensagem_em_formatada || 'Sem mensagens'}
+              </p>
+            </Link>
+            <button
+              onClick={(e) => handleFinalizarClick(e, conversa)}
+              className="p-3 hover:bg-green-50 text-green-600 transition-colors"
+              title="Finalizar atendimento"
+            >
+              <Check className="h-4 w-4" />
+            </button>
+          </div>
         ))
       )}
 

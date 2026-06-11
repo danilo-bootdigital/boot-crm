@@ -135,10 +135,13 @@ export function WhatsappShell(props: Props) {
   // Debounce: aplicar busca após 400ms
   useEffect(() => {
     const timer = setTimeout(() => {
-      setParam('busca', buscaInput || null)
+      const params = new URLSearchParams(window.location.search)
+      if (buscaInput) params.set('busca', buscaInput)
+      else params.delete('busca')
+      router.replace(`?${params.toString()}`)
     }, 400)
     return () => clearTimeout(timer)
-  }, [buscaInput, setParam])
+  }, [buscaInput])
 
   return (
     <div className="flex h-screen bg-white">
