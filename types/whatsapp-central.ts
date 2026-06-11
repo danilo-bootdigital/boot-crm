@@ -98,4 +98,5 @@ export type CentralSearchParams = {
   comLead?: string
   comContato?: string
   painel?: string
+  offset?: string
 }

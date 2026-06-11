@@ -225,6 +225,9 @@ export default async function WhatsappPage({
   }
 
   // 2) Parse dos filtros da URL
+  const offset = parseInt(searchParams.offset ?? '0', 10)
+  const limite = 40
+
   const filtros: FiltrosConversa = {
     busca: searchParams.busca,
     status: (searchParams.status as FiltrosConversa['status']) ?? null,
@@ -244,7 +247,7 @@ export default async function WhatsappPage({
       .from('whatsapp_instances')
       .select('id, nome, status_conexao, evolution_instance_name, numero, vendedor_id, compartilhado')
       .eq('organization_id', perfil.organization_id),
-    listarConversas(perfil.organization_id, perfil.id, perfil.cargo, filtros, { limite: 100 }),
+    listarConversas(perfil.organization_id, perfil.id, perfil.cargo, filtros, { limite, offset }),
     buscarKPIsWhatsApp(perfil.organization_id, perfil.id, perfil.cargo),
     supabase
       .from('profiles')
@@ -383,6 +386,7 @@ export default async function WhatsappPage({
       dealAtivo={dealAtivo}
       tagsAtivas={tagsAtivas}
       mensagensIniciais={mensagensIniciais}
+      pagination={{ offset, limite, total: kpis.abertas }}
     />
   )
 }

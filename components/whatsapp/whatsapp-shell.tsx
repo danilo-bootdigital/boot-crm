@@ -17,7 +17,7 @@ import { ModalNovaConversa } from './modal-nova-conversa'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import { Plus, Settings, BarChart3, Search, Wifi, WifiOff, Loader2 } from 'lucide-react'
+import { Plus, Settings, BarChart3, Search, Wifi, WifiOff, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import type { ConversaResumo } from '@/lib/queries/conversas'
@@ -48,6 +48,11 @@ type Props = {
     id: string; conteudo: string | null; direcao: 'enviada' | 'recebida'
     tipo_midia: string; url_midia: string | null; enviado_em: string
   }>
+  pagination: {
+    offset: number
+    limite: number
+    total: number
+  }
 }
 
 // Adapter: ConversaResumo -> formato esperado por ListaConversas
@@ -222,6 +227,31 @@ export function WhatsappShell(props: Props) {
           conversasIniciais={listaItens}
           conversaAtivaId={props.conversaAtiva?.id ?? undefined}
         />
+
+        {/* Paginação */}
+        <div className="flex items-center justify-center gap-4 px-4 py-3 border-t bg-muted/5">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={props.pagination.offset === 0}
+            onClick={() => setParam('offset', String(props.pagination.offset - props.pagination.limite))}
+          >
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Anterior
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            {props.pagination.offset + 1} - {Math.min(props.pagination.offset + props.pagination.limite, props.pagination.total)} de {props.pagination.total}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={props.pagination.offset + props.pagination.limite >= props.pagination.total}
+            onClick={() => setParam('offset', String(props.pagination.offset + props.pagination.limite))}
+          >
+            Próxima
+            <ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+        </div>
       </div>
 
       {/* Coluna 2: Chat (se conversa ativa) */}
