@@ -365,20 +365,25 @@ export default async function WhatsappPage({
 
   // 9) Renderiza a Central de Atendimento
   return (
-    <WhatsappShell
-      instancias={instancias}
-      conversas={conversas}
-      kpis={kpis}
-      usuarios={usuarios}
-      tags={tags}
-      perfil={perfilCentral}
-      conversaAtiva={conversaAtiva}
-      totais={totais}
-      painelAberto={searchParams.painel === '1'}
-      notasAtivas={notasAtivas}
-      dealAtivo={dealAtivo}
-      tagsAtivas={tagsAtivas}
-      mensagensIniciais={mensagensIniciais}
-    />
+    <>
+      <div data-debug="page_count" className="p-2 text-xs text-purple-700">
+        DEBUG page conversasRes: {conversasRes.length} | conversas: {conversas.length} | kpis abertas: {kpis.abertas} | cargo: {perfil.cargo} | status: {String(filtros.status)} | instanciaId: {String(filtros.instanciaId)} | busca: {String(filtros.busca)} | somenteNaoLidas: {String(filtros.somenteNaoLidas)}
+      </div>
+      <WhatsappShell
+        instancias={instancias}
+        conversas={conversas}
+        kpis={kpis}
+        usuarios={usuarios}
+        tags={tags}
+        perfil={perfilCentral}
+        conversaAtiva={conversaAtiva}
+        totais={totais}
+        painelAberto={searchParams.painel === '1'}
+        notasAtivas={notasAtivas}
+        dealAtivo={dealAtivo}
+        tagsAtivas={tagsAtivas}
+        mensagensIniciais={mensagensIniciais}
+      />
+    </>
   )
 }
