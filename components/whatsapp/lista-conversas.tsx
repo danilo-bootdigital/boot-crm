@@ -52,7 +52,10 @@ export function ListaConversas({
     })
   }, [conversasIniciais, conversasRealtime])
 
+  const REALTIME_ENABLED = false
+
   useEffect(() => {
+    if (!REALTIME_ENABLED) return
     const supabase = createClient()
 
     const channel = supabase
