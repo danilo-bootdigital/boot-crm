@@ -112,9 +112,6 @@ export function ListaConversas({
 
   return (
     <div className="flex flex-col">
-      <div data-debug="lista_count" className="p-2 text-xs text-blue-600">
-        DEBUG lista conversasIniciais: {conversasIniciais.length} | conversas: {conversas.length} | realtime: {conversasRealtime.length}
-      </div>
       {conversas.map((conversa) => (
         <Link
           key={conversa.id}

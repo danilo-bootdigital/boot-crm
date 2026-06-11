@@ -135,9 +135,6 @@ export function WhatsappShell(props: Props) {
         />
 
         {/* Lista */}
-        <div data-debug="whatsapp_shell_count" className="p-2 text-xs text-red-600">
-          DEBUG shell props.conversas: {props.conversas.length} | listaItens: {listaItens.length}
-        </div>
         <ListaConversas
           conversasIniciais={listaItens}
           conversaAtivaId={props.conversaAtiva?.id ?? undefined}

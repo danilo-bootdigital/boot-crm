@@ -370,25 +370,20 @@ export default async function WhatsappPage({
 
   // 9) Renderiza a Central de Atendimento
   return (
-    <>
-      <div data-debug="page_count" className="p-2 text-xs text-purple-700">
-        DEBUG page conversasResult: {conversasResult.length} | conversas: {conversas.length} | kpis abertas: {kpis.abertas} | cargo: {perfil.cargo} | minQuery: {debugConversas?.minCount ?? '?'} | queryError: {debugConversas?.queryError ?? 'null'}
-      </div>
-      <WhatsappShell
-        instancias={instancias}
-        conversas={conversas}
-        kpis={kpis}
-        usuarios={usuarios}
-        tags={tags}
-        perfil={perfilCentral}
-        conversaAtiva={conversaAtiva}
-        totais={totais}
-        painelAberto={searchParams.painel === '1'}
-        notasAtivas={notasAtivas}
-        dealAtivo={dealAtivo}
-        tagsAtivas={tagsAtivas}
-        mensagensIniciais={mensagensIniciais}
-      />
-    </>
+    <WhatsappShell
+      instancias={instancias}
+      conversas={conversas}
+      kpis={kpis}
+      usuarios={usuarios}
+      tags={tags}
+      perfil={perfilCentral}
+      conversaAtiva={conversaAtiva}
+      totais={totais}
+      painelAberto={searchParams.painel === '1'}
+      notasAtivas={notasAtivas}
+      dealAtivo={dealAtivo}
+      tagsAtivas={tagsAtivas}
+      mensagensIniciais={mensagensIniciais}
+    />
   )
 }
