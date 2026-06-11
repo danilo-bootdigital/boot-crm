@@ -17,6 +17,13 @@ import { ModalNovaConversa } from './modal-nova-conversa'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Plus, Settings, BarChart3, Search, Wifi, WifiOff, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
@@ -101,7 +108,6 @@ export function WhatsappShell(props: Props) {
 
   // Estado para debounce da busca
   const [buscaInput, setBuscaInput] = useState(searchParams.get('busca') ?? '')
-  const [apenasOnline, setApenasOnline] = useState(true)
 
   // Atualizar URL (filtros e estado de UI)
   const setParam = useCallback((key: string, value: string | null): void => {
@@ -115,11 +121,6 @@ export function WhatsappShell(props: Props) {
   const kpiAtivo = (searchParams.get('status') as ConversaStatus | null) ?? null
 
   const listaItens: ListaConversaItem[] = props.conversas.map(toListaItem)
-
-  // Instâncias filtradas
-  const visiveis = apenasOnline
-    ? props.instancias.filter((i) => i.status_conexao === 'conectado')
-    : props.instancias
 
   const totalOnline = props.instancias.filter((i) => i.status_conexao === 'conectado').length
 
@@ -143,9 +144,37 @@ export function WhatsappShell(props: Props) {
     <div className="flex h-screen bg-white">
       {/* Coluna 1: Área principal (sem sidebar) */}
       <div className="flex-1 flex flex-col min-w-0 border-r">
-        {/* Header de ações */}
+        {/* Header de ações com dropdown de instâncias */}
         <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/5">
-          <h1 className="text-lg font-semibold">Conversas</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg font-semibold">Conversas</h1>
+            <Select
+              value={instanciaAtiva ?? 'todas'}
+              onValueChange={(value) => setParam('instanciaId', value === 'todas' ? null : value)}
+            >
+              <SelectTrigger className="h-7 text-xs w-auto min-w-[140px]">
+                <SelectValue placeholder="Todas as instâncias" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">Todas ({totalOnline} online)</span>
+                  </div>
+                </SelectItem>
+                {props.instancias.map((inst) => (
+                  <SelectItem key={inst.id} value={inst.id}>
+                    <div className="flex items-center gap-2">
+                      <span className={cn('p-0.5 rounded', statusClass(inst.status_conexao))}>
+                        {statusIcon(inst.status_conexao)}
+                      </span>
+                      <span>{inst.nome}</span>
+                      <span className="text-muted-foreground text-xs">({statusLabel(inst.status_conexao)})</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex items-center gap-1">
             <Link href="/configuracoes-whatsapp">
               <Button size="sm" variant="ghost" title="Configuracoes">
@@ -158,47 +187,6 @@ export function WhatsappShell(props: Props) {
               </Button>
             </Link>
             <ModalNovaConversa instancias={instanciasParaModal} />
-          </div>
-        </div>
-
-        {/* Linha horizontal de instâncias */}
-        <div className="flex items-center gap-3 px-4 py-2 border-b bg-muted/10">
-          <span className="text-sm font-medium shrink-0">Instâncias:</span>
-          <span className="text-xs text-muted-foreground shrink-0">{totalOnline} ativa{totalOnline !== 1 ? 's' : ''}</span>
-          <div className="flex items-center gap-1 shrink-0">
-            <label htmlFor="apenas-online" className="text-xs cursor-pointer">Apenas online</label>
-            <Switch
-              id="apenas-online"
-              checked={apenasOnline}
-              onCheckedChange={setApenasOnline}
-            />
-          </div>
-          <Button
-            variant={instanciaAtiva === null ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setParam('instanciaId', null)}
-          >
-            Todas
-          </Button>
-          <div className="flex items-center gap-2 overflow-x-auto flex-1">
-            {visiveis.map((inst) => (
-              <button
-                key={inst.id}
-                onClick={() => setParam('instanciaId', inst.id)}
-                className={cn(
-                  'flex items-center gap-1.5 px-2 py-1 rounded-md border text-xs whitespace-nowrap transition-colors',
-                  instanciaAtiva === inst.id
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-transparent hover:bg-muted/50'
-                )}
-              >
-                <span className={cn('p-0.5 rounded', statusClass(inst.status_conexao))}>
-                  {statusIcon(inst.status_conexao)}
-                </span>
-                <span className="font-medium">{inst.nome}</span>
-                <span className="text-muted-foreground">{statusLabel(inst.status_conexao)}</span>
-              </button>
-            ))}
           </div>
         </div>
 
