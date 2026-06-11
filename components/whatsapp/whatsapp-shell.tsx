@@ -8,7 +8,7 @@
 // ============================================================
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { HeaderKPIs } from './header-kpis'
 import { ListaConversas } from './lista-conversas'
 import { ChatArea } from './chat-area'
@@ -99,12 +99,12 @@ export function WhatsappShell(props: Props) {
   const [apenasOnline, setApenasOnline] = useState(true)
 
   // Atualizar URL (filtros e estado de UI)
-  const setParam = (key: string, value: string | null): void => {
+  const setParam = useCallback((key: string, value: string | null): void => {
     const params = new URLSearchParams(searchParams.toString())
     if (value) params.set(key, value)
     else params.delete(key)
     router.replace(`?${params.toString()}`)
-  }
+  }, [searchParams, router])
 
   const instanciaAtiva: string | null = searchParams.get('instanciaId')
   const kpiAtivo = (searchParams.get('status') as ConversaStatus | null) ?? null
@@ -132,7 +132,7 @@ export function WhatsappShell(props: Props) {
       setParam('busca', buscaInput || null)
     }, 400)
     return () => clearTimeout(timer)
-  }, [buscaInput])
+  }, [buscaInput, setParam])
 
   return (
     <div className="flex h-screen bg-white">
