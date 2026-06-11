@@ -237,5 +237,33 @@ export async function listarConversas(
     })
   }
 
+  // Aplicar regra de prioridade de nomes
+  resultado = resultado.map((c) => {
+    let nomeFinal: string
+
+    // 1. Se nome foi editado manualmente, usar nome_contato
+    if (c.name_source === 'manual' && c.nome_contato) {
+      nomeFinal = c.nome_contato
+    }
+    // 2. Se existe contato, usar nome do contato
+    else if (c.contato?.nome) {
+      nomeFinal = c.contato.nome
+    }
+    // 3. Se existe lead, usar nome do lead
+    else if (c.lead?.nome) {
+      nomeFinal = c.lead.nome
+    }
+    // 4. Se nome_contato existe (do WhatsApp), usar ele
+    else if (c.nome_contato) {
+      nomeFinal = c.nome_contato
+    }
+    // 5. Último recurso: telefone
+    else {
+      nomeFinal = c.telefone_externo
+    }
+
+    return { ...c, nome_contato: nomeFinal }
+  })
+
   return { conversas: resultado, debug: { minCount: 0, queryError: error?.message ?? null } }
 }
