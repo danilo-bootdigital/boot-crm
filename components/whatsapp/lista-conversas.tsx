@@ -182,10 +182,10 @@ export function ListaConversas({
             </Link>
             <button
               onClick={(e) => handleFinalizarClick(e, conversa)}
-              className="p-3 hover:bg-green-50 text-green-600 transition-colors"
+              className="px-2 py-1 text-xs font-medium text-green-600 hover:bg-green-50 rounded border border-green-200 hover:border-green-300 transition-colors"
               title="Finalizar atendimento"
             >
-              <Check className="h-4 w-4" />
+              Fechar
             </button>
           </div>
         ))
