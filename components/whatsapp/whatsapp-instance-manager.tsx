@@ -27,7 +27,7 @@ import {
 } from 'lucide-react'
 import { criarInstancia, obterQRCode, obterEstadoConexao } from '@/lib/evolution'
 import { createClient } from '@/lib/supabase/client'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 
 interface WhatsAppInstance {
   id: string
@@ -57,7 +57,6 @@ export function WhatsAppInstanceManager({ organizationId, onInstanceUpdate }: Pr
   const [instanceToDelete, setInstanceToDelete] = useState<WhatsAppInstance | null>(null)
   const [savingSettings, setSavingSettings] = useState(false)
 
-  const { toast } = useToast()
   const supabase = createClient()
 
   // Salvar configurações globais
@@ -66,16 +65,9 @@ export function WhatsAppInstanceManager({ organizationId, onInstanceUpdate }: Pr
     try {
       // Atualizar todas as instâncias existentes com as novas configurações
       // (implementação futura: armazenar em tabela de configurações globais)
-      toast({
-        title: 'Configurações salvas',
-        description: 'As configurações globais foram atualizadas.'
-      })
+      toast.success('As configurações globais foram atualizadas.', { description: 'Configurações salvas' })
     } catch (error) {
-      toast({
-        title: 'Erro ao salvar',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive'
-      })
+      toast.error('', { description: 'Erro ao salvar' })
     } finally {
       setSavingSettings(false)
     }
@@ -132,11 +124,7 @@ export function WhatsAppInstanceManager({ organizationId, onInstanceUpdate }: Pr
       setConnectionStates(states)
     } catch (error) {
       console.error('[WhatsAppInstanceManager] Erro geral ao carregar instâncias:', error)
-      toast({
-        title: 'Erro ao carregar instâncias',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive'
-      })
+      toast.error('', { description: 'Erro ao carregar instâncias' })
     } finally {
       setLoading(false)
     }
@@ -172,11 +160,7 @@ export function WhatsAppInstanceManager({ organizationId, onInstanceUpdate }: Pr
   // Criar nova instância
   const handleCreateInstance = async () => {
     if (!newInstanceName.trim() || !webhookUrl.trim()) {
-      toast({
-        title: 'Preencha todos os campos',
-        description: 'Nome da instância e URL do webhook são obrigatórios',
-        variant: 'destructive'
-      })
+      toast.error('Nome da instância e URL do webhook são obrigatórios', { description: 'Preencha todos os campos' })
       return
     }
 
@@ -208,21 +192,14 @@ export function WhatsAppInstanceManager({ organizationId, onInstanceUpdate }: Pr
         throw error
       }
 
-      toast({
-        title: 'Instância criada',
-        description: 'A instância foi criada. Escaneie o QR code para conectar.'
-      })
+      toast.success('A instância foi criada. Escaneie o QR code para conectar.', { description: 'Instância criada' })
 
       setNewInstanceName('')
       await loadInstances()
       onInstanceUpdate?.()
     } catch (error) {
       console.error('[WhatsAppInstanceManager] Erro ao criar instância:', error)
-      toast({
-        title: 'Erro ao criar instância',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive'
-      })
+      toast.error('', { description: 'Erro ao criar instância' })
     } finally {
       setCreating(false)
     }
@@ -235,11 +212,7 @@ export function WhatsAppInstanceManager({ organizationId, onInstanceUpdate }: Pr
       setQrCode({ instanceName: instance.evolution_instance_name!, base64 })
       setSelectedInstance(instance)
     } catch (error) {
-      toast({
-        title: 'Erro ao obter QR code',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive'
-      })
+      toast.error('', { description: 'Erro ao obter QR code' })
     }
   }
 
@@ -259,21 +232,14 @@ export function WhatsAppInstanceManager({ organizationId, onInstanceUpdate }: Pr
 
       if (error) throw error
 
-      toast({
-        title: 'Instância deletada',
-        description: 'A instância foi removida com sucesso.'
-      })
+      toast.success('A instância foi removida com sucesso.', { description: 'Instância deletada' })
 
       setDeleteDialogOpen(false)
       setInstanceToDelete(null)
       await loadInstances()
       onInstanceUpdate?.()
     } catch (error) {
-      toast({
-        title: 'Erro ao deletar instância',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive'
-      })
+      toast.error('', { description: 'Erro ao deletar instância' })
     }
   }
 
@@ -281,10 +247,7 @@ export function WhatsAppInstanceManager({ organizationId, onInstanceUpdate }: Pr
   const copyQRCode = () => {
     if (qrCode?.base64) {
       navigator.clipboard.writeText(qrCode.base64)
-      toast({
-        title: 'QR Code copiado',
-        description: 'O QR code foi copiado para a área de transferência.'
-      })
+      toast.info('O QR code foi copiado para a área de transferência.', { description: 'QR Code copiado' })
     }
   }
 

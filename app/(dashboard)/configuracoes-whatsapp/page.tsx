@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Settings, Smartphone, BarChart3, FileText, AlertCircle } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 
 // Carregamento dinâmico para isolar erros nos componentes pesados
 const WhatsAppInstanceManager = dynamic(
@@ -97,7 +97,6 @@ export default function WhatsAppSettingsPage() {
   const [activeTab, setActiveTab] = useState('instances')
   const [organizationId, setOrganizationId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const { toast } = useToast()
 
   // Obter organizationId do usuário logado
   useEffect(() => {
@@ -127,11 +126,7 @@ export default function WhatsAppSettingsPage() {
         setOrganizationId(perfil.organization_id)
       } catch (error) {
         console.error('[configuracoes-whatsapp] Erro ao obter organizationId:', error)
-        toast({
-          title: 'Erro ao carregar configurações',
-          description: error instanceof Error ? error.message : 'Erro desconhecido',
-          variant: 'destructive'
-        })
+        toast.error(error instanceof Error ? error.message : 'Erro desconhecido', { description: 'Erro ao carregar configurações' })
       } finally {
         setLoading(false)
       }
@@ -149,29 +144,18 @@ export default function WhatsAppSettingsPage() {
       console.log('[configuracoes-whatsapp] Data:', data)
 
       if (data.success && data.envVars?.EVOLUTION_API_URL === 'OK' && data.envVars?.EVOLUTION_API_KEY === 'OK') {
-        toast({
-          title: 'API Evolution acessível',
-          description: 'A conexão com a API está funcionando corretamente.'
-        })
+        toast.success('A conexão com a API está funcionando corretamente.', { description: 'API Evolution acessível' })
       } else {
         const missingVars = []
         if (data.envVars?.EVOLUTION_API_URL === 'Faltando') missingVars.push('EVOLUTION_API_URL')
         if (data.envVars?.EVOLUTION_API_KEY === 'Faltando') missingVars.push('EVOLUTION_API_KEY')
         if (data.envVars?.EVOLUTION_WEBHOOK_SECRET === 'Faltando') missingVars.push('EVOLUTION_WEBHOOK_SECRET')
 
-        toast({
-          title: 'Variáveis de ambiente faltando',
-          description: `Configure: ${missingVars.join(', ')}`,
-          variant: 'destructive'
-        })
+        toast.error(`Configure: ${missingVars.join(', ')}`, { description: 'Variáveis de ambiente faltando' })
       }
     } catch (error) {
       console.error('[configuracoes-whatsapp] Erro no teste:', error)
-      toast({
-        title: 'Erro ao testar conexão',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive'
-      })
+      toast.error(error instanceof Error ? error.message : 'Erro desconhecido', { description: 'Erro ao testar conexão' })
     }
   }
 

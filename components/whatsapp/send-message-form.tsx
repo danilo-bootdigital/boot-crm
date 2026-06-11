@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Loader2, Send, Paperclip, Image, Mic } from 'lucide-react'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 
 interface SendMessageFormProps {
   conversationId: string
@@ -19,15 +19,10 @@ export function SendMessageForm({ conversationId, onMessageSent }: SendMessageFo
   const [mediaBase64, setMediaBase64] = useState('')
   const [mediaFileName, setMediaFileName] = useState('')
   const [mediaMimeType, setMediaMimeType] = useState('')
-  const { toast } = useToast()
-
+  
   const handleSend = async () => {
     if (!message.trim() && mediaType === 'text') {
-      toast({
-        title: 'Erro',
-        description: 'Digite uma mensagem para enviar',
-        variant: 'destructive'
-      })
+      toast.error('Digite uma mensagem para enviar', { description: 'Erro' })
       return
     }
 
@@ -62,18 +57,11 @@ export function SendMessageForm({ conversationId, onMessageSent }: SendMessageFo
       setMediaFileName('')
       setMediaMimeType('')
 
-      toast({
-        title: 'Sucesso',
-        description: 'Mensagem enviada com sucesso'
-      })
+      toast.success('Mensagem enviada com sucesso', { description: 'Sucesso' })
 
       onMessageSent?.()
     } catch (error) {
-      toast({
-        title: 'Erro ao enviar',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive'
-      })
+      toast.error('', { description: 'Erro ao enviar' })
     } finally {
       setSending(false)
     }
@@ -85,11 +73,7 @@ export function SendMessageForm({ conversationId, onMessageSent }: SendMessageFo
 
     // Validar tamanho do arquivo (10MB)
     if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: 'Arquivo muito grande',
-        description: 'O arquivo deve ter no máximo 10MB',
-        variant: 'destructive'
-      })
+      toast.error('O arquivo deve ter no máximo 10MB', { description: 'Arquivo muito grande' })
       return
     }
 

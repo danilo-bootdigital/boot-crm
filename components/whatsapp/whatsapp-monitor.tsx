@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { RefreshCw, Activity, Wifi, WifiOff, AlertTriangle, CheckCircle, Clock, TrendingUp } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { obterEstadoConexao } from '@/lib/evolution'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 
 interface InstanceStatus {
   id: string
@@ -51,7 +51,6 @@ export function WhatsAppMonitor() {
   const [loading, setLoading] = useState(true)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
 
-  const { toast } = useToast()
   const supabase = createClient()
 
   // Carregar dados
@@ -198,11 +197,7 @@ export function WhatsAppMonitor() {
       setLastUpdate(new Date())
     } catch (error) {
       console.error('[WhatsAppMonitor] Erro ao carregar dados:', error)
-      toast({
-        title: 'Erro ao carregar dados',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive'
-      })
+      toast.error(error instanceof Error ? error.message : 'Erro desconhecido', { description: 'Erro ao carregar dados' })
     } finally {
       setLoading(false)
     }

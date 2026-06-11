@@ -5,8 +5,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Trash2, AlertTriangle, Shield, CheckCircle } from 'lucide-react'
+import { toast } from 'sonner'
 import { excluirInstanciaSegura, marcarInstanciaInativa } from '@/app/(dashboard)/configuracoes/whatsapp/actions-seguras'
-import { useToast } from '@/hooks/use-toast'
 
 type Props = {
   aberto: boolean
@@ -21,31 +21,20 @@ type Props = {
 export function ModalExcluirInstancia({ aberto, onFechar, instancia }: Props) {
   const [carregando, setCarregando] = useState(false)
   const [acao, setAcao] = useState<'excluir' | 'inativar'>('excluir')
-  const { toast } = useToast()
 
   async function handleConfirmar() {
     setCarregando(true)
     try {
       if (acao === 'excluir') {
         const resultado = await excluirInstanciaSegura(instancia.id)
-        toast({
-          title: 'Sucesso',
-          description: resultado.message,
-        })
+        toast.success(resultado.message, { description: 'Sucesso' })
       } else {
         await marcarInstanciaInativa(instancia.id, 'Ação do administrador')
-        toast({
-          title: 'Sucesso',
-          description: `Instância "${instancia.nome}" marcada como inativa.`,
-        })
+        toast.success(`Instância "${instancia.nome}" marcada como inativa.`, { description: 'Sucesso' })
       }
       onFechar()
     } catch (error) {
-      toast({
-        title: 'Erro',
-        description: error instanceof Error ? error.message : 'Ocorreu um erro inesperado.',
-        variant: 'destructive',
-      })
+      toast.error(error instanceof Error ? error.message : 'Ocorreu um erro inesperado.', { description: 'Erro' })
     } finally {
       setCarregando(false)
     }
