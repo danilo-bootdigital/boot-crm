@@ -119,6 +119,7 @@ async function resolverInstanciasPermitidas(
  * Lista conversas com filtros aplicados no servidor.
  * Retorna um array vazio se o usuário não tem permissão
  * para ver nenhuma instância.
+ * Retorna debug info junto com o resultado.
  */
 export async function listarConversas(
   orgId: string,
@@ -126,7 +127,7 @@ export async function listarConversas(
   cargo: string,
   filtros: FiltrosConversa = {},
   options: ListarConversasOptions = {}
-): Promise<ConversaResumo[]> {
+): Promise<{ conversas: ConversaResumo[]; debug: { minCount: number; queryError: string | null } }> {
   const supabase = await createClient()
   const { limite = 100, offset = 0 } = options
 
@@ -140,7 +141,7 @@ export async function listarConversas(
 
   // Se vendedor nao tem nenhuma instancia, retorna vazio
   if (instanciasPermitidas !== null && instanciasPermitidas.length === 0) {
-    return []
+    return { conversas: [], debug: { minCount: 0, queryError: null } }
   }
 
   // 2) Query base
@@ -219,14 +220,30 @@ export async function listarConversas(
   }
 
   // 5) Filtrar por tags (in-memory apos query se tagIds presente)
-  const { data, error } = await query
 
-  console.log('[listarConversas] orgId:', orgId, 'cargo:', cargo, 'data?.length:', data?.length, 'error:', error?.message)
+  // DEBUG: Query mínima comparativa (sem JOINs)
+  const { count: minCount, error: minError } = await supabase
+    .from('conversations')
+    .select('id', { count: 'exact', head: true })
+    .eq('organization_id', orgId)
+    .is('arquivada_em', null)
+    .limit(100)
 
-  if (error) {
-    console.error('[listarConversas] erro na query:', error)
-    return []
+  console.log('[listarConversas] DEBUG minQuery count:', minCount, 'minError:', minError?.message)
+
+  // Query completa com JOINs
+  let data: any = null
+  let error: any = null
+  try {
+    const result = await query
+    data = result.data
+    error = result.error
+  } catch (err: any) {
+    console.error('[listarConversas] ERRO na query com JOINs:', err)
+    error = { message: err.message || String(err) }
   }
+
+  console.log('[listarConversas] orgId:', orgId, 'cargo:', cargo, 'data?.length:', data?.length, 'minCount:', minCount, 'error:', error?.message)
 
   let resultado = (data ?? []) as unknown as ConversaResumo[]
 
@@ -239,5 +256,5 @@ export async function listarConversas(
     })
   }
 
-  return resultado
+  return { conversas: resultado, debug: { minCount: minCount ?? 0, queryError: error?.message ?? null } }
 }

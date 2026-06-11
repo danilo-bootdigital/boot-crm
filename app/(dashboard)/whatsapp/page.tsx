@@ -268,8 +268,13 @@ export default async function WhatsappPage({
     compartilhado: i.compartilhado,
   }))
 
+  // 4) Extrair conversas e debug do resultado
+  const conversasRaw = conversasRes
+  const conversasResult = Array.isArray(conversasRaw) ? conversasRaw : (conversasRaw?.conversas ?? [])
+  const debugConversas = Array.isArray(conversasRaw) ? null : (conversasRaw?.debug ?? { minCount: 0, queryError: null })
+
   // 4) Buscar ultimas mensagens (apenas conteudo) - data vem de conversations.ultima_mensagem_em
-  const conversaIds = conversasRes.map((c) => c.id)
+  const conversaIds = conversasResult.map((c: any) => c.id)
   const ultimasMensagensMap = await buscarUltimasMensagens(
     supabase,
     perfil.organization_id,
@@ -277,12 +282,12 @@ export default async function WhatsappPage({
   )
 
   // 5) Enriquecer conversas com ultima mensagem (conteudo via RPC) + data formatada (via conversations.ultima_mensagem_em)
-  const conversas: ConversaResumo[] = conversasRes.map((c) => ({
+  const conversas: ConversaResumo[] = conversasResult.map((c: any) => ({
     ...c,
     ultima_mensagem: ultimasMensagensMap[c.id]?.conteudo ?? '',
     ultima_mensagem_em_formatada: formatarDataServer(c.ultima_mensagem_em),
   }))
-  console.log('[WHATSAPP PAGE]', 'conversasRes.length:', conversasRes?.length, 'conversas.length:', conversas?.length)
+  console.log('[WHATSAPP PAGE]', 'conversasResult.length:', conversasResult?.length, 'conversas.length:', conversas?.length)
 
   const kpis = kpisRes
   const usuarios: UsuarioResumo[] = (usuariosRes.data ?? []).map((u: any) => ({ id: u.id, nome: u.nome }))
@@ -367,7 +372,7 @@ export default async function WhatsappPage({
   return (
     <>
       <div data-debug="page_count" className="p-2 text-xs text-purple-700">
-        DEBUG page conversasRes: {conversasRes.length} | conversas: {conversas.length} | kpis abertas: {kpis.abertas} | cargo: {perfil.cargo} | status: {String(filtros.status)} | instanciaId: {String(filtros.instanciaId)} | busca: {String(filtros.busca)} | somenteNaoLidas: {String(filtros.somenteNaoLidas)}
+        DEBUG page conversasResult: {conversasResult.length} | conversas: {conversas.length} | kpis abertas: {kpis.abertas} | cargo: {perfil.cargo} | minQuery: {debugConversas?.minCount ?? '?'} | queryError: {debugConversas?.queryError ?? 'null'}
       </div>
       <WhatsappShell
         instancias={instancias}
