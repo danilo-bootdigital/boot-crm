@@ -17,7 +17,8 @@ import { ChatArea } from './chat-area'
 import { PainelCliente } from './painel-cliente'
 import { ModalNovaConversa } from './modal-nova-conversa'
 import { Button } from '@/components/ui/button'
-import { Plus, Settings, BarChart3 } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Plus, Settings, BarChart3, Search } from 'lucide-react'
 import Link from 'next/link'
 import type { ConversaResumo } from '@/lib/queries/conversas'
 import type { KPIWhatsApp, ConversaStatus } from '@/types/database'
@@ -133,6 +134,19 @@ export function WhatsappShell(props: Props) {
           kpiAtivo={kpiAtivo}
           onSelect={(status) => setParam('status', status)}
         />
+
+        {/* Campo de busca */}
+        <div className="px-4 py-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome ou telefone..."
+              className="pl-9"
+              value={searchParams.get('busca') ?? ''}
+              onChange={(e) => setParam('busca', e.target.value || null)}
+            />
+          </div>
+        </div>
 
         {/* Lista */}
         <ListaConversas

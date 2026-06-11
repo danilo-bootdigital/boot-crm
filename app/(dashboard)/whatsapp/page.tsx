@@ -287,7 +287,6 @@ export default async function WhatsappPage({
     ultima_mensagem: ultimasMensagensMap[c.id]?.conteudo ?? '',
     ultima_mensagem_em_formatada: formatarDataServer(c.ultima_mensagem_em),
   }))
-  console.log('[WHATSAPP PAGE]', 'conversasResult.length:', conversasResult?.length, 'conversas.length:', conversas?.length)
 
   const kpis = kpisRes
   const usuarios: UsuarioResumo[] = (usuariosRes.data ?? []).map((u: any) => ({ id: u.id, nome: u.nome }))

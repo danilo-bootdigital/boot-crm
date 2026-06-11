@@ -220,30 +220,11 @@ export async function listarConversas(
   }
 
   // 5) Filtrar por tags (in-memory apos query se tagIds presente)
+  const { data, error } = await query
 
-  // DEBUG: Query mínima comparativa (sem JOINs)
-  const { count: minCount, error: minError } = await supabase
-    .from('conversations')
-    .select('id', { count: 'exact', head: true })
-    .eq('organization_id', orgId)
-    .is('arquivada_em', null)
-    .limit(100)
-
-  console.log('[listarConversas] DEBUG minQuery count:', minCount, 'minError:', minError?.message)
-
-  // Query completa com JOINs
-  let data: any = null
-  let error: any = null
-  try {
-    const result = await query
-    data = result.data
-    error = result.error
-  } catch (err: any) {
-    console.error('[listarConversas] ERRO na query com JOINs:', err)
-    error = { message: err.message || String(err) }
+  if (error) {
+    console.error('[listarConversas] erro na query:', error)
   }
-
-  console.log('[listarConversas] orgId:', orgId, 'cargo:', cargo, 'data?.length:', data?.length, 'minCount:', minCount, 'error:', error?.message)
 
   let resultado = (data ?? []) as unknown as ConversaResumo[]
 
@@ -256,5 +237,5 @@ export async function listarConversas(
     })
   }
 
-  return { conversas: resultado, debug: { minCount: minCount ?? 0, queryError: error?.message ?? null } }
+  return { conversas: resultado, debug: { minCount: 0, queryError: error?.message ?? null } }
 }
