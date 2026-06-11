@@ -221,6 +221,8 @@ export async function listarConversas(
   // 5) Filtrar por tags (in-memory apos query se tagIds presente)
   const { data, error } = await query
 
+  console.log('[listarConversas] orgId:', orgId, 'cargo:', cargo, 'data?.length:', data?.length, 'error:', error?.message)
+
   if (error) {
     console.error('[listarConversas] erro na query:', error)
     return []
