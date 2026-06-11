@@ -153,7 +153,7 @@ export async function listarConversas(
       telefone_externo, status, responsavel_id, ultima_mensagem_em,
       nao_lidas, arquivada_em, nome_contato, name_source,
       criado_em, atualizado_em,
-      responsavel:profiles!conversations_responsavel_id_fkey ( id, nome, avatar_url ),
+      responsavel:profiles!conversations_responsavel_id_fkey ( id, nome ),
       lead:leads!conversations_lead_id_fkey ( id, nome ),
       contato:contacts!conversations_contato_id_fkey ( id, nome ),
       instancia:whatsapp_instances!conversations_whatsapp_instance_id_fkey ( id, nome, status_conexao ),
