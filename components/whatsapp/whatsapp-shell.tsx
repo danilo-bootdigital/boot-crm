@@ -109,6 +109,39 @@ export function WhatsappShell(props: Props) {
   // Estado para debounce da busca
   const [buscaInput, setBuscaInput] = useState(searchParams.get('busca') ?? '')
 
+  // Estado para conversas filtradas (client-side)
+  const [filteredConversas, setFilteredConversas] = useState<ConversaResumo[]>(props.conversas)
+
+  // Atualizar conversas filtradas quando busca mudar (debounce)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Filtrar localmente
+      if (!buscaInput.trim()) {
+        setFilteredConversas(props.conversas)
+      } else {
+        const termo = buscaInput.toLowerCase().trim()
+        const filtradas = props.conversas.filter(c =>
+          (c.nome_contato?.toLowerCase().includes(termo)) ||
+          (c.telefone_externo?.toLowerCase().includes(termo))
+        )
+        setFilteredConversas(filtradas)
+      }
+      // Atualizar URL também
+      const params = new URLSearchParams(window.location.search)
+      if (buscaInput) params.set('busca', buscaInput)
+      else params.delete('busca')
+      router.replace(`?${params.toString()}`)
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [buscaInput])
+
+  // Atualizar lista quando props mudam (page re-render)
+  useEffect(() => {
+    if (!buscaInput.trim()) {
+      setFilteredConversas(props.conversas)
+    }
+  }, [props.conversas])
+
   // Atualizar URL (filtros e estado de UI)
   const setParam = useCallback((key: string, value: string | null): void => {
     const params = new URLSearchParams(searchParams.toString())
@@ -120,7 +153,7 @@ export function WhatsappShell(props: Props) {
   const instanciaAtiva: string | null = searchParams.get('instanciaId')
   const kpiAtivo = (searchParams.get('status') as ConversaStatus | null) ?? null
 
-  const listaItens: ListaConversaItem[] = props.conversas.map(toListaItem)
+  const listaItens: ListaConversaItem[] = filteredConversas.map(toListaItem)
 
   const totalOnline = props.instancias.filter((i) => i.status_conexao === 'conectado').length
 
@@ -131,17 +164,6 @@ export function WhatsappShell(props: Props) {
     numero: i.numero,
     status_conexao: i.status_conexao,
   }))
-
-  // Debounce: aplicar busca após 400ms
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const params = new URLSearchParams(window.location.search)
-      if (buscaInput) params.set('busca', buscaInput)
-      else params.delete('busca')
-      router.replace(`?${params.toString()}`)
-    }, 400)
-    return () => clearTimeout(timer)
-  }, [buscaInput])
 
   return (
     <div className="flex h-screen bg-white">
