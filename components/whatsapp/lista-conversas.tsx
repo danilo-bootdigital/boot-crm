@@ -5,6 +5,17 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { EditarNome } from './editar-nome'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Check, Loader2 } from 'lucide-react'
+import { alterarStatusConversa } from '@/app/(dashboard)/whatsapp/actions-conversa'
 
 type Conversa = {
   id: string
@@ -27,6 +38,9 @@ export function ListaConversas({
   onNomeEditado,
 }: Props) {
   const [conversasRealtime, setConversasRealtime] = useState<Conversa[]>([])
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [conversaSelecionada, setConversaSelecionada] = useState<Conversa | null>(null)
+  const [finalizando, setFinalizando] = useState(false)
 
   const conversas = useMemo(() => {
     const mapa = new Map<string, Conversa>()
@@ -71,7 +85,6 @@ export function ListaConversas({
             .order('ultima_mensagem_em', { ascending: false })
 
           if (data) {
-            // Mapear dados para formato esperado pelo componente
             const mappedData = data.map((c) => ({
               id: c.id,
               telefone: c.telefone_externo,
@@ -94,7 +107,6 @@ export function ListaConversas({
   }, [])
 
   const handleNomeEditado = (conversaId: string, novoNome: string) => {
-    // Atualizar na lista atual
     const index = conversas.findIndex(c => c.id === conversaId)
     if (index !== -1) {
       const atualizadas = [...conversas]
@@ -102,12 +114,32 @@ export function ListaConversas({
         ...atualizadas[index],
         nome_contato: novoNome
       }
-      // Como usamos useMemo, precisamos forçar atualização
       setConversasRealtime(prev => [...prev])
     }
 
-    // Notificar o componente pai
     onNomeEditado?.(conversaId, novoNome)
+  }
+
+  const handleFinalizarClick = (e: React.MouseEvent, conversa: Conversa) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setConversaSelecionada(conversa)
+    setDialogOpen(true)
+  }
+
+  const handleConfirmarFinalizar = async () => {
+    if (!conversaSelecionada) return
+
+    setFinalizando(true)
+    try {
+      await alterarStatusConversa(conversaSelecionada.id, 'finalizada')
+      setDialogOpen(false)
+      setConversaSelecionada(null)
+    } catch (error) {
+      console.error('Erro ao finalizar conversa:', error)
+    } finally {
+      setFinalizando(false)
+    }
   }
 
   return (
@@ -144,6 +176,13 @@ export function ListaConversas({
                 </p>
               </div>
 
+              <button
+                onClick={(e) => handleFinalizarClick(e, conversa)}
+                className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md hover:bg-green-50 text-green-600 transition-all"
+                title="Finalizar atendimento"
+              >
+                <Check className="h-4 w-4" />
+              </button>
             </div>
 
             <p className="mt-1 truncate text-xs text-slate-500">
@@ -152,6 +191,28 @@ export function ListaConversas({
           </Link>
         ))
       )}
+
+      {/* Dialog de confirmação */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Finalizar atendimento?</DialogTitle>
+            <DialogDescription>
+              A conversa com {conversaSelecionada?.nome_contato} será marcada como finalizada.
+              Você ainda poderá visualizar no filtro &quot;Finalizadas&quot;.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={finalizando}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmarFinalizar} disabled={finalizando}>
+              {finalizando ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Finalizar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
