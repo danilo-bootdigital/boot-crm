@@ -16,6 +16,7 @@ const ICONES_TIPO: Record<string, string> = {
   observacao: '✉',
   status_alterado: '◉',
   contato_criado: '✦',
+  contato_editado: '✎',
   deal_criado: '✦',
   deal_movido: '→',
   deal_ganho: '★',

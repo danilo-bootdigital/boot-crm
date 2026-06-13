@@ -11,7 +11,7 @@ async function getUsuarioEOrg() {
   if (!user) redirect('/login')
   const { data: perfil } = await supabase
     .from('profiles')
-    .select('id, organization_id')
+    .select('id, organization_id, cargo')
     .eq('id', user.id)
     .single()
   if (!perfil) redirect('/login')
@@ -105,13 +105,44 @@ export async function criarContato(formData: FormData) {
 export async function editarContato(contatoId: string, formData: FormData) {
   const { supabase, perfil } = await getUsuarioEOrg()
 
+  // Buscar contato para verificar permissão
+  const { data: contato } = await supabase
+    .from('contacts')
+    .select('id, nome, responsavel_id')
+    .eq('id', contatoId)
+    .eq('organization_id', perfil.organization_id)
+    .single()
+
+  if (!contato) throw new Error('Contato não encontrado.')
+
+  // RBAC: vendedor/atendimento só pode editar seus próprios contatos
+  if (perfil.cargo !== 'admin' && perfil.cargo !== 'gestor') {
+    if (contato.responsavel_id !== perfil.id) {
+      throw new Error('Você só pode editar contatos sob sua responsabilidade.')
+    }
+  }
+
   const nome = formData.get('nome') as string
   if (!nome?.trim()) throw new Error('O nome do contato é obrigatório.')
   const email = formData.get('email') as string | null
   const telefone = formData.get('telefone') as string | null
   const cargo = formData.get('cargo') as string | null
+  const cpf_cnpj = formData.get('cpf_cnpj') as string | null
   const empresa_nome = formData.get('empresa_nome') as string | null
   const observacoes = formData.get('observacoes') as string | null
+  const tipo_pessoa = formData.get('tipo_pessoa') as string | null
+  const categoria_cliente = formData.get('categoria_cliente') as string | null
+  const tipo_conselho = formData.get('tipo_conselho') as string | null
+  const numero_conselho = formData.get('numero_conselho') as string | null
+  const uf_conselho = formData.get('uf_conselho') as string | null
+  const especialidade = formData.get('especialidade') as string | null
+  const endereco = formData.get('endereco') as string | null
+  const endereco_numero = formData.get('endereco_numero') as string | null
+  const endereco_complemento = formData.get('endereco_complemento') as string | null
+  const endereco_bairro = formData.get('endereco_bairro') as string | null
+  const endereco_cep = formData.get('endereco_cep') as string | null
+  const endereco_cidade = formData.get('endereco_cidade') as string | null
+  const endereco_estado = formData.get('endereco_estado') as string | null
 
   const empresa_id = await resolverEmpresa(supabase, perfil.organization_id, empresa_nome)
 
@@ -122,13 +153,36 @@ export async function editarContato(contatoId: string, formData: FormData) {
       email: email || null,
       telefone: telefone || null,
       cargo: cargo || null,
+      cpf_cnpj: cpf_cnpj || null,
       empresa_id,
       observacoes: observacoes || null,
+      tipo_pessoa: tipo_pessoa || null,
+      categoria_cliente: categoria_cliente || null,
+      tipo_conselho: tipo_conselho || null,
+      numero_conselho: numero_conselho || null,
+      uf_conselho: uf_conselho || null,
+      especialidade: especialidade || null,
+      endereco: endereco || null,
+      endereco_numero: endereco_numero || null,
+      endereco_complemento: endereco_complemento || null,
+      endereco_bairro: endereco_bairro || null,
+      endereco_cep: endereco_cep || null,
+      endereco_cidade: endereco_cidade || null,
+      endereco_estado: endereco_estado || null,
       atualizado_em: new Date().toISOString(),
     })
     .eq('id', contatoId).eq('organization_id', perfil.organization_id)
 
   if (error) throw new Error(`Erro ao editar contato: ${error.message}`)
+
+  // Registrar atividade na timeline
+  await supabase.from('activities').insert({
+    organization_id: perfil.organization_id,
+    autor_id: perfil.id,
+    tipo: 'contato_editado',
+    descricao: `Contato "${nome}" atualizado.`,
+    contato_id: contatoId,
+  })
 
   revalidatePath('/contatos')
   revalidatePath(`/contatos/${contatoId}`)
