@@ -36,7 +36,30 @@ type ItemForm = {
 }
 
 type Deal = { id: string; titulo: string }
-type Contato = { id: string; nome: string; telefone: string | null; email: string | null; cpf_cnpj: string | null; endereco: string | null; empresa_id: string | null }
+type Contato = {
+  id: string
+  nome: string
+  telefone: string | null
+  email: string | null
+  cpf_cnpj: string | null
+  cargo: string | null
+  tipo_pessoa: string | null
+  categoria_cliente: string | null
+  especialidade: string | null
+  tipo_conselho: string | null
+  numero_conselho: string | null
+  uf_conselho: string | null
+  observacoes: string | null
+  empresa_id: string | null
+  empresa_nome?: string | null
+  endereco: string | null
+  endereco_numero: string | null
+  endereco_complemento: string | null
+  endereco_bairro: string | null
+  endereco_cidade: string | null
+  endereco_estado: string | null
+  endereco_cep: string | null
+}
 type Empresa = { id: string; nome: string; cnpj: string | null; nome_fantasia: string | null; inscricao_estadual: string | null; inscricao_municipal: string | null; endereco: string | null }
 
 type Props = {
@@ -144,6 +167,21 @@ export function FormOrcamento({ produtos, fornecedores, categorias, deals, conta
     return empresas.find((e) => e.id === contatoSelecionado.empresa_id) ?? null
   }, [contatoSelecionado, empresas])
 
+  // Montar endereço completo do contato
+  const montarEnderecoCompleto = (contato: Contato): string => {
+    const partes: string[] = []
+    if (contato.endereco) partes.push(contato.endereco)
+    if (contato.endereco_numero) partes.push(contato.endereco_numero)
+    if (contato.endereco_complemento) partes.push(contato.endereco_complemento)
+    if (contato.endereco_bairro) partes.push(contato.endereco_bairro)
+    const cidadeUFCEP: string[] = []
+    if (contato.endereco_cidade) cidadeUFCEP.push(contato.endereco_cidade)
+    if (contato.endereco_estado) cidadeUFCEP.push(contato.endereco_estado)
+    if (contato.endereco_cep) cidadeUFCEP.push(contato.endereco_cep)
+    if (cidadeUFCEP.length > 0) partes.push(cidadeUFCEP.join(' - '))
+    return partes.join(', ')
+  }
+
   // Preencher dados da nota quando empresa vinculada é encontrada ou alterada
   const preencherDadosNota = (tipo: string) => {
     if (tipo === 'PJ' && empresaVinculada) {
@@ -159,7 +197,7 @@ export function FormOrcamento({ produtos, fornecedores, categorias, deals, conta
       setNotaDocumento(contatoSelecionado.cpf_cnpj ?? '')
       setNotaRazaoSocial('')
       setNotaNomeFantasia('')
-      setNotaEndereco(contatoSelecionado.endereco ?? '')
+      setNotaEndereco(montarEnderecoCompleto(contatoSelecionado))
       setNotaIe('')
       setNotaIm('')
     }
@@ -428,9 +466,10 @@ export function FormOrcamento({ produtos, fornecedores, categorias, deals, conta
                 <span className="text-sm">Pessoa Jurídica</span>
               </label>
             </div>
-            {notaTipoPessoa === 'PJ' && !empresaVinculada && contatoSelecionado && (
+            {/* Aviso só aparece se não há empresa vinculada E não há dados manuais preenchidos */}
+            {notaTipoPessoa === 'PJ' && !empresaVinculada && contatoSelecionado && !notaNome && !notaDocumento && (
               <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-200">
-                ⚠️ Este contato não possui empresa vinculada. Para emitir em nome de PJ, vincule uma empresa ao contato primeiro.
+                ℹ️ Este contato não possui empresa vinculada. Você pode preencher os dados manualmente ou vincular uma empresa ao contato.
               </p>
             )}
           </div>

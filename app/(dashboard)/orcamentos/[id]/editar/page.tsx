@@ -21,7 +21,7 @@ export default async function EditarOrcamentoPage({ params }: { params: Promise<
 
   const { data: orcamento } = await supabase
     .from('quotes')
-    .select('id, lead_id, deal_id, supplier_id, contato_id, frete, endereco_entrega, forma_pagamento, observacoes, desconto_geral, status, responsavel_id, nota_tipo_pessoa, nota_nome, nota_documento, nota_razao_social, nota_nome_fantasia, nota_endereco, nota_ie, nota_im')
+    .select('id, numero, lead_id, deal_id, supplier_id, contato_id, frete, endereco_entrega, forma_pagamento, observacoes, desconto_geral, status, responsavel_id, nota_tipo_pessoa, nota_nome, nota_documento, nota_razao_social, nota_nome_fantasia, nota_endereco, nota_ie, nota_im')
     .eq('id', id)
     .eq('organization_id', perfil.organization_id)
     .single()
@@ -82,7 +82,7 @@ export default async function EditarOrcamentoPage({ params }: { params: Promise<
 
   const { data: contatos } = await supabase
     .from('contacts')
-    .select('id, nome, telefone, email, cpf_cnpj, endereco, empresa_id')
+    .select('id, nome, telefone, email, cpf_cnpj, cargo, tipo_pessoa, categoria_cliente, especialidade, tipo_conselho, numero_conselho, uf_conselho, observacoes, empresa_id, empresa:companies!empresa_id(nome), endereco, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_estado, endereco_cep')
     .eq('organization_id', perfil.organization_id)
     .order('nome')
 
@@ -109,13 +109,13 @@ export default async function EditarOrcamentoPage({ params }: { params: Promise<
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-slate-900">Editar Orçamento #{orcamento.id.slice(0, 8)}</h1>
+      <h1 className="text-2xl font-bold text-slate-900">Editar Orçamento #{orcamento.numero}</h1>
       <FormOrcamento
         produtos={produtos ?? []}
         fornecedores={fornecedores ?? []}
         categorias={categorias ?? []}
         deals={(deals ?? []) as { id: string; titulo: string }[]}
-        contatos={(contatos ?? []) as { id: string; nome: string; telefone: string | null; email: string | null; cpf_cnpj: string | null; endereco: string | null; empresa_id: string | null }[]}
+        contatos={contatos as any}
         empresas={(empresas ?? []) as { id: string; nome: string; cnpj: string | null; nome_fantasia: string | null; inscricao_estadual: string | null; inscricao_municipal: string | null; endereco: string | null }[]}
         fretesFornecedores={fretesFornecedores}
         transportadoras={transportadoras}

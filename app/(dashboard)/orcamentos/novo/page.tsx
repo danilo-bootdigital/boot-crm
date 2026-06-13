@@ -58,7 +58,7 @@ async function NovoOrcamentoContent({ searchParams }: { searchParams: Promise<{ 
 
   const { data: contatos } = await supabase
     .from('contacts')
-    .select('id, nome, telefone, email, cpf_cnpj, endereco, empresa_id')
+    .select('id, nome, telefone, email, cpf_cnpj, cargo, tipo_pessoa, categoria_cliente, especialidade, tipo_conselho, numero_conselho, uf_conselho, observacoes, empresa_id, empresa:companies!empresa_id(nome), endereco, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_estado, endereco_cep')
     .eq('organization_id', perfil.organization_id)
     .order('nome')
 
@@ -91,7 +91,7 @@ async function NovoOrcamentoContent({ searchParams }: { searchParams: Promise<{ 
         fornecedores={fornecedores ?? []}
         categorias={categorias ?? []}
         deals={(deals ?? []) as { id: string; titulo: string }[]}
-        contatos={(contatos ?? []) as { id: string; nome: string; telefone: string | null; email: string | null; cpf_cnpj: string | null; endereco: string | null; empresa_id: string | null }[]}
+        contatos={contatos as any}
         empresas={(empresas ?? []) as { id: string; nome: string; cnpj: string | null; nome_fantasia: string | null; inscricao_estadual: string | null; inscricao_municipal: string | null; endereco: string | null }[]}
         fretesFornecedores={fretesFornecedores}
         transportadoras={transportadoras}
