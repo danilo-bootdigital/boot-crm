@@ -87,6 +87,15 @@ export async function criarOrcamento(dados: {
   carrier_id: string | null
   frete_regiao: string | null
   itens: ItemInput[]
+  // Migration 049: dados para emissão da nota fiscal
+  nota_tipo_pessoa: string | null
+  nota_nome: string | null
+  nota_documento: string | null
+  nota_razao_social: string | null
+  nota_nome_fantasia: string | null
+  nota_endereco: string | null
+  nota_ie: string | null
+  nota_im: string | null
 }) {
   const { supabase, perfil } = await getUsuarioEOrg()
 
@@ -116,6 +125,15 @@ export async function criarOrcamento(dados: {
       valor_subtotal: valorSubtotal,
       valor_total: valorTotal,
       status: 'rascunho' as QuoteStatus,
+      // Migration 049: dados para emissão da nota fiscal
+      nota_tipo_pessoa: dados.nota_tipo_pessoa || null,
+      nota_nome: dados.nota_nome || null,
+      nota_documento: dados.nota_documento || null,
+      nota_razao_social: dados.nota_razao_social || null,
+      nota_nome_fantasia: dados.nota_nome_fantasia || null,
+      nota_endereco: dados.nota_endereco || null,
+      nota_ie: dados.nota_ie || null,
+      nota_im: dados.nota_im || null,
     })
     .select('id')
     .single()
@@ -152,6 +170,15 @@ export async function editarOrcamento(orcamentoId: string, dados: {
   carrier_id?: string | null
   frete_regiao?: string | null
   itens: ItemInput[]
+  // Migration 049: dados para emissão da nota fiscal
+  nota_tipo_pessoa?: string | null
+  nota_nome?: string | null
+  nota_documento?: string | null
+  nota_razao_social?: string | null
+  nota_nome_fantasia?: string | null
+  nota_endereco?: string | null
+  nota_ie?: string | null
+  nota_im?: string | null
 }) {
   const { supabase, perfil } = await getUsuarioEOrg()
 
@@ -196,6 +223,15 @@ export async function editarOrcamento(orcamentoId: string, dados: {
       valor_total: valorTotal,
       status: 'rascunho' as QuoteStatus,
       atualizado_em: new Date().toISOString(),
+      // Migration 049: dados para emissão da nota fiscal
+      nota_tipo_pessoa: dados.nota_tipo_pessoa ?? null,
+      nota_nome: dados.nota_nome ?? null,
+      nota_documento: dados.nota_documento ?? null,
+      nota_razao_social: dados.nota_razao_social ?? null,
+      nota_nome_fantasia: dados.nota_nome_fantasia ?? null,
+      nota_endereco: dados.nota_endereco ?? null,
+      nota_ie: dados.nota_ie ?? null,
+      nota_im: dados.nota_im ?? null,
     })
     .eq('id', orcamentoId)
     .eq('organization_id', perfil.organization_id)

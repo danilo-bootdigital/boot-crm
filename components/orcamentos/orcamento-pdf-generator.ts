@@ -65,6 +65,15 @@ interface OrcamentoData {
   forma_pagamento: string | null
   valor_total: number
   observacoes: string | null
+  // Migration 049: dados para emissão da nota fiscal
+  nota_tipo_pessoa: string | null
+  nota_nome: string | null
+  nota_documento: string | null
+  nota_razao_social: string | null
+  nota_nome_fantasia: string | null
+  nota_endereco: string | null
+  nota_ie: string | null
+  nota_im: string | null
 }
 
 interface Cliente {
@@ -244,7 +253,6 @@ if (organizacao?.logo_url) {
   const cliente = orcamento.contato ? {
     tipo: 'contato' as const,
     nome: orcamento.contato.nome,
-    cpf_cnpj: orcamento.contato.cpf_cnpj,
     telefone: orcamento.contato.telefone,
     email: orcamento.contato.email,
     // Endereço completo do contato
@@ -258,7 +266,6 @@ if (organizacao?.logo_url) {
   } : orcamento.lead ? {
     tipo: 'lead' as const,
     nome: orcamento.lead.nome,
-    cpf_cnpj: orcamento.lead.cpf_cnpj,
     telefone: orcamento.lead.telefone,
     email: orcamento.lead.email,
     // Endereço simples do lead (logradouro único)
@@ -299,9 +306,8 @@ if (organizacao?.logo_url) {
 
   const enderecoCliente = montarEnderecoCliente()
 
-  // Calcular altura do bloco de dados do comprador
+  // Calcular altura do bloco de dados do comprador (sem CPF/CNPJ)
   let clienteLines = 1 // nome sempre presente
-  if (cliente?.cpf_cnpj) clienteLines++
   if (enderecoCliente) clienteLines++
   if (cliente?.telefone) clienteLines++
   if (cliente?.email) clienteLines++
@@ -313,23 +319,14 @@ if (organizacao?.logo_url) {
 
   let cy = y + 1
 
-  // Nome/Razão Social
+  // Nome do comprador
   doc.setTextColor(...DARK_TEXT)
   doc.setFontSize(8.5)
   doc.setFont(undefined!, 'bold')
-  doc.text('Cliente:', margin + 4, cy)
+  doc.text('Nome:', margin + 4, cy)
   doc.setFont(undefined!, 'normal')
   doc.text(nomeCliente.trim(), margin + 28, cy)
   cy += 5.5
-
-  // CPF/CNPJ
-  if (cliente?.cpf_cnpj) {
-    doc.setFont(undefined!, 'bold')
-    doc.text('CNPJ/CPF:', margin + 4, cy)
-    doc.setFont(undefined!, 'normal')
-    doc.text(cliente.cpf_cnpj.trim(), margin + 28, cy)
-    cy += 5.5
-  }
 
   // Endereço cadastral completo
   if (enderecoCliente) {
@@ -360,6 +357,120 @@ if (organizacao?.logo_url) {
   }
 
   y += clienteHeight + 6
+
+  // === DADOS PARA EMISSÃO DA NOTA (Migration 049) ===
+  const temNota = orcamento.nota_tipo_pessoa && orcamento.nota_nome
+
+  if (temNota) {
+    // Barra azul "DADOS PARA EMISSÃO DA NOTA"
+    doc.setFillColor(37, 99, 235) // blue-600
+    doc.rect(margin, y, pageWidth - margin * 2, 8, 'F')
+    doc.setTextColor(255, 255, 255) // white
+    doc.setFontSize(9)
+    doc.setFont(undefined!, 'bold')
+    doc.text('DADOS PARA EMISSÃO DA NOTA', margin + 4, y + 5.5)
+
+    y += 12
+
+    // Calcular altura do bloco de nota
+    let notaLines = 2 // tipo + nome sempre presentes
+    if (orcamento.nota_documento) notaLines++
+    if (orcamento.nota_razao_social) notaLines++
+    if (orcamento.nota_nome_fantasia) notaLines++
+    if (orcamento.nota_endereco) notaLines++
+    if (orcamento.nota_ie) notaLines++
+    if (orcamento.nota_im) notaLines++
+    const notaHeight = 6 + notaLines * 5.5
+
+    // Fundo azul claro para dados da nota
+    doc.setFillColor(239, 246, 255) // blue-50
+    doc.rect(margin, y - 4, pageWidth - margin * 2, notaHeight, 'F')
+
+    let ny = y + 1
+
+    // Tipo de pessoa
+    doc.setTextColor(...DARK_TEXT)
+    doc.setFontSize(8.5)
+    doc.setFont(undefined!, 'bold')
+    doc.text('Tipo:', margin + 4, ny)
+    doc.setFont(undefined!, 'normal')
+    doc.text(orcamento.nota_tipo_pessoa === 'PJ' ? 'Pessoa Jurídica' : 'Pessoa Física', margin + 28, ny)
+    ny += 5.5
+
+    // Nome/Razão Social
+    doc.setFont(undefined!, 'bold')
+    doc.text('Nome:', margin + 4, ny)
+    doc.setFont(undefined!, 'normal')
+    doc.text(orcamento.nota_nome?.trim() || '—', margin + 28, ny)
+    ny += 5.5
+
+    // Documento
+    if (orcamento.nota_documento) {
+      doc.setFont(undefined!, 'bold')
+      doc.text(orcamento.nota_tipo_pessoa === 'PJ' ? 'CNPJ:' : 'CPF:', margin + 4, ny)
+      doc.setFont(undefined!, 'normal')
+      doc.text(orcamento.nota_documento.trim(), margin + 28, ny)
+      ny += 5.5
+    }
+
+    // Razão Social (para PJ)
+    if (orcamento.nota_razao_social) {
+      doc.setFont(undefined!, 'bold')
+      doc.text('Razão Social:', margin + 4, ny)
+      doc.setFont(undefined!, 'normal')
+      doc.text(orcamento.nota_razao_social.trim(), margin + 28, ny)
+      ny += 5.5
+    }
+
+    // Nome Fantasia (para PJ)
+    if (orcamento.nota_nome_fantasia) {
+      doc.setFont(undefined!, 'bold')
+      doc.text('Nome Fantasia:', margin + 4, ny)
+      doc.setFont(undefined!, 'normal')
+      doc.text(orcamento.nota_nome_fantasia.trim(), margin + 28, ny)
+      ny += 5.5
+    }
+
+    // Endereço
+    if (orcamento.nota_endereco) {
+      doc.setFont(undefined!, 'bold')
+      doc.text('Endereço:', margin + 4, ny)
+      doc.setFont(undefined!, 'normal')
+      const linhasEndNota = doc.splitTextToSize(orcamento.nota_endereco.trim(), pageWidth - margin * 2 - 32)
+      doc.text(linhasEndNota, margin + 28, ny)
+      ny += linhasEndNota.length * 5
+    }
+
+    // Inscrição Estadual
+    if (orcamento.nota_ie) {
+      doc.setFont(undefined!, 'bold')
+      doc.text('IE:', margin + 4, ny)
+      doc.setFont(undefined!, 'normal')
+      doc.text(orcamento.nota_ie.trim(), margin + 28, ny)
+      ny += 5.5
+    }
+
+    // Inscrição Municipal
+    if (orcamento.nota_im) {
+      doc.setFont(undefined!, 'bold')
+      doc.text('IM:', margin + 4, ny)
+      doc.setFont(undefined!, 'normal')
+      doc.text(orcamento.nota_im.trim(), margin + 28, ny)
+      ny += 5.5
+    }
+
+    y += notaHeight + 6
+  } else {
+    // Aviso quando não há dados de nota
+    doc.setFillColor(254, 252, 232) // amber-50
+    doc.rect(margin, y, pageWidth - margin * 2, 14, 'F')
+    doc.setFillColor(245, 158, 11) // amber-500
+    doc.rect(margin, y, 3, 14, 'F')
+    doc.setFontSize(8)
+    doc.setTextColor(180, 83, 9) // amber-900
+    doc.text('Dados para emissão da nota não preenchidos no orçamento.', margin + 6, y + 9)
+    y += 18
+  }
 
   // === ENDEREÇO DE ENTREGA (bloco separado) ===
   const temEntrega = orcamento.endereco_entrega && orcamento.endereco_entrega.trim().length > 0

@@ -58,7 +58,13 @@ async function NovoOrcamentoContent({ searchParams }: { searchParams: Promise<{ 
 
   const { data: contatos } = await supabase
     .from('contacts')
-    .select('id, nome, telefone, email, cpf_cnpj, endereco')
+    .select('id, nome, telefone, email, cpf_cnpj, endereco, empresa_id')
+    .eq('organization_id', perfil.organization_id)
+    .order('nome')
+
+  const { data: empresas } = await supabase
+    .from('companies')
+    .select('id, nome, cnpj, nome_fantasia, inscricao_estadual, inscricao_municipal, endereco')
     .eq('organization_id', perfil.organization_id)
     .order('nome')
 
@@ -85,7 +91,8 @@ async function NovoOrcamentoContent({ searchParams }: { searchParams: Promise<{ 
         fornecedores={fornecedores ?? []}
         categorias={categorias ?? []}
         deals={(deals ?? []) as { id: string; titulo: string }[]}
-        contatos={(contatos ?? []) as { id: string; nome: string; telefone: string | null; email: string | null; cpf_cnpj: string | null; endereco: string | null }[]}
+        contatos={(contatos ?? []) as { id: string; nome: string; telefone: string | null; email: string | null; cpf_cnpj: string | null; endereco: string | null; empresa_id: string | null }[]}
+        empresas={(empresas ?? []) as { id: string; nome: string; cnpj: string | null; nome_fantasia: string | null; inscricao_estadual: string | null; inscricao_municipal: string | null; endereco: string | null }[]}
         fretesFornecedores={fretesFornecedores}
         transportadoras={transportadoras}
       />

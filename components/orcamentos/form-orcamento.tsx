@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useTransition } from 'react'
+import { useState, useMemo, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -12,7 +12,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { criarOrcamento, editarOrcamento } from '@/app/(dashboard)/orcamentos/actions'
 import { formatarMoeda } from '@/lib/utils'
 import { BuscaProduto } from '@/components/orcamentos/busca-produto'
-import { Plus, Trash2, CreditCard, User, Upload } from 'lucide-react'
+import { Plus, Trash2, CreditCard, User, Upload, FileText } from 'lucide-react'
 import type { Product, Supplier, SupplierCategory } from '@/types/database'
 import { ImportarItensPlanilha } from '@/components/orcamentos/importar-itens-planilha'
 
@@ -36,7 +36,8 @@ type ItemForm = {
 }
 
 type Deal = { id: string; titulo: string }
-type Contato = { id: string; nome: string; telefone: string | null; email: string | null; cpf_cnpj: string | null; endereco: string | null }
+type Contato = { id: string; nome: string; telefone: string | null; email: string | null; cpf_cnpj: string | null; endereco: string | null; empresa_id: string | null }
+type Empresa = { id: string; nome: string; cnpj: string | null; nome_fantasia: string | null; inscricao_estadual: string | null; inscricao_municipal: string | null; endereco: string | null }
 
 type Props = {
   produtos: Product[]
@@ -44,6 +45,7 @@ type Props = {
   categorias: SupplierCategory[]
   deals: Deal[]
   contatos: Contato[]
+  empresas: Empresa[]
   fretesFornecedores: { supplier_id: string; carrier_id: string; regiao: string; valor: number }[]
   transportadoras: { id: string; supplier_id: string; nome: string }[]
   orcamentoId?: string
@@ -58,6 +60,15 @@ type Props = {
     desconto_geral: number
     frete: number
     itens: Omit<ItemForm, 'key'>[]
+    // Migration 049: dados para emissão da nota fiscal
+    nota_tipo_pessoa?: string | null
+    nota_nome?: string | null
+    nota_documento?: string | null
+    nota_razao_social?: string | null
+    nota_nome_fantasia?: string | null
+    nota_endereco?: string | null
+    nota_ie?: string | null
+    nota_im?: string | null
   }
 }
 
@@ -65,7 +76,7 @@ function calcularSubtotal(item: ItemForm) {
   return item.quantidade * item.preco_unitario * (1 - item.desconto_item / 100)
 }
 
-export function FormOrcamento({ produtos, fornecedores, categorias, deals, contatos, fretesFornecedores, transportadoras, orcamentoId, defaultValues }: Props) {
+export function FormOrcamento({ produtos, fornecedores, categorias, deals, contatos, empresas, fretesFornecedores, transportadoras, orcamentoId, defaultValues }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const editando = !!orcamentoId
@@ -88,6 +99,16 @@ export function FormOrcamento({ produtos, fornecedores, categorias, deals, conta
       { key: 'item-0', product_id: null, descricao: '', unidade: 'un', quantidade: 1, preco_unitario: 0, desconto_item: 0 },
     ]
   )
+
+  // Migration 049: dados para emissão da nota fiscal
+  const [notaTipoPessoa, setNotaTipoPessoa] = useState(defaultValues?.nota_tipo_pessoa ?? 'PF')
+  const [notaNome, setNotaNome] = useState(defaultValues?.nota_nome ?? '')
+  const [notaDocumento, setNotaDocumento] = useState(defaultValues?.nota_documento ?? '')
+  const [notaRazaoSocial, setNotaRazaoSocial] = useState(defaultValues?.nota_razao_social ?? '')
+  const [notaNomeFantasia, setNotaNomeFantasia] = useState(defaultValues?.nota_nome_fantasia ?? '')
+  const [notaEndereco, setNotaEndereco] = useState(defaultValues?.nota_endereco ?? '')
+  const [notaIe, setNotaIe] = useState(defaultValues?.nota_ie ?? '')
+  const [notaIm, setNotaIm] = useState(defaultValues?.nota_im ?? '')
 
   // Filtrar categorias pelo fornecedor selecionado
   const categoriasFiltradas = supplierId
@@ -116,6 +137,46 @@ export function FormOrcamento({ produtos, fornecedores, categorias, deals, conta
     if (!contatoId) return null
     return contatos.find((c) => c.id === contatoId) ?? null
   }, [contatos, contatoId])
+
+  // Empresa vinculada ao contato selecionado
+  const empresaVinculada = useMemo(() => {
+    if (!contatoSelecionado?.empresa_id) return null
+    return empresas.find((e) => e.id === contatoSelecionado.empresa_id) ?? null
+  }, [contatoSelecionado, empresas])
+
+  // Preencher dados da nota quando empresa vinculada é encontrada ou alterada
+  const preencherDadosNota = (tipo: string) => {
+    if (tipo === 'PJ' && empresaVinculada) {
+      setNotaNome(empresaVinculada.nome)
+      setNotaDocumento(empresaVinculada.cnpj ?? '')
+      setNotaRazaoSocial(empresaVinculada.nome)
+      setNotaNomeFantasia(empresaVinculada.nome_fantasia ?? '')
+      setNotaEndereco(empresaVinculada.endereco ?? '')
+      setNotaIe(empresaVinculada.inscricao_estadual ?? '')
+      setNotaIm(empresaVinculada.inscricao_municipal ?? '')
+    } else if (tipo === 'PF' && contatoSelecionado) {
+      setNotaNome(contatoSelecionado.nome)
+      setNotaDocumento(contatoSelecionado.cpf_cnpj ?? '')
+      setNotaRazaoSocial('')
+      setNotaNomeFantasia('')
+      setNotaEndereco(contatoSelecionado.endereco ?? '')
+      setNotaIe('')
+      setNotaIm('')
+    }
+  }
+
+  // Quando o tipo de pessoa muda
+  const handleNotaTipoPessoaChange = (tipo: string) => {
+    setNotaTipoPessoa(tipo)
+    preencherDadosNota(tipo)
+  }
+
+  // Quando empresa vinculada muda ou tipo de pessoa muda
+  useEffect(() => {
+    if (notaTipoPessoa === 'PJ' && empresaVinculada) {
+      preencherDadosNota('PJ')
+    }
+  }, [empresaVinculada, notaTipoPessoa])
 
   function handleFornecedorChange(novoId: string | null) {
     const id = (!novoId || novoId === '__none__') ? '' : novoId
@@ -231,6 +292,15 @@ export function FormOrcamento({ produtos, fornecedores, categorias, deals, conta
             preco_unitario,
             desconto_item,
           })),
+          // Migration 049: dados para emissão da nota fiscal
+          nota_tipo_pessoa: notaTipoPessoa,
+          nota_nome: notaNome || null,
+          nota_documento: notaDocumento || null,
+          nota_razao_social: notaRazaoSocial || null,
+          nota_nome_fantasia: notaNomeFantasia || null,
+          nota_endereco: notaEndereco || null,
+          nota_ie: notaIe || null,
+          nota_im: notaIm || null,
         }
         if (editando) {
           await editarOrcamento(orcamentoId, dados)
@@ -270,6 +340,9 @@ export function FormOrcamento({ produtos, fornecedores, categorias, deals, conta
               {contatoSelecionado.email && <p className="text-xs text-slate-500">Email: {contatoSelecionado.email}</p>}
               {contatoSelecionado.cpf_cnpj && <p className="text-xs text-slate-500">CPF/CNPJ: {contatoSelecionado.cpf_cnpj}</p>}
               {contatoSelecionado.endereco && <p className="text-xs text-slate-500">Endereço: {contatoSelecionado.endereco}</p>}
+              {empresaVinculada && (
+                <p className="text-xs text-blue-600 font-medium">Empresa: {empresaVinculada.nome}</p>
+              )}
             </div>
           ) : (
             <div className="relative">
@@ -319,6 +392,138 @@ export function FormOrcamento({ produtos, fornecedores, categorias, deals, conta
           </Select>
         </div>
       </div>
+
+      {/* Migration 049: Dados para Emissão da Nota Fiscal */}
+      <Card className="border-blue-200 bg-blue-50/50">
+        <CardContent className="space-y-4 p-4">
+          <div className="flex items-center gap-2 pb-2 border-b border-blue-200">
+            <FileText className="h-5 w-5 text-blue-600" />
+            <Label className="text-base font-semibold text-blue-800">Dados para Emissão da Nota Fiscal</Label>
+          </div>
+
+          {/* Tipo de Pessoa */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Emitir em nome de:</Label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="nota_tipo_pessoa"
+                  value="PF"
+                  checked={notaTipoPessoa === 'PF'}
+                  onChange={() => handleNotaTipoPessoaChange('PF')}
+                  className="text-blue-600"
+                />
+                <span className="text-sm">Pessoa Física</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="nota_tipo_pessoa"
+                  value="PJ"
+                  checked={notaTipoPessoa === 'PJ'}
+                  onChange={() => handleNotaTipoPessoaChange('PJ')}
+                  className="text-blue-600"
+                />
+                <span className="text-sm">Pessoa Jurídica</span>
+              </label>
+            </div>
+            {notaTipoPessoa === 'PJ' && !empresaVinculada && contatoSelecionado && (
+              <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-200">
+                ⚠️ Este contato não possui empresa vinculada. Para emitir em nome de PJ, vincule uma empresa ao contato primeiro.
+              </p>
+            )}
+          </div>
+
+          {/* Campos do Formulário */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Nome / Razão Social</Label>
+              <Input
+                value={notaNome}
+                onChange={(e) => setNotaNome(e.target.value)}
+                placeholder={notaTipoPessoa === 'PF' ? 'Nome completo' : 'Razão Social'}
+                className="h-9 text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">{notaTipoPessoa === 'PF' ? 'CPF' : 'CNPJ'}</Label>
+              <Input
+                value={notaDocumento}
+                onChange={(e) => setNotaDocumento(e.target.value)}
+                placeholder={notaTipoPessoa === 'PF' ? '000.000.000-00' : '00.000.000/0001-00'}
+                className="h-9 text-sm"
+              />
+            </div>
+          </div>
+
+          {notaTipoPessoa === 'PJ' && (
+            <>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Razão Social</Label>
+                  <Input
+                    value={notaRazaoSocial}
+                    onChange={(e) => setNotaRazaoSocial(e.target.value)}
+                    placeholder="Razão Social completa"
+                    className="h-9 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Nome Fantasia</Label>
+                  <Input
+                    value={notaNomeFantasia}
+                    onChange={(e) => setNotaNomeFantasia(e.target.value)}
+                    placeholder="Nome Fantasia"
+                    className="h-9 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Inscrição Estadual</Label>
+                  <Input
+                    value={notaIe}
+                    onChange={(e) => setNotaIe(e.target.value)}
+                    placeholder="000.000.000"
+                    className="h-9 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Inscrição Municipal</Label>
+                  <Input
+                    value={notaIm}
+                    onChange={(e) => setNotaIm(e.target.value)}
+                    placeholder="Opcional"
+                    className="h-9 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Endereço</Label>
+                  <Input
+                    value={notaEndereco}
+                    onChange={(e) => setNotaEndereco(e.target.value)}
+                    placeholder="Endereço para a nota"
+                    className="h-9 text-sm"
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          {notaTipoPessoa === 'PF' && (
+            <div className="space-y-1">
+              <Label className="text-xs">Endereço</Label>
+              <Input
+                value={notaEndereco}
+                onChange={(e) => setNotaEndereco(e.target.value)}
+                placeholder="Endereço para a nota"
+                className="h-9 text-sm"
+              />
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-4">
         <div className="space-y-1">

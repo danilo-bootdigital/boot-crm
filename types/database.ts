@@ -88,6 +88,10 @@ export type Company = {
   site: string | null
   telefone: string | null
   endereco: string | null
+  // Migration 048: dados fiscais
+  nome_fantasia: string | null
+  inscricao_estadual: string | null
+  inscricao_municipal: string | null
   criado_em: string
   atualizado_em: string
 }
@@ -111,6 +115,13 @@ export type Contact = {
   endereco_cidade: string | null
   endereco_estado: string | null
   observacoes: string | null
+  // Migration 047: dados profissionais
+  tipo_pessoa: string | null
+  categoria_cliente: string | null
+  tipo_conselho: string | null
+  numero_conselho: string | null
+  uf_conselho: string | null
+  especialidade: string | null
   criado_em: string
   atualizado_em: string
 }
@@ -329,6 +340,15 @@ export type Quote = {
   vendedor_confirmado_em: string | null
   ultima_alteracao_validada_em: string | null
   observacoes: string | null
+  // Migration 049: dados para emissão da nota fiscal
+  nota_tipo_pessoa: string | null
+  nota_nome: string | null
+  nota_documento: string | null
+  nota_razao_social: string | null
+  nota_nome_fantasia: string | null
+  nota_endereco: string | null
+  nota_ie: string | null
+  nota_im: string | null
   criado_em: string
   atualizado_em: string
 }
@@ -356,6 +376,15 @@ export type Order = {
   responsavel_id: string
   valor_total: number
   observacoes: string | null
+  // Migration 050: dados para emissão da nota fiscal
+  nota_tipo_pessoa: string | null
+  nota_nome: string | null
+  nota_documento: string | null
+  nota_razao_social: string | null
+  nota_nome_fantasia: string | null
+  nota_endereco: string | null
+  nota_ie: string | null
+  nota_im: string | null
   criado_em: string
   atualizado_em: string
 }

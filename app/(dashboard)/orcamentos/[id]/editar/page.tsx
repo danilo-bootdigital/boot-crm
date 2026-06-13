@@ -21,7 +21,7 @@ export default async function EditarOrcamentoPage({ params }: { params: Promise<
 
   const { data: orcamento } = await supabase
     .from('quotes')
-    .select('id, lead_id, deal_id, supplier_id, contato_id, frete, endereco_entrega, forma_pagamento, observacoes, desconto_geral, status, responsavel_id')
+    .select('id, lead_id, deal_id, supplier_id, contato_id, frete, endereco_entrega, forma_pagamento, observacoes, desconto_geral, status, responsavel_id, nota_tipo_pessoa, nota_nome, nota_documento, nota_razao_social, nota_nome_fantasia, nota_endereco, nota_ie, nota_im')
     .eq('id', id)
     .eq('organization_id', perfil.organization_id)
     .single()
@@ -82,7 +82,13 @@ export default async function EditarOrcamentoPage({ params }: { params: Promise<
 
   const { data: contatos } = await supabase
     .from('contacts')
-    .select('id, nome, telefone, email, cpf_cnpj, endereco')
+    .select('id, nome, telefone, email, cpf_cnpj, endereco, empresa_id')
+    .eq('organization_id', perfil.organization_id)
+    .order('nome')
+
+  const { data: empresas } = await supabase
+    .from('companies')
+    .select('id, nome, cnpj, nome_fantasia, inscricao_estadual, inscricao_municipal, endereco')
     .eq('organization_id', perfil.organization_id)
     .order('nome')
 
@@ -109,7 +115,8 @@ export default async function EditarOrcamentoPage({ params }: { params: Promise<
         fornecedores={fornecedores ?? []}
         categorias={categorias ?? []}
         deals={(deals ?? []) as { id: string; titulo: string }[]}
-        contatos={(contatos ?? []) as { id: string; nome: string; telefone: string | null; email: string | null; cpf_cnpj: string | null; endereco: string | null }[]}
+        contatos={(contatos ?? []) as { id: string; nome: string; telefone: string | null; email: string | null; cpf_cnpj: string | null; endereco: string | null; empresa_id: string | null }[]}
+        empresas={(empresas ?? []) as { id: string; nome: string; cnpj: string | null; nome_fantasia: string | null; inscricao_estadual: string | null; inscricao_municipal: string | null; endereco: string | null }[]}
         fretesFornecedores={fretesFornecedores}
         transportadoras={transportadoras}
         orcamentoId={id}
@@ -131,6 +138,15 @@ export default async function EditarOrcamentoPage({ params }: { params: Promise<
             preco_unitario: item.preco_unitario,
             desconto_item: item.desconto_item,
           })),
+          // Migration 049: dados para emissão da nota fiscal
+          nota_tipo_pessoa: orcamento.nota_tipo_pessoa ?? 'PF',
+          nota_nome: orcamento.nota_nome ?? '',
+          nota_documento: orcamento.nota_documento ?? '',
+          nota_razao_social: orcamento.nota_razao_social ?? '',
+          nota_nome_fantasia: orcamento.nota_nome_fantasia ?? '',
+          nota_endereco: orcamento.nota_endereco ?? '',
+          nota_ie: orcamento.nota_ie ?? '',
+          nota_im: orcamento.nota_im ?? '',
         }}
       />
     </div>
