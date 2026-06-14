@@ -13,13 +13,15 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { Pencil } from 'lucide-react'
-import { editarHub } from '@/app/(dashboard)/configuracoes/hubs-de-saude/actions'
+import { Pencil, Trash2 } from 'lucide-react'
+import { editarHub, uploadLogoHub, removerLogoHub } from '@/app/(dashboard)/configuracoes/hubs-de-saude/actions'
+import { UploadLogoHub } from './upload-logo-hub'
 
 type Hub = {
   id: string
   nome: string
   status: string
+  logo_url: string | null
 }
 
 type Props = {
@@ -29,8 +31,10 @@ type Props = {
 export function ModalEditarHub({ hub }: Props) {
   const [isOpen, setIsOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
+  const [isUploadingLogo, setIsUploadingLogo] = useTransition()
   const [nome, setNome] = useState(hub.nome)
   const [status, setStatus] = useState(hub.status)
+  const [logoFile, setLogoFile] = useState<File | null>(null)
   const router = useRouter()
 
   function handleOpenChange(open: boolean) {
@@ -38,6 +42,7 @@ export function ModalEditarHub({ hub }: Props) {
     if (open) {
       setNome(hub.nome)
       setStatus(hub.status)
+      setLogoFile(null)
     }
   }
 
@@ -53,11 +58,34 @@ export function ModalEditarHub({ hub }: Props) {
         formData.set('nome', nome.trim())
         formData.set('status', status)
         await editarHub(hub.id, formData)
+
+        // Se tem novo logo para upload
+        if (logoFile) {
+          const logoFormData = new FormData()
+          logoFormData.set('file', logoFile)
+          await uploadLogoHub(hub.id, logoFormData)
+        }
+
         toast.success('Hub atualizado.')
         setIsOpen(false)
+        setLogoFile(null)
         router.refresh()
       } catch (err: unknown) {
         toast.error(err instanceof Error ? err.message : 'Erro ao atualizar hub.')
+      }
+    })
+  }
+
+  function handleRemoverLogo(e: React.MouseEvent) {
+    e.preventDefault()
+    if (!window.confirm('Remover logo deste hub?')) return
+    setIsUploadingLogo(async () => {
+      try {
+        await removerLogoHub(hub.id)
+        toast.success('Logo removido.')
+        router.refresh()
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : 'Erro ao remover logo.')
       }
     })
   }
@@ -99,6 +127,27 @@ export function ModalEditarHub({ hub }: Props) {
                 <option value="ativo">Ativo</option>
                 <option value="inativo">Inativo</option>
               </select>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Logo do Hub</Label>
+                {hub.logo_url && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-red-500 hover:text-red-700 hover:bg-red-50"
+                    onClick={handleRemoverLogo}
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    Remover
+                  </Button>
+                )}
+              </div>
+              <UploadLogoHub
+                onFileSelect={setLogoFile}
+                previewUrl={hub.logo_url}
+              />
             </div>
           </div>
           <DialogFooter>

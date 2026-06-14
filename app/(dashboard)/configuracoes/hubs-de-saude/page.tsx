@@ -11,6 +11,7 @@ type Hub = {
   id: string
   nome: string
   status: string
+  logo_url: string | null
   criado_em: string
 }
 
@@ -29,7 +30,7 @@ async function listarHubs() {
 
   const { data: hubs } = await supabase
     .from('health_hubs')
-    .select('id, nome, status, criado_em')
+    .select('id, nome, status, logo_url, criado_em')
     .eq('organization_id', perfil.organization_id)
     .order('nome')
 

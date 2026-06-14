@@ -14,18 +14,21 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Plus } from 'lucide-react'
-import { criarHub } from '@/app/(dashboard)/configuracoes/hubs-de-saude/actions'
+import { criarHub, uploadLogoHub } from '@/app/(dashboard)/configuracoes/hubs-de-saude/actions'
+import { UploadLogoHub } from './upload-logo-hub'
 
 export function ModalNovoHub() {
   const [isOpen, setIsOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [nome, setNome] = useState('')
+  const [logoFile, setLogoFile] = useState<File | null>(null)
   const router = useRouter()
 
   function handleOpenChange(open: boolean) {
     setIsOpen(open)
     if (!open) {
       setNome('')
+      setLogoFile(null)
     }
   }
 
@@ -39,10 +42,19 @@ export function ModalNovoHub() {
       try {
         const formData = new FormData()
         formData.set('nome', nome.trim())
-        await criarHub(formData)
+        const hub = await criarHub(formData)
+
+        // Se tiver logo, fazer upload após criar o hub
+        if (logoFile) {
+          const logoFormData = new FormData()
+          logoFormData.set('file', logoFile)
+          await uploadLogoHub(hub.id, logoFormData)
+        }
+
         toast.success('Hub criado com sucesso.')
         setIsOpen(false)
         setNome('')
+        setLogoFile(null)
         router.refresh()
       } catch (err: unknown) {
         toast.error(err instanceof Error ? err.message : 'Erro ao criar hub.')
@@ -72,6 +84,10 @@ export function ModalNovoHub() {
                 autoFocus
               />
             </div>
+            <UploadLogoHub
+              onFileSelect={setLogoFile}
+              previewUrl={null}
+            />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
