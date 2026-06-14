@@ -1,11 +1,13 @@
 import { formatarMoeda } from '@/lib/utils'
 
 // Paleta verde suave DPRIME
-const GREEN = [47, 143, 70] as const      // #2F8F46 - verde principal
-const GREEN_LIGHT = [234, 244, 236] as const // #EAF4EC - verde claro
-const GREEN_BORDER = [201, 221, 204] as const // #C9DDCC - verde borda
-const DARK_TEXT = [43, 43, 43] as const    // #2B2B2B
-const GRAY_TEXT = [107, 107, 107] as const // #6B6B6B
+const GREEN = [47, 143, 70] as const      // #2F8F46
+const GREEN_LIGHT = [234, 244, 236] as const // #EAF4EC
+const GREEN_LIGHT2 = [240, 247, 242] as const // verde mais claro
+const GREEN_BORDER = [201, 221, 204] as const // #C9DDCC
+const GREEN_DARK = [47, 143, 70] as const
+const DARK_TEXT = [43, 43, 43] as const
+const GRAY_TEXT = [107, 107, 107] as const
 const WHITE = [255, 255, 255] as const
 
 interface OrcamentoItem {
@@ -110,145 +112,273 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     }
   }
 
-  // === HEADER PREMIUM ===
-  const headerTop = 12
-  const headerBottom = 55
+  // Helper para desenhar ícone circular
+  const drawIconCircle = (x: number, y: number, color: number[]) => {
+    doc.setFillColor(color[0], color[1], color[2])
+    doc.circle(x, y, 6, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'bold')
+  }
 
+  // === HEADER ===
+  const headerTop = 10
   const org = orcamento.organizacao
 
-  // Lado esquerdo: Logo maior
+  // Lado esquerdo: Logo + Contatos
   if (org?.logo_url) {
     const logoData = await loadLogo(org.logo_url)
     if (logoData) {
       try {
-        doc.addImage(logoData, 'PNG', margin, headerTop, 45, 22)
+        doc.addImage(logoData, 'PNG', margin, headerTop, 40, 22)
       } catch {
         // Logo não carregado
       }
     }
   }
 
-  // Nome da empresa
-  doc.setTextColor(...GREEN)
-  doc.setFontSize(14)
-  doc.setFont(undefined!, 'bold')
-  doc.text(org?.nome_fantasia || org?.nome || 'DPRIME', margin, headerTop + 28)
-
-  doc.setFontSize(10)
-  doc.setFont(undefined!, 'normal')
+  // Subhead "Representação Farmacêutica"
+  let subheadY = headerTop + 25
   doc.setTextColor(...GRAY_TEXT)
-  doc.text('Representação Farmacêutica', margin, headerTop + 35)
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Representação Farmacêutica', margin, subheadY)
 
-  // Contatos organizados
-  const contatos = [
-    org?.telefone ? `Tel: ${org.telefone}` : null,
-    org?.email,
-    org?.site,
-    org?.instagram,
-  ].filter(Boolean)
-
+  // Linha 1: Telefone | Email
   doc.setFontSize(9)
-  let contactY = headerTop + 42
-  doc.text(contatos.slice(0, 2).join('   |   '), margin, contactY)
-  if (contatos.length > 2) {
-    doc.text(contatos.slice(2).join('   |   '), margin, contactY + 5)
-  }
+  doc.setTextColor(...DARK_TEXT)
+  let line1Y = subheadY + 9
+  const tel = org?.telefone || '(19) 97819-3530'
+  const email = org?.email || 'contato@dprimerepresentacao.com.br'
+  // Ícone telefone
+  doc.setFillColor(...GREEN)
+  doc.circle(margin + 3, line1Y - 2.5, 2, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(6)
+  doc.text('☎', margin + 3, line1Y - 1.5, { align: 'center' })
+  doc.setTextColor(...DARK_TEXT)
+  doc.setFontSize(9)
+  doc.text(tel, margin + 8, line1Y - 1)
 
-  // Lado direito: ORÇAMENTO - título grande
+  // Email - ícone
+  const emailX = margin + 60
+  doc.setFillColor(...GREEN)
+  doc.circle(emailX + 3, line1Y - 2.5, 2, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(6)
+  doc.text('✉', emailX + 3, line1Y - 1.5, { align: 'center' })
+  doc.setTextColor(...DARK_TEXT)
+  doc.setFontSize(9)
+  doc.text(email, emailX + 8, line1Y - 1)
+
+  // Linha 2: Site | Instagram
+  let line2Y = line1Y + 7
+  const site = org?.site || 'www.dprimerepresentacao.com.br'
+  const instagram = org?.instagram || '@dprimerepresentacao'
+
+  doc.setFillColor(...GREEN)
+  doc.circle(margin + 3, line2Y - 2.5, 2, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(6)
+  doc.text('🌐', margin + 3, line2Y - 1.5, { align: 'center' })
+  doc.setTextColor(...DARK_TEXT)
+  doc.setFontSize(9)
+  doc.text(site, margin + 8, line2Y - 1)
+
+  const instaX = margin + 75
+  doc.setFillColor(...GREEN)
+  doc.circle(instaX + 3, line2Y - 2.5, 2, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(6)
+  doc.text('📷', instaX + 3, line2Y - 1.5, { align: 'center' })
+  doc.setTextColor(...DARK_TEXT)
+  doc.setFontSize(9)
+  doc.text(instagram, instaX + 8, line2Y - 1)
+
+  // Linha vertical separadora
+  const lineVerticalX = pageWidth - 95
+  doc.setDrawColor(...GREEN_BORDER)
+  doc.setLineWidth(0.5)
+  doc.line(lineVerticalX, headerTop, lineVerticalX, headerTop + 32)
+
+  // Lado direito: ORÇAMENTO
   const rightX = pageWidth - margin
 
   doc.setTextColor(...GREEN)
-  doc.setFontSize(34)
-  doc.setFont(undefined!, 'bold')
-  doc.text('ORÇAMENTO', rightX, headerTop + 20, { align: 'right' })
+  doc.setFontSize(28)
+  doc.setFont('helvetica', 'bold')
+  doc.text('ORÇAMENTO', rightX, headerTop + 10, { align: 'right' })
 
-  // Linha decorativa verde
-  const titleWidth = doc.getTextWidth('ORÇAMENTO')
-  doc.setDrawColor(...GREEN)
-  doc.setLineWidth(1.2)
-  doc.line(rightX - titleWidth, headerTop + 24, rightX, headerTop + 24)
-
-  // Dados do orçamento - mais legíveis
+  // Nº do orçamento - box com borda
+  const numBoxW = 60
+  const numBoxH = 18
+  const numBoxX = rightX - numBoxW
+  const numBoxY = headerTop + 14
+  doc.setDrawColor(...GREEN_BORDER)
+  doc.setLineWidth(0.5)
+  doc.setFillColor(...GREEN_LIGHT2)
+  doc.roundedRect(numBoxX, numBoxY, numBoxW, numBoxH, 2, 2, 'FD')
+  doc.setTextColor(...GREEN)
   doc.setFontSize(13)
-  doc.setFont(undefined!, 'normal')
+  doc.setFont('helvetica', 'bold')
+  doc.text(`Nº ${orcamento.numero.toString().padStart(3, '0')}`, numBoxX + numBoxW / 2, numBoxY + 12, { align: 'center' })
 
+  // Linha 1: Data | Proposta (com ícones)
   const dataFormatada = new Date(orcamento.criado_em).toLocaleDateString('pt-BR')
 
-  let rightY = headerTop + 34
+  let rightY = headerTop + 40
+  // Data
+  doc.setFillColor(...GREEN)
+  doc.circle(rightX - 85, rightY - 2.5, 2, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(6)
+  doc.text('📅', rightX - 85, rightY - 1.5, { align: 'center' })
   doc.setTextColor(...GRAY_TEXT)
-  doc.setFont(undefined!, 'bold')
-  doc.text('Nº', rightX, rightY, { align: 'right' })
+  doc.setFontSize(8)
+  doc.text('Data:', rightX - 75, rightY - 1)
   doc.setTextColor(...DARK_TEXT)
-  doc.setFont(undefined!, 'normal')
-  doc.text(orcamento.numero.toString().padStart(3, '0'), rightX - 12, rightY, { align: 'right' })
+  doc.setFont('helvetica', 'normal')
+  doc.text(dataFormatada, rightX - 60, rightY - 1)
 
+  // Proposta
+  doc.setFillColor(...GREEN)
+  doc.circle(rightX - 35, rightY - 2.5, 2, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(6)
+  doc.text('📄', rightX - 35, rightY - 1.5, { align: 'center' })
+  doc.setTextColor(...GRAY_TEXT)
+  doc.setFontSize(8)
+  doc.text('Proposta:', rightX - 25, rightY - 1)
+  doc.setTextColor(...DARK_TEXT)
+  doc.setFont('helvetica', 'normal')
+  doc.text(orcamento.numero.toString().padStart(3, '0'), rightX - 2, rightY - 1)
+
+  // Linha 2: Validade
   rightY += 7
+  doc.setFillColor(...GREEN)
+  doc.circle(rightX - 85, rightY - 2.5, 2, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(6)
+  doc.text('⏰', rightX - 85, rightY - 1.5, { align: 'center' })
   doc.setTextColor(...GRAY_TEXT)
-  doc.setFont(undefined!, 'bold')
-  doc.text('Data:', rightX, rightY, { align: 'right' })
+  doc.setFontSize(8)
+  doc.text('Validade:', rightX - 75, rightY - 1)
   doc.setTextColor(...DARK_TEXT)
-  doc.setFont(undefined!, 'normal')
-  doc.text(dataFormatada, rightX - 28, rightY, { align: 'right' })
+  doc.setFont('helvetica', 'normal')
+  doc.text('30 dias', rightX - 50, rightY - 1)
 
+  // Linha 3: Responsável
   rightY += 7
+  doc.setFillColor(...GREEN)
+  doc.circle(rightX - 85, rightY - 2.5, 2, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(6)
+  doc.text('👤', rightX - 85, rightY - 1.5, { align: 'center' })
   doc.setTextColor(...GRAY_TEXT)
-  doc.setFont(undefined!, 'bold')
-  doc.text('Responsável:', rightX, rightY, { align: 'right' })
+  doc.setFontSize(8)
+  doc.text('Responsável:', rightX - 75, rightY - 1)
   doc.setTextColor(...DARK_TEXT)
-  doc.setFont(undefined!, 'normal')
-  doc.text(orcamento.responsavel?.nome || '—', rightX - 40, rightY, { align: 'right' })
+  doc.setFont('helvetica', 'normal')
+  doc.text(orcamento.responsavel?.nome || '—', rightX - 30, rightY - 1)
 
-  // Linha divisória verde
-  doc.setDrawColor(...GREEN_BORDER)
-  doc.setLineWidth(0.8)
+  // Linha horizontal verde
+  const headerBottom = headerTop + 55
+  doc.setDrawColor(...GREEN)
+  doc.setLineWidth(1)
   doc.line(margin, headerBottom, pageWidth - margin, headerBottom)
 
-  // === TRÊS COLUNAS PRINCIPAIS ===
-  let y = headerBottom + 12
-  const colGap = 10
+  // === TRÊS CARDS ===
+  let y = headerBottom + 8
+  const colGap = 6
   const colWidth = (contentWidth - colGap * 2) / 3
-  const lineH = 6 // Espaçamento entre linhas 1.4-1.6
-  const cardPadding = 20
+  const cardPadding = 14
+  const lineH = 6.5
+  const titleH = 28
 
-  // Helper para desenhar card premium
-  const drawCard = (x: number, y: number, w: number, title: string, lines: { label: string; value: string }[]) => {
-    const titleH = 22
-    const contentH = lines.length * lineH + 8
-    const cardH = titleH + contentH
+  // Helper para card
+  const drawCard = (x: number, y: number, w: number, title: string, lines: { label: string; value: string }[], hasInfo: boolean = false, infoText: string = '') => {
+    // Calcular altura baseada no conteúdo
+    let contentH = 0
+    lines.forEach(({ value }) => {
+      if (value) {
+        const valueLines = doc.splitTextToSize(value, w - cardPadding * 2 - 40)
+        contentH += lineH * valueLines.length
+      }
+    })
 
-    // Fundo branco com borda suave
-    doc.setFillColor(255, 255, 255)
+    let infoH = 0
+    if (hasInfo) {
+      infoH = 30
+    }
+
+    const cardH = titleH + contentH + 8 + infoH + 8
+
+    // Borda do card
     doc.setDrawColor(...GREEN_BORDER)
     doc.setLineWidth(0.5)
-    doc.roundedRect(x, y, w, cardH, 3, 3, 'FD')
+    doc.setFillColor(255, 255, 255)
+    doc.roundedRect(x, y, w, cardH, 4, 4, 'FD')
 
-    // Barra de título verde suave
-    doc.setFillColor(...GREEN_LIGHT)
-    doc.roundedRect(x, y, w, titleH, 3, 3, 'F')
-    doc.rect(x, y + titleH - 3, w, 3, 'F')
+    // Título com ícone circular
+    drawIconCircle(x + 18, y + 14, [GREEN[0], GREEN[1], GREEN[2]])
+    // Ícones específicos para cada card
+    if (title.includes('CLIENTE')) doc.text('👤', x + 18, y + 16, { align: 'center' })
+    else if (title.includes('NOTA')) doc.text('📋', x + 18, y + 16, { align: 'center' })
+    else if (title.includes('ENTREGA')) doc.text('🚚', x + 18, y + 16, { align: 'center' })
 
-    // Título - 16-18px
+    // Título
     doc.setTextColor(...GREEN)
-    doc.setFontSize(16)
-    doc.setFont(undefined!, 'bold')
-    doc.text(title, x + cardPadding, y + 15)
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.text(title, x + 30, y + 16)
 
-    // Conteúdo - Labels 12-13px, Valores 13-14px
-    let cy = y + titleH + 10
-    doc.setFontSize(12)
+    // Linha separadora após título
+    const separatorY = y + titleH
+    doc.setDrawColor(...GREEN_BORDER)
+    doc.setLineWidth(0.3)
+    doc.line(x + 5, separatorY, x + w - 5, separatorY)
+
+    // Conteúdo
+    let cy = separatorY + 8
     lines.forEach(({ label, value }) => {
       if (value) {
         doc.setTextColor(...GRAY_TEXT)
-        doc.setFont(undefined!, 'bold')
+        doc.setFontSize(8.5)
+        doc.setFont('helvetica', 'normal')
         doc.text(label, x + cardPadding, cy)
-        doc.setFont(undefined!, 'normal')
+
         doc.setTextColor(...DARK_TEXT)
-        doc.setFontSize(13)
-        const valueLines = doc.splitTextToSize(value, w - cardPadding * 2 - 40)
-        doc.text(valueLines, x + cardPadding + 45, cy)
+        doc.setFontSize(10)
+        const valueLines = doc.splitTextToSize(value, w - cardPadding * 2 - 50)
+        doc.text(valueLines, x + cardPadding + 40, cy)
         cy += lineH * valueLines.length
       }
     })
+
+    // Info box para PF
+    if (hasInfo && infoText) {
+      cy += 4
+      const infoBoxH = 24
+      doc.setFillColor(...GREEN_LIGHT)
+      doc.setDrawColor(...GREEN_BORDER)
+      doc.setLineWidth(0.3)
+      doc.roundedRect(x + cardPadding, cy, w - cardPadding * 2, infoBoxH, 2, 2, 'FD')
+
+      // Ícone info
+      doc.setFillColor(...GREEN)
+      doc.circle(x + cardPadding + 8, cy + infoBoxH / 2, 5, 'F')
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'bold')
+      doc.text('i', x + cardPadding + 8, cy + infoBoxH / 2 + 2.5, { align: 'center' })
+
+      // Texto info
+      doc.setTextColor(...DARK_TEXT)
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'normal')
+      const infoLines = doc.splitTextToSize(infoText, w - cardPadding * 2 - 22)
+      doc.text(infoLines, x + cardPadding + 18, cy + infoBoxH / 2 - 1)
+    }
 
     return cardH
   }
@@ -256,7 +386,7 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   // Identificar cliente
   const cliente = orcamento.contato || orcamento.lead
 
-  // Montar endereço completo
+  // Montar endereço completo do contato
   function montarEndereco(): string | null {
     if (!cliente) return null
     if (orcamento.contato) {
@@ -286,20 +416,24 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     { label: 'Empresa:', value: orcamento.contato?.empresa?.nome || '' },
     { label: 'Categoria:', value: orcamento.contato?.categoria_cliente || '' },
     { label: 'Especialidade:', value: orcamento.contato?.especialidade || '' },
-    { label: 'Conselho:', value: (orcamento.contato?.tipo_conselho && orcamento.contato?.numero_conselho)
+    { label: 'Conselho / Nº:', value: (orcamento.contato?.tipo_conselho && orcamento.contato?.numero_conselho)
       ? `${orcamento.contato.tipo_conselho} ${orcamento.contato.numero_conselho}${orcamento.contato.uf_conselho ? ` - ${orcamento.contato.uf_conselho}` : ''}`
       : '' },
-    { label: 'Tipo:', value: orcamento.contato?.tipo_pessoa || '' },
-    { label: 'Endereço:', value: endereco || '' },
+    { label: 'Tipo de pessoa:', value: (orcamento.contato?.tipo_pessoa && orcamento.contato?.categoria_cliente)
+      ? `${orcamento.contato.tipo_pessoa} - ${orcamento.contato.categoria_cliente}`
+      : '' },
   ].filter(l => l.value)
 
-  const col1H = drawCard(margin, y, colWidth, 'DADOS DO CLIENTE', col1Lines)
+  // Endereço separado com label próprio
+  col1Lines.push({ label: 'Endereço:', value: endereco || '' })
+
+  const col1H = drawCard(margin, y, colWidth, 'DADOS DO CLIENTE / CONTATO', col1Lines.filter(l => l.value))
 
   // COLUNA 2: DADOS PARA EMISSÃO DA NOTA
   const isPF = orcamento.nota_tipo_pessoa === 'PF'
   const col2Lines: { label: string; value: string }[] = [
     { label: 'Tipo:', value: isPF ? 'Pessoa Física' : (orcamento.nota_tipo_pessoa === 'PJ' ? 'Pessoa Jurídica' : '—') },
-    { label: isPF ? 'Nome:' : 'Razão Social:', value: orcamento.nota_nome || '' },
+    { label: 'Nome:', value: orcamento.nota_nome || '' },
     { label: isPF ? 'CPF:' : 'CNPJ:', value: orcamento.nota_documento || '' },
     ...(isPF ? [
       { label: 'Telefone:', value: cliente?.telefone || '' },
@@ -312,205 +446,256 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     { label: 'Endereço:', value: orcamento.nota_endereco || '' },
   ].filter(l => l.value)
 
-  if (isPF && !orcamento.nota_nome) {
-    col2Lines.push({ label: '', value: 'Dados conforme cadastro do contato' })
-  }
-
-  const col2H = drawCard(margin + colWidth + colGap, y, colWidth, 'DADOS PARA EMISSÃO DA NOTA', col2Lines)
+  const showInfoPF = isPF
+  const col2H = drawCard(margin + colWidth + colGap, y, colWidth, 'DADOS PARA EMISSÃO DA NOTA', col2Lines, showInfoPF, 'Para Pessoa Física, os dados da nota fiscal são utilizados conforme o cadastro do contato.')
 
   // COLUNA 3: ENDEREÇO DE ENTREGA
   const temEntrega = orcamento.endereco_entrega && orcamento.endereco_entrega.trim().length > 0
   let col3H = 0
 
   if (temEntrega) {
-    const col3Lines: { label: string; value: string }[] = [
-      { label: 'Endereço:', value: orcamento.endereco_entrega! },
-    ].filter(l => l.value)
+    // Endereço de entrega estruturado
+    const entregaText = orcamento.endereco_entrega!
+    const entregaLines: { label: string; value: string }[] = [
+      { label: 'Nome / Destinatário:', value: cliente?.nome || '' },
+      { label: 'Telefone:', value: cliente?.telefone || '' },
+      { label: 'Endereço:', value: entregaText },
+    ]
 
-    col3H = drawCard(margin + (colWidth + colGap) * 2, y, colWidth, 'ENDEREÇO DE ENTREGA', col3Lines)
+    if (orcamento.contato?.endereco_bairro) {
+      entregaLines.push({ label: 'Bairro:', value: orcamento.contato.endereco_bairro })
+    }
+    if (orcamento.contato?.endereco_cidade) {
+      const cidadeUF = orcamento.contato.endereco_estado
+        ? `${orcamento.contato.endereco_cidade} - ${orcamento.contato.endereco_estado}`
+        : orcamento.contato.endereco_cidade
+      entregaLines.push({ label: 'Cidade / UF:', value: cidadeUF })
+    }
+    if (orcamento.contato?.endereco_cep) {
+      entregaLines.push({ label: 'CEP:', value: orcamento.contato.endereco_cep })
+    }
+
+    col3H = drawCard(margin + (colWidth + colGap) * 2, y, colWidth, 'ENDEREÇO DE ENTREGA', entregaLines.filter(l => l.value))
   }
 
   // Altura máxima das colunas
   const maxColH = Math.max(col1H, col2H, col3H)
-  y += maxColH + 16
+  y += maxColH + 10
 
   // === FORNECEDOR E FRETE ===
   if (orcamento.fornecedor || orcamento.carrier) {
     const fornecY = y
-    const fornecH = 45
+    const fornecH = 24
 
-    // Card premium
-    doc.setFillColor(255, 255, 255)
+    // Card
     doc.setDrawColor(...GREEN_BORDER)
     doc.setLineWidth(0.5)
-    doc.roundedRect(margin, fornecY, contentWidth, fornecH, 3, 3, 'FD')
-
-    // Barra de título
-    doc.setFillColor(...GREEN_LIGHT)
-    doc.roundedRect(margin, fornecY, contentWidth, 22, 3, 3, 'F')
-    doc.rect(margin, fornecY + 19, contentWidth, 3, 'F')
-
-    doc.setTextColor(...GREEN)
-    doc.setFontSize(16)
-    doc.setFont(undefined!, 'bold')
-    doc.text('FORNECEDOR / FRETE', margin + cardPadding, fornecY + 15)
+    doc.setFillColor(255, 255, 255)
+    doc.roundedRect(margin, fornecY, contentWidth, fornecH, 4, 4, 'FD')
 
     // Conteúdo
-    let fx = margin + cardPadding
-    let fy = fornecY + 32
-
-    doc.setFontSize(13)
+    let fx = margin + 14
 
     if (orcamento.fornecedor) {
-      doc.setTextColor(...GRAY_TEXT)
-      doc.setFont(undefined!, 'bold')
-      doc.text('Fornecedor:', fx, fy)
-      fx += 42
+      // Ícone fornecedor (prédio)
+      doc.setFillColor(...GREEN)
+      doc.circle(fx + 5, fornecY + fornecH / 2, 6, 'F')
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(8)
+      doc.text('🏢', fx + 5, fornecY + fornecH / 2 + 2.5, { align: 'center' })
+
+      doc.setTextColor(...GREEN)
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'bold')
+      doc.text('FORNECEDOR:', fx + 16, fornecY + fornecH / 2 - 1)
       doc.setTextColor(...DARK_TEXT)
-      doc.setFont(undefined!, 'normal')
-      doc.text(orcamento.fornecedor.nome, fx, fy)
-      fx += doc.getTextWidth(orcamento.fornecedor.nome) + 20
+      doc.setFont('helvetica', 'normal')
+      doc.text(orcamento.fornecedor.nome, fx + 16 + 35, fornecY + fornecH / 2 - 1)
+
+      fx += 90
     }
 
     if (orcamento.carrier) {
-      doc.setTextColor(...GRAY_TEXT)
-      doc.setFont(undefined!, 'bold')
-      doc.text('Frete por:', fx, fy)
-      fx += 35
+      // Linha vertical
+      doc.setDrawColor(...GREEN_BORDER)
+      doc.setLineWidth(0.3)
+      doc.line(fx - 10, fornecY + 5, fx - 10, fornecY + fornecH - 5)
+
+      // Ícone caminhão
+      doc.setFillColor(...GREEN)
+      doc.circle(fx + 5, fornecY + fornecH / 2, 6, 'F')
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(8)
+      doc.text('🚚', fx + 5, fornecY + fornecH / 2 + 2.5, { align: 'center' })
+
+      doc.setTextColor(...GREEN)
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'bold')
+      doc.text('FRETE POR:', fx + 16, fornecY + fornecH / 2 - 1)
       doc.setTextColor(...DARK_TEXT)
-      doc.setFont(undefined!, 'normal')
-      doc.text(orcamento.carrier.nome, fx, fy)
+      doc.setFont('helvetica', 'normal')
+      doc.text(orcamento.carrier.nome, fx + 16 + 30, fornecY + fornecH / 2 - 1)
     }
 
-    y += fornecH + 16
+    y += fornecH + 10
   }
 
   // === PRODUTOS ===
-  doc.setFillColor(...GREEN_LIGHT)
-  doc.roundedRect(margin, y, contentWidth, 22, 3, 3, 'F')
-  doc.rect(margin, y + 19, contentWidth, 3, 'F')
+  const prodY = y
+  const prodH = 24
 
+  // Card header
+  doc.setDrawColor(...GREEN_BORDER)
+  doc.setLineWidth(0.5)
+  doc.setFillColor(255, 255, 255)
+  doc.roundedRect(margin, prodY, contentWidth, prodH, 4, 4, 'FD')
+
+  // Ícone carrinho
+  doc.setFillColor(...GREEN)
+  doc.circle(margin + 18, prodY + prodH / 2, 6, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(8)
+  doc.text('🛒', margin + 18, prodY + prodH / 2 + 2.5, { align: 'center' })
+
+  // Título
   doc.setTextColor(...GREEN)
-  doc.setFontSize(16)
-  doc.setFont(undefined!, 'bold')
-  doc.text('PRODUTOS', margin + cardPadding, y + 15)
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  doc.text('PRODUTOS', margin + 30, prodY + prodH / 2 + 2)
 
-  y += 26
+  y += prodH + 2
 
-  // Tabela premium
+  // Tabela
   autoTable(doc, {
     startY: y,
     head: [['#', 'DESCRIÇÃO', 'APRESENTAÇÃO', 'QTD', 'VALOR UNIT.', 'DESC.', 'VALOR TOTAL']],
-    body: orcamento.itens.map((item, i) => [
-      (i + 1).toString(),
-      item.descricao,
-      [item.marca || '', item.codigo || ''].filter(Boolean).join(' | ') || '—',
-      item.quantidade.toString(),
-      formatarMoeda(item.preco_unitario),
-      item.desconto_item > 0 ? `${item.desconto_item}%` : '—',
-      formatarMoeda(item.subtotal),
-    ]),
+    body: orcamento.itens.map((item, i) => {
+      const descHtml = `<b>${item.descricao}</b>` +
+        (item.marca ? `\nMarca: ${item.marca}` : '') +
+        (item.codigo ? `\nCódigo: ${item.codigo}` : '')
+      return [
+        (i + 1).toString(),
+        descHtml,
+        item.unidade || '—',
+        item.quantidade.toString(),
+        formatarMoeda(item.preco_unitario),
+        item.desconto_item > 0 ? `${item.desconto_item}%` : '—',
+        formatarMoeda(item.subtotal),
+      ]
+    }),
     styles: {
-      fontSize: 13,
-      cellPadding: 4,
+      fontSize: 9,
+      cellPadding: 5,
       lineColor: [...GREEN_BORDER],
       lineWidth: 0.3,
       textColor: [...DARK_TEXT],
+      valign: 'middle',
     },
     headStyles: {
       fillColor: [...GREEN],
       textColor: [...WHITE],
       fontStyle: 'bold',
-      fontSize: 12,
+      fontSize: 9,
       cellPadding: 5,
-    },
-    bodyStyles: {
-      fontSize: 13,
-    },
-    alternateRowStyles: {
-      fillColor: [252, 252, 252],
     },
     columnStyles: {
       0: { cellWidth: 12, halign: 'center', fontStyle: 'bold' },
-      1: { cellWidth: 'auto', fontStyle: 'bold', fontSize: 14 },
-      2: { cellWidth: 50, fontSize: 11, textColor: [...GRAY_TEXT] },
+      1: { cellWidth: 'auto' },
+      2: { cellWidth: 40 },
       3: { cellWidth: 16, halign: 'center' },
-      4: { cellWidth: 38, halign: 'right' },
+      4: { cellWidth: 32, halign: 'right' },
       5: { cellWidth: 18, halign: 'center' },
-      6: { cellWidth: 38, halign: 'right', fontStyle: 'bold' },
+      6: { cellWidth: 32, halign: 'right', fontStyle: 'bold' },
+    },
+    didParseCell: (data) => {
+      if (data.section === 'body' && data.column.index === 1) {
+        // Renderizar com negrito na primeira linha
+        if (data.cell.raw && typeof data.cell.raw === 'string') {
+          (data.cell as any).text = data.cell.raw
+        }
+      }
     },
     margin: { left: margin, right: margin },
   })
 
   // === RESUMO FINANCEIRO ===
   const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y + 20
-  let ty = finalY + 12
+  let ty = finalY + 10
 
   const rightAlign = pageWidth - margin
   const labelX = rightAlign - 90
   const valueX = rightAlign
 
-  doc.setFontSize(14)
+  // Card de resumo
+  const resumoW = 110
+  const resumoH = 60
+  const resumoX = rightAlign - resumoW
+  const resumoY = ty
+
+  doc.setDrawColor(...GREEN_BORDER)
+  doc.setLineWidth(0.5)
+  doc.setFillColor(255, 255, 255)
+  doc.roundedRect(resumoX, resumoY, resumoW, resumoH, 3, 3, 'FD')
+
+  let ry = resumoY + 8
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'normal')
 
   // Subtotal
-  doc.setTextColor(...GRAY_TEXT)
-  doc.setFont(undefined!, 'normal')
-  doc.text('Subtotal:', labelX, ty)
   doc.setTextColor(...DARK_TEXT)
-  doc.text(formatarMoeda(orcamento.valor_subtotal), valueX, ty, { align: 'right' })
-  ty += 8
+  doc.text('Subtotal:', resumoX + 8, ry)
+  doc.text(formatarMoeda(orcamento.valor_subtotal), rightAlign - 4, ry, { align: 'right' })
+  ry += 8
 
   // Desconto
   if (orcamento.desconto_geral > 0) {
-    doc.setTextColor(...GRAY_TEXT)
-    doc.setFont(undefined!, 'normal')
-    doc.text(`Desconto (${orcamento.desconto_geral}%):`, labelX, ty)
-    doc.setTextColor(200, 50, 50)
-    doc.text(`-${formatarMoeda(orcamento.valor_subtotal * orcamento.desconto_geral / 100)}`, valueX, ty, { align: 'right' })
-    ty += 8
+    doc.text(`Desconto:`, resumoX + 8, ry)
+    doc.text(`-${formatarMoeda(orcamento.valor_subtotal * orcamento.desconto_geral / 100)}`, rightAlign - 4, ry, { align: 'right' })
+    ry += 8
+  } else {
+    doc.text('Desconto:', resumoX + 8, ry)
+    doc.text('R$ 0,00', rightAlign - 4, ry, { align: 'right' })
+    ry += 8
   }
 
   // Frete
-  if (orcamento.frete > 0) {
-    doc.setTextColor(...GRAY_TEXT)
-    doc.setFont(undefined!, 'normal')
-    doc.text('Frete:', labelX, ty)
-    doc.setTextColor(...DARK_TEXT)
-    doc.text(`+${formatarMoeda(orcamento.frete)}`, valueX, ty, { align: 'right' })
-    ty += 8
-  }
+  doc.text('Frete:', resumoX + 8, ry)
+  doc.text(`+${formatarMoeda(orcamento.frete)}`, rightAlign - 4, ry, { align: 'right' })
+  ry += 8
 
-  // TOTAL premium - maior destaque
-  ty += 6
-  const totalW = 110
-  const totalH = 22
+  // TOTAL - destaque verde
   doc.setFillColor(...GREEN)
-  doc.roundedRect(rightAlign - totalW, ty - 8, totalW, totalH, 3, 3, 'F')
-
+  doc.roundedRect(resumoX, ry - 5, resumoW, 14, 2, 2, 'F')
   doc.setTextColor(...WHITE)
-  doc.setFontSize(16)
-  doc.setFont(undefined!, 'bold')
-  doc.text('TOTAL', rightAlign - totalW + 10, ty + 6)
-  doc.setFontSize(24)
-  doc.text(formatarMoeda(orcamento.valor_total), rightAlign - 6, ty + 6, { align: 'right' })
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  doc.text('TOTAL', resumoX + 8, ry + 4)
+  doc.setFontSize(13)
+  doc.text(formatarMoeda(orcamento.valor_total), rightAlign - 4, ry + 4, { align: 'right' })
 
   // === RODAPÉ ===
   const footerY = pageHeight - 12
 
-  // Linha fina verde
-  doc.setDrawColor(...GREEN_BORDER)
+  // Linha verde
+  doc.setDrawColor(...GREEN)
   doc.setLineWidth(0.5)
   doc.line(margin, footerY - 6, pageWidth - margin, footerY - 6)
 
-  doc.setFontSize(9)
-  doc.setTextColor(...GRAY_TEXT)
-  doc.setFont(undefined!, 'normal')
+  // Ícone escudo
+  doc.setFillColor(...GREEN)
+  doc.circle(margin + 4, footerY - 1, 4, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(6)
+  doc.text('🛡', margin + 4, footerY, { align: 'center' })
 
+  // Texto
+  doc.setTextColor(...DARK_TEXT)
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'normal')
   const dataGeracao = new Date().toLocaleDateString('pt-BR')
   const horaGeracao = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-
-  doc.text(`Proposta gerada em ${dataGeracao} às ${horaGeracao}`, margin, footerY)
-  doc.text('Documento gerado automaticamente pelo CRM DPRIME.', margin, footerY + 5)
+  doc.text(`Proposta gerada em ${dataGeracao} às ${horaGeracao}`, margin + 12, footerY - 1)
+  doc.text('Documento gerado automaticamente pelo CRM DPRIME.', margin + 12, footerY + 4)
 
   return Buffer.from(doc.output('arraybuffer'))
 }
