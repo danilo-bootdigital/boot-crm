@@ -335,231 +335,279 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     })
   }
 
-  // === CÁLCULO DE ALTURA DOS CARDS ===
-  // minLines = 6, maxLines = maior entre os 3
-  const cardLineH = 4.8
-  const cardPadding = 10
-  const cardHeaderH = 26
-  const cardInfoH = showInfoPF ? 18 : 0
+  // === CÁLCULO DE ALTURA DOS BLOCOS ===
+  const blockLineH = 5
+  const blockPadding = 5
+  const blockTitleH = 8
+  const blockInfoH = showInfoPF ? 14 : 0
 
-  // Calcular quantas linhas cada card precisa
-  const calculateCardLines = (lines: { label: string; value: string }[]) => {
+  // Lista de campos que ocupam linha inteira (campos longos)
+  const longFieldLabels = ['Nome:', 'E-mail:', 'Endereço:', 'Razão Social:', 'Nome Fantasia:', 'Observações:', 'Bairro:', 'Cidade / UF:']
+
+  // Calcular quantas linhas cada bloco precisa com grid 2 colunas
+  const calculateBlockLines = (lines: { label: string; value: string }[]) => {
     let totalLines = 0
-    lines.forEach(({ value }) => {
+    lines.forEach(({ label, value }) => {
       if (value) {
-        // Endereço com quebras manuais conta como múltiplas linhas
-        const lineCount = value.split('\n').length
-        totalLines += Math.max(1, lineCount)
+        if (longFieldLabels.includes(label)) {
+          // Linha inteira: cada linha do valor conta
+          const lineCount = value.split('\n').length
+          totalLines += Math.max(1, lineCount)
+        } else {
+          // Grid 2 colunas: 2 campos por linha
+          totalLines += 1
+        }
       }
     })
-    return totalLines
+    // Converter para linhas de grid: ceil(total / 2)
+    return Math.ceil(totalLines / 2)
   }
 
-  const colGap = 6
-  const colWidth = (contentWidth - colGap * 2) / 3
+  // Altura dos blocos baseada no conteúdo
+  const block1Lines = calculateBlockLines(col1Lines)
+  const block2Lines = calculateBlockLines(col2Lines)
+  const block3Lines = calculateBlockLines(col3Lines)
 
-  const card1Lines = Math.max(6, calculateCardLines(col1Lines))
-  const card2Lines = Math.max(6, calculateCardLines(col2Lines))
-  const card3Lines = Math.max(6, calculateCardLines(col3Lines))
-  const maxLines = Math.max(card1Lines, card2Lines, card3Lines)
+  // Cada bloco tem sua própria altura
+  const block1H = blockTitleH + 4 + (block1Lines * blockLineH * 2) + blockInfoH + 4
+  const block2H = blockTitleH + 4 + (block2Lines * blockLineH * 2) + (showInfoPF ? 14 : 0) + 4
+  const block3H = blockTitleH + 4 + (block3Lines * blockLineH * 2) + 4
 
-  // Altura UNIFORME baseada no maior card
-  const cardH = cardHeaderH + 5 + (maxLines * cardLineH) + cardInfoH + 5
+  const blocksY = headerBottom + 6
 
-  const cardsY = headerBottom + 6
-
-  // === HELPER: DESENHAR CARD COM LARGURA MÍNIMA SEGURA ===
-  const drawCard = (
+  // === HELPER: DESENHAR BLOCO HORIZONTAL ===
+  const drawBloco = (
     x: number,
     y: number,
     w: number,
-    h: number,
     title: string,
-    icon: string,
     lines: { label: string; value: string }[],
-    infoText?: string
+    infoText?: string,
+    fixedH?: number
   ) => {
-    setDraw(GREEN_BORDER)
-    doc.setLineWidth(0.5)
-    doc.setFillColor(255, 255, 255)
-    doc.roundedRect(x, y, w, h, 4, 4, 'FD')
-
-    // Ícone: apenas círculo verde sem caractere (evita quebras de Unicode)
-    setFill(GREEN)
-    doc.circle(x + 10, y + 12, 4, 'F')
-    // Sem caractere dentro - apenas o círculo
-
-    setText(GREEN)
-    doc.setFontSize(10)
-    doc.setFont('helvetica', 'bold')
-    doc.text(title, x + 18, y + 14)
-
-    setDraw(GREEN_BORDER)
-    doc.setLineWidth(0.3)
-    doc.line(x + 4, y + 20, x + w - 4, y + 20)
-
-    let cy = y + 25
-    // labelW menor, valueW maior para mais espaço de valor
-    const labelW = 24
-    const valueW = Math.max(w - cardPadding * 2 - labelW - 2, 35)
+    // Calcular altura do bloco baseada no conteúdo
+    let contentH = 4 // padding inicial
+    const lineHeight = blockLineH * 2 // 2x para legibilidade
 
     lines.forEach((line) => {
-      if (line.value && cy < y + h - cardInfoH - 4) {
-        setText(GRAY_TEXT)
-        doc.setFontSize(7.5)
-        doc.setFont('helvetica', 'normal')
-        if (line.label) {
-          doc.text(line.label, x + cardPadding, cy)
+      if (line.value) {
+        if (longFieldLabels.includes(line.label)) {
+          // Linha inteira
+          const wrapped = doc.splitTextToSize(line.value, w - blockPadding * 2)
+          contentH += Math.max(1, wrapped.length) * blockLineH
+        } else {
+          // Grid 2 colunas - conta como 1 linha
+          contentH += blockLineH
         }
-
-        setText(DARK_TEXT)
-        doc.setFontSize(9)
-        // Quebras manuais já estão no texto (split por \n)
-        const valueLines = line.value.split('\n')
-        // Quebrar linhas longas usando largura real disponível
-        const finalLines: string[] = []
-        valueLines.forEach(vl => {
-          const wrapped = doc.splitTextToSize(vl, valueW)
-          finalLines.push(...wrapped)
-        })
-        // SEM LIMITE - todas as linhas são renderizadas para não perder informação
-        // A altura do card é calculada dinamicamente (cardH) para acomodar todo o conteúdo
-        doc.text(finalLines, x + cardPadding + labelW, cy)
-        cy += cardLineH * Math.max(1, finalLines.length)
       }
     })
 
+    const infoH = infoText ? 14 : 0
+    const blocoH = fixedH || (blockTitleH + contentH + infoH + 4)
+
+    // Borda do bloco
+    setDraw(GREEN_BORDER)
+    doc.setLineWidth(0.5)
+    doc.setFillColor(255, 255, 255)
+    doc.roundedRect(x, y, w, blocoH, 3, 3, 'FD')
+
+    // Barra de título verde (sem ícones, sem círculos)
+    setFill(GREEN)
+    doc.roundedRect(x, y, w, blockTitleH, 3, 3, 'F')
+    doc.rect(x, y + blockTitleH - 3, w, 3, 'F')
+
+    // Título
+    setText(WHITE)
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
+    doc.text(title, x + blockPadding, y + 5.5)
+
+    // Conteúdo
+    let cy = y + blockTitleH + 4
+    const colW = (w - blockPadding * 2 - 6) / 2 // 2 colunas com gap de 6
+
+    let i = 0
+    while (i < lines.length) {
+      const line = lines[i]
+      if (!line.value) {
+        i++
+        continue
+      }
+
+      if (longFieldLabels.includes(line.label)) {
+        // Campo longo: linha inteira
+        setText(GRAY_TEXT)
+        doc.setFontSize(8)
+        doc.setFont('helvetica', 'normal')
+        doc.text(line.label, x + blockPadding, cy)
+
+        setText(DARK_TEXT)
+        doc.setFontSize(10)
+        const wrapped = doc.splitTextToSize(line.value, w - blockPadding * 2)
+        doc.text(wrapped, x + blockPadding, cy + 3.5)
+        cy += blockLineH * Math.max(1, wrapped.length) + 1
+
+        i++
+      } else {
+        // Campo curto: grid 2 colunas
+        const next = lines[i + 1]
+        const col1X = x + blockPadding
+        const col2X = x + blockPadding + colW + 6
+
+        // Coluna 1
+        setText(GRAY_TEXT)
+        doc.setFontSize(8)
+        doc.setFont('helvetica', 'normal')
+        doc.text(line.label, col1X, cy)
+
+        setText(DARK_TEXT)
+        doc.setFontSize(10)
+        const val1Wrapped = doc.splitTextToSize(line.value, colW - 35)
+        doc.text(val1Wrapped, col1X + 35, cy)
+
+        // Coluna 2 (se existir próximo campo curto)
+        if (next && next.value && !longFieldLabels.includes(next.label)) {
+          setText(GRAY_TEXT)
+          doc.setFontSize(8)
+          doc.setFont('helvetica', 'normal')
+          doc.text(next.label, col2X, cy)
+
+          setText(DARK_TEXT)
+          doc.setFontSize(10)
+          const val2Wrapped = doc.splitTextToSize(next.value, colW - 35)
+          doc.text(val2Wrapped, col2X + 35, cy)
+        }
+
+        cy += Math.max(
+          val1Wrapped.length,
+          (next && next.value && !longFieldLabels.includes(next.label)) ? doc.splitTextToSize(next.value, colW - 35).length : 0
+        ) * blockLineH + 1
+        i += 2
+      }
+    }
+
+    // Info box (PF)
     if (infoText) {
-      const infoBoxH = 14
-      const infoBoxY = y + h - infoBoxH - 3
+      const infoBoxH = 12
+      const infoBoxY = y + blocoH - infoBoxH - 2
       setFill(GREEN_LIGHT)
       setDraw(GREEN_BORDER)
       doc.setLineWidth(0.3)
-      doc.roundedRect(x + cardPadding, infoBoxY, w - cardPadding * 2, infoBoxH, 2, 2, 'FD')
-
-      setFill(GREEN)
-      doc.circle(x + cardPadding + 7, infoBoxY + infoBoxH / 2, 4, 'F')
-      setText(WHITE)
-      doc.setFontSize(7)
-      doc.setFont('helvetica', 'bold')
-      doc.text('', x + cardPadding + 7, infoBoxY + infoBoxH / 2 + 2, { align: 'center' })
+      doc.roundedRect(x + blockPadding, infoBoxY, w - blockPadding * 2, infoBoxH, 2, 2, 'FD')
 
       setText(DARK_TEXT)
-      doc.setFontSize(7)
-      doc.setFont('helvetica', 'normal')
-      const safeInfoW = Math.max(w - cardPadding * 2 - 18, 30)
+      doc.setFontSize(7.5)
+      doc.setFont('helvetica', 'italic')
+      const safeInfoW = Math.max(w - blockPadding * 2 - 6, 30)
       const infoLines = infoText.split('\n')
-      doc.text(infoLines, x + cardPadding + 15, infoBoxY + infoBoxH / 2 - 1)
+      doc.text(infoLines, x + blockPadding + 4, infoBoxY + infoBoxH / 2 + 1)
     }
+
+    return blocoH
   }
 
-  // Desenhar 3 cards (ícone vazio, apenas círculo)
-  drawCard(margin, cardsY, colWidth, cardH, 'DADOS DO CLIENTE', '', col1Lines)
-  drawCard(
-    margin + colWidth + colGap,
-    cardsY,
-    colWidth,
-    cardH,
+  // Desenhar 3 blocos horizontais
+  let currentBlockY = blocksY
+  const bloco1H = drawBloco(margin, currentBlockY, contentWidth, 'DADOS DO CLIENTE', col1Lines)
+  currentBlockY += bloco1H + 4
+
+  const bloco2H = drawBloco(
+    margin,
+    currentBlockY,
+    contentWidth,
     'DADOS PARA EMISSÃO DA NOTA',
-    '',
     col2Lines,
-    showInfoPF ? 'Para Pessoa Física, os dados da nota\nfiscal são do cadastro do contato.' : undefined
+    showInfoPF ? 'Para Pessoa Física, os dados da nota fiscal são do cadastro do contato.' : undefined
   )
-  drawCard(
-    margin + (colWidth + colGap) * 2,
-    cardsY,
-    colWidth,
-    cardH,
-    'ENDEREÇO DE ENTREGA',
-    '',
-    col3Lines
-  )
+  currentBlockY += bloco2H + 4
+
+  const bloco3H = drawBloco(margin, currentBlockY, contentWidth, 'ENDEREÇO DE ENTREGA', col3Lines)
+  currentBlockY += bloco3H + 4
 
   // ==========================================================
-  // FORNECEDOR E FRETE
+  // FORNECEDOR E FRETE (linha única horizontal)
   // ==========================================================
-  let currentY = cardsY + cardH + 6
   if (orcamento.fornecedor || orcamento.carrier) {
-    const fornecY = currentY
-    const fornecH = 20
-    const fornecW = contentWidth / 2 - 3
+    const fornecY = currentBlockY
+    const fornecH = 14
 
+    // Borda
+    setDraw(GREEN_BORDER)
+    doc.setLineWidth(0.5)
+    doc.setFillColor(255, 255, 255)
+    doc.roundedRect(margin, fornecY, contentWidth, fornecH, 3, 3, 'FD')
+
+    let fx = margin + 4
+    const cyMid = fornecY + fornecH / 2 + 1
+
+    // Fornecedor
     if (orcamento.fornecedor) {
-      setDraw(GREEN_BORDER)
-      doc.setLineWidth(0.5)
-      doc.setFillColor(255, 255, 255)
-      doc.roundedRect(margin, fornecY, fornecW, fornecH, 4, 4, 'FD')
-
-      setFill(GREEN)
-      doc.circle(margin + 12, fornecY + fornecH / 2, 5, 'F')
-      setText(WHITE)
-      doc.setFontSize(7)
-      doc.text('', margin + 12, fornecY + fornecH / 2 + 2, { align: 'center' })
-
       setText(GREEN)
-      doc.setFontSize(9)
+      doc.setFontSize(8)
       doc.setFont('helvetica', 'bold')
-      doc.text('FORNECEDOR:', margin + 22, fornecY + fornecH / 2 - 1)
+      doc.text('Fornecedor:', fx, cyMid)
+      fx += 22
+
       setText(DARK_TEXT)
       doc.setFont('helvetica', 'normal')
-      doc.text(orcamento.fornecedor.nome, margin + 55, fornecY + fornecH / 2 - 1)
+      doc.setFontSize(9)
+      doc.text(orcamento.fornecedor.nome, fx, cyMid)
+      fx += doc.getTextWidth(orcamento.fornecedor.nome) + 15
     }
 
+    // Separador
+    if (orcamento.fornecedor && orcamento.carrier) {
+      setDraw(GREEN_BORDER)
+      doc.setLineWidth(0.3)
+      doc.line(fx - 8, fornecY + 3, fx - 8, fornecY + fornecH - 3)
+    }
+
+    // Frete
     if (orcamento.carrier) {
-      const freteX = margin + fornecW + 6
-      setDraw(GREEN_BORDER)
-      doc.setLineWidth(0.5)
-      doc.setFillColor(255, 255, 255)
-      doc.roundedRect(freteX, fornecY, fornecW, fornecH, 4, 4, 'FD')
-
-      setFill(GREEN)
-      doc.circle(freteX + 12, fornecY + fornecH / 2, 5, 'F')
-      setText(WHITE)
-      doc.setFontSize(7)
-      doc.text('', freteX + 12, fornecY + fornecH / 2 + 2, { align: 'center' })
-
       setText(GREEN)
-      doc.setFontSize(9)
+      doc.setFontSize(8)
       doc.setFont('helvetica', 'bold')
-      doc.text('FRETE POR:', freteX + 22, fornecY + fornecH / 2 - 1)
+      doc.text('Frete por:', fx, cyMid)
+      fx += 22
+
       setText(DARK_TEXT)
       doc.setFont('helvetica', 'normal')
-      doc.text(orcamento.carrier.nome, freteX + 50, fornecY + fornecH / 2 - 1)
+      doc.setFontSize(9)
+      doc.text(orcamento.carrier.nome, fx, cyMid)
     }
 
-    currentY += fornecH + 6
+    currentBlockY += fornecH + 4
   }
 
   // ==========================================================
   // PRODUTOS
   // ==========================================================
-  const prodY = currentY
-  const prodH = 20
+  const prodY = currentBlockY
+  const prodH = 14
 
   setDraw(GREEN_BORDER)
   doc.setLineWidth(0.5)
   doc.setFillColor(255, 255, 255)
-  doc.roundedRect(margin, prodY, contentWidth, prodH, 4, 4, 'FD')
+  doc.roundedRect(margin, prodY, contentWidth, prodH, 3, 3, 'FD')
 
+  // Título
   setFill(GREEN)
-  doc.circle(margin + 16, prodY + prodH / 2, 5, 'F')
-  setText(WHITE)
-  doc.setFontSize(7)
-  doc.text('', margin + 16, prodY + prodH / 2 + 2, { align: 'center' })
+  doc.roundedRect(margin, prodY, contentWidth, prodH, 3, 3, 'F')
+  doc.rect(margin, prodY + prodH - 3, contentWidth, 3, 'F')
 
-  setText(GREEN)
+  setText(WHITE)
   doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
-  doc.text('PRODUTOS', margin + 26, prodY + prodH / 2 + 1)
+  doc.text('PRODUTOS', margin + 5, prodY + prodH / 2 + 1)
 
-  currentY += prodH + 2
+  currentBlockY += prodH + 2
 
   // Construir dados da tabela
   const tableBody = orcamento.itens.map((item, i) => {
     return [
       (i + 1).toString(),
       item.descricao,
-      [item.marca, item.codigo].filter(Boolean).join(' | ') || '—',
+      item.unidade || '—',
       item.quantidade.toString(),
       formatarMoeda(item.preco_unitario),
       item.desconto_item > 0 ? `${item.desconto_item}%` : '—',
@@ -568,8 +616,8 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   })
 
   autoTable(doc, {
-    startY: currentY,
-    head: [['#', 'DESCRIÇÃO', 'MARCA / CÓDIGO', 'QTD', 'VALOR UNIT.', 'DESC.', 'VALOR TOTAL']],
+    startY: currentBlockY,
+    head: [['#', 'DESCRIÇÃO', 'APRESENTAÇÃO', 'QTD', 'VALOR UNIT.', 'DESC.', 'VALOR TOTAL']],
     body: tableBody,
     styles: {
       fontSize: 8,
@@ -613,7 +661,7 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   // ==========================================================
   // RESUMO FINANCEIRO
   // ==========================================================
-  const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? currentY + 20
+  const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? currentBlockY + 20
   let ry = finalY + 4
 
   // Verificar espaço
