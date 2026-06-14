@@ -97,6 +97,11 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   const margin = 15
   const contentWidth = pageWidth - margin * 2
 
+  // Helpers de cor
+  const setFill = (color: readonly number[]) => doc.setFillColor(color[0], color[1], color[2])
+  const setText = (color: readonly number[]) => doc.setTextColor(color[0], color[1], color[2])
+  const setDraw = (color: readonly number[]) => doc.setDrawColor(color[0], color[1], color[2])
+
   // Helper para carregar logo
   async function loadLogo(url: string): Promise<string | null> {
     try {
@@ -111,25 +116,44 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     }
   }
 
-  // Helper para cor
-  const setFill = (color: readonly number[]) => {
-    doc.setFillColor(color[0], color[1], color[2])
-  }
-  const setText = (color: readonly number[]) => {
-    doc.setTextColor(color[0], color[1], color[2])
-  }
+  // Helper de quebra de texto SEGURO
+  // Quebra por palavras e limita linhas para evitar quebra caractere por caractere
+  const safeTextLines = (text: string, maxWidth: number, maxLines: number = 2): string[] => {
+    if (!text) return []
+    // Primeiro, quebrar por espaços/palavras
+    const words = text.split(/\s+/)
+    const lines: string[] = []
+    let currentLine = ''
 
-  const org = orcamento.organizacao
+    for (const word of words) {
+      const testLine = currentLine ? currentLine + ' ' + word : word
+      const width = doc.getTextWidth(testLine)
+      if (width <= maxWidth) {
+        currentLine = testLine
+      } else {
+        if (currentLine) {
+          lines.push(currentLine)
+          currentLine = word
+        } else {
+          // Palavra única muito longa - truncar
+          lines.push(word.substring(0, Math.floor(maxWidth / doc.getTextWidth('M'))))
+        }
+        if (lines.length >= maxLines) break
+      }
+    }
+    if (currentLine && lines.length < maxLines) {
+      lines.push(currentLine)
+    }
+    return lines
+  }
 
   // ==========================================================
   // HEADER - Layout em grid fixo
   // ==========================================================
   const headerTop = 10
-  const col1W = (contentWidth - 90) // Coluna esquerda
-  const col2X = margin + col1W + 10
-  const col2W = 90 // Coluna direita (Nº/ORÇAMENTO)
+  const org = orcamento.organizacao
 
-  // Logo à esquerda
+  // Lado esquerdo: Logo + subhead + contatos
   if (org?.logo_url) {
     const logoData = await loadLogo(org.logo_url)
     if (logoData) {
@@ -141,20 +165,18 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     }
   }
 
-  // Subhead "Representação Farmacêutica"
   setText(GRAY_TEXT)
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
   doc.text('Representação Farmacêutica', margin, headerTop + 25)
 
-  // Grid de contatos em 2 linhas
   const tel = org?.telefone || '(19) 97819-3530'
   const email = org?.email || 'contato@dprimerepresentacao.com.br'
   const site = org?.site || 'www.dprimerepresentacao.com.br'
   const instagram = org?.instagram || '@dprimerepresentacao'
 
   // Função para desenhar contato com ícone
-  const drawContact = (x: number, y: number, icon: string, text: string, maxWidth: number) => {
+  const drawContact = (x: number, y: number, icon: string, text: string) => {
     setFill(GREEN)
     doc.circle(x + 3, y - 2.5, 2, 'F')
     setText(WHITE)
@@ -166,30 +188,26 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   }
 
   // Linha 1: Telefone | Email
-  drawContact(margin, headerTop + 34, '☎', tel, 50)
-  drawContact(margin + 60, headerTop + 34, '✉', email, 80)
-
+  drawContact(margin, headerTop + 34, '☎', tel)
+  drawContact(margin + 60, headerTop + 34, '✉', email)
   // Linha 2: Site | Instagram
-  drawContact(margin, headerTop + 41, '🌐', site, 70)
-  drawContact(margin + 75, headerTop + 41, '📷', instagram, 50)
+  drawContact(margin, headerTop + 41, '🌐', site)
+  drawContact(margin + 75, headerTop + 41, '📷', instagram)
 
-  // Linha vertical separadora
-  doc.setDrawColor(GREEN_BORDER[0], GREEN_BORDER[1], GREEN_BORDER[2])
-  doc.setLineWidth(0.5)
-  doc.line(col2X, headerTop, col2X, headerTop + 40)
+  // ==========================================================
+  // LADO DIREITO: ORÇAMENTO (em grid fixo)
+  // ==========================================================
+  const numBoxW = 60
+  const numBoxH = 16
+  const numBoxX = pageWidth - margin - numBoxW
+  const numBoxY = headerTop + 12
 
-  // ===== LADO DIREITO: ORÇAMENTO - GRID FIXO =====
   setText(GREEN)
   doc.setFontSize(28)
   doc.setFont('helvetica', 'bold')
-  doc.text('ORÇAMENTO', pageWidth - margin, headerTop + 12, { align: 'right' })
+  doc.text('ORÇAMENTO', pageWidth - margin, headerTop + 8, { align: 'right' })
 
-  // Nº do orçamento - box com borda
-  const numBoxW = 70
-  const numBoxH = 16
-  const numBoxX = pageWidth - margin - numBoxW
-  const numBoxY = headerTop + 16
-  doc.setDrawColor(GREEN_BORDER[0], GREEN_BORDER[1], GREEN_BORDER[2])
+  setDraw(GREEN_BORDER)
   doc.setLineWidth(0.5)
   setFill(GREEN_LIGHT2)
   doc.roundedRect(numBoxX, numBoxY, numBoxW, numBoxH, 2, 2, 'FD')
@@ -200,72 +218,70 @@ export async function gerarPdf(orcamento: OrcamentoData) {
 
   // Dados do orçamento em grid fixo
   const dataFormatada = new Date(orcamento.criado_em).toLocaleDateString('pt-BR')
-  const rightY = numBoxY + numBoxH + 6
+  const rightDataY = numBoxY + numBoxH + 6
+  const dataLabelX = numBoxX
+  const propostaLabelX = numBoxX + 50
 
-  // Grid de dados
-  const dataLabelX = col2X
-  const dataValueX = col2X + 30
-
-  // Data | Proposta (mesma linha)
+  // Data (com ícone)
   setFill(GREEN)
-  doc.circle(dataLabelX + 3, rightY - 2.5, 2, 'F')
+  doc.circle(dataLabelX + 3, rightDataY - 2.5, 2, 'F')
   setText(WHITE)
   doc.setFontSize(6)
-  doc.text('📅', dataLabelX + 3, rightY - 1.5, { align: 'center' })
+  doc.text('📅', dataLabelX + 3, rightDataY - 1.5, { align: 'center' })
   setText(GRAY_TEXT)
   doc.setFontSize(8)
-  doc.text('Data:', dataLabelX + 8, rightY - 1)
+  doc.text('Data:', dataLabelX + 8, rightDataY - 1)
   setText(DARK_TEXT)
   doc.setFont('helvetica', 'normal')
-  doc.text(dataFormatada, dataValueX, rightY - 1)
+  doc.text(dataFormatada, dataLabelX + 24, rightDataY - 1)
 
   // Proposta (mesma linha)
-  doc.setFillColor(GREEN[0], GREEN[1], GREEN[2])
-  doc.circle(dataLabelX + 55, rightY - 2.5, 2, 'F')
-  setText(WHITE)
-  doc.setFontSize(6)
-  doc.text('📄', dataLabelX + 55, rightY - 1.5, { align: 'center' })
-  setText(GRAY_TEXT)
-  doc.setFontSize(8)
-  doc.text('Proposta:', dataLabelX + 60, rightY - 1)
-  setText(DARK_TEXT)
-  doc.setFont('helvetica', 'normal')
-  doc.text(orcamento.numero.toString().padStart(3, '0'), dataLabelX + 85, rightY - 1)
-
-  // Linha 2: Validade
   setFill(GREEN)
-  doc.circle(dataLabelX + 3, rightY + 5 - 2.5, 2, 'F')
+  doc.circle(propostaLabelX + 3, rightDataY - 2.5, 2, 'F')
   setText(WHITE)
   doc.setFontSize(6)
-  doc.text('⏰', dataLabelX + 3, rightY + 5 - 1.5, { align: 'center' })
+  doc.text('📄', propostaLabelX + 3, rightDataY - 1.5, { align: 'center' })
   setText(GRAY_TEXT)
   doc.setFontSize(8)
-  doc.text('Validade:', dataLabelX + 8, rightY + 5 - 1)
+  doc.text('Proposta:', propostaLabelX + 8, rightDataY - 1)
   setText(DARK_TEXT)
   doc.setFont('helvetica', 'normal')
-  doc.text('30 dias', dataValueX, rightY + 5 - 1)
+  doc.text(orcamento.numero.toString().padStart(3, '0'), propostaLabelX + 30, rightDataY - 1)
 
-  // Linha 3: Responsável
+  // Validade
   setFill(GREEN)
-  doc.circle(dataLabelX + 3, rightY + 10 - 2.5, 2, 'F')
+  doc.circle(dataLabelX + 3, rightDataY + 6, 2, 'F')
   setText(WHITE)
   doc.setFontSize(6)
-  doc.text('👤', dataLabelX + 3, rightY + 10 - 1.5, { align: 'center' })
+  doc.text('⏰', dataLabelX + 3, rightDataY + 7, { align: 'center' })
   setText(GRAY_TEXT)
   doc.setFontSize(8)
-  doc.text('Responsável:', dataLabelX + 8, rightY + 10 - 1)
+  doc.text('Validade:', dataLabelX + 8, rightDataY + 7)
   setText(DARK_TEXT)
   doc.setFont('helvetica', 'normal')
-  doc.text(orcamento.responsavel?.nome || '—', dataValueX, rightY + 10 - 1)
+  doc.text('30 dias', dataLabelX + 30, rightDataY + 7)
+
+  // Responsável
+  setFill(GREEN)
+  doc.circle(dataLabelX + 3, rightDataY + 13, 2, 'F')
+  setText(WHITE)
+  doc.setFontSize(6)
+  doc.text('👤', dataLabelX + 3, rightDataY + 14, { align: 'center' })
+  setText(GRAY_TEXT)
+  doc.setFontSize(8)
+  doc.text('Responsável:', dataLabelX + 8, rightDataY + 14)
+  setText(DARK_TEXT)
+  doc.setFont('helvetica', 'normal')
+  doc.text(orcamento.responsavel?.nome || '—', dataLabelX + 36, rightDataY + 14)
 
   // Linha horizontal verde
-  const headerBottom = headerTop + 60
-  doc.setDrawColor(GREEN[0], GREEN[1], GREEN[2])
+  const headerBottom = headerTop + 65
+  setDraw(GREEN)
   doc.setLineWidth(1)
   doc.line(margin, headerBottom, pageWidth - margin, headerBottom)
 
   // ==========================================================
-  // TRÊS CARDS - Alturas iguais
+  // TRÊS CARDS - Alturas iguais calculadas
   // ==========================================================
   const cliente = orcamento.contato || orcamento.lead
 
@@ -348,35 +364,42 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     }
   }
 
-  // Calcular número de linhas de cada card (para altura igual)
-  const countLines = (lines: { label: string; value: string }[]) => {
-    let n = 0
+  // Calcular ALTURA IGUAL para os 3 cards
+  const cardLineH = 5.5
+  const cardPadding = 10
+  const cardHeaderH = 30
+  const cardInfoH = showInfoPF ? 25 : 0
+
+  // Calcular quantas linhas reais cada card precisa
+  const calculateCardLines = (lines: { label: string; value: string }[], colWidth: number) => {
+    const labelW = 35
+    const valueW = colWidth - cardPadding * 2 - labelW
+    let totalLines = 0
     lines.forEach(({ value }) => {
-      if (value) n++
+      if (value) {
+        // Estimar 1 linha por campo, mais extras para campos longos
+        const estimatedLines = Math.max(1, Math.ceil(value.length / 25))
+        totalLines += estimatedLines
+      }
     })
-    return n
+    return totalLines
   }
 
-  const card1Lines = countLines(col1Lines)
-  const card2Lines = countLines(col2Lines)
-  const card3Lines = countLines(col3Lines)
-  // Para mesma altura, usar o maior como base
-  const maxCardLines = Math.max(card1Lines, card2Lines, card3Lines)
-  const lineH = 5.5
-  const cardPadding = 10
-  const cardTitleH = 22
-  const cardHeaderH = 30 // título + separador
-  const cardInfoH = showInfoPF ? 25 : 0
-  // Altura baseada em número de linhas, garantindo uniformidade
-  const maxCardH = cardHeaderH + 5 + (maxCardLines * lineH) + cardInfoH + 5
-
-  // Layout dos cards
-  const cardsY = headerBottom + 8
   const colGap = 6
   const colWidth = (contentWidth - colGap * 2) / 3
 
-  // === HELPER: DESENHAR CARD COM ALTURA FIXA ===
-  const drawFixedCard = (
+  const card1EstimatedLines = calculateCardLines(col1Lines, colWidth)
+  const card2EstimatedLines = calculateCardLines(col2Lines, colWidth)
+  const card3EstimatedLines = calculateCardLines(col3Lines, colWidth)
+  const maxLines = Math.max(card1EstimatedLines, card2EstimatedLines, card3EstimatedLines, 8)
+
+  // Altura IGUAL para todos os cards
+  const cardH = cardHeaderH + 5 + (maxLines * cardLineH) + cardInfoH + 5
+
+  const cardsY = headerBottom + 8
+
+  // === HELPER: DESENHAR CARD COM LARGURA MÍNIMA SEGURA ===
+  const drawCard = (
     x: number,
     y: number,
     w: number,
@@ -386,13 +409,13 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     lines: { label: string; value: string }[],
     infoText?: string
   ) => {
-    // Borda do card
-    doc.setDrawColor(GREEN_BORDER[0], GREEN_BORDER[1], GREEN_BORDER[2])
+    // Borda
+    setDraw(GREEN_BORDER)
     doc.setLineWidth(0.5)
     doc.setFillColor(255, 255, 255)
     doc.roundedRect(x, y, w, h, 4, 4, 'FD')
 
-    // Título com ícone circular
+    // Ícone circular
     setFill(GREEN)
     doc.circle(x + 18, y + 14, 6, 'F')
     setText(WHITE)
@@ -406,14 +429,14 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     doc.text(title, x + 30, y + 16)
 
     // Linha separadora
-    doc.setDrawColor(GREEN_BORDER[0], GREEN_BORDER[1], GREEN_BORDER[2])
+    setDraw(GREEN_BORDER)
     doc.setLineWidth(0.3)
     doc.line(x + 5, y + 24, x + w - 5, y + 24)
 
-    // Conteúdo
+    // Conteúdo - LARGURA MÍNIMA 60mm para evitar quebra letra por letra
     let cy = y + 30
-    const labelW = 35
-    const valueW = w - cardPadding * 2 - labelW
+    const labelW = 30
+    const valueW = Math.max(w - cardPadding * 2 - labelW, 50) // MÍNIMO 50mm
 
     lines.forEach((line) => {
       if (line.value && cy < y + h - cardInfoH - 5) {
@@ -424,11 +447,12 @@ export async function gerarPdf(orcamento: OrcamentoData) {
 
         setText(DARK_TEXT)
         doc.setFontSize(10)
-        // Largura SEGURA - nunca negativa
-        const safeValueW = Math.max(valueW, 30)
-        const valueLines = doc.splitTextToSize(line.value, safeValueW)
-        doc.text(valueLines, x + cardPadding + labelW, cy)
-        cy += lineH * valueLines.length
+        // Usar splitTextToSize mas limitar linhas
+        const valueLines = doc.splitTextToSize(line.value, valueW)
+        // Limitar a no máximo 2 linhas para não estourar o card
+        const limitedLines = valueLines.slice(0, 2)
+        doc.text(limitedLines, x + cardPadding + labelW, cy)
+        cy += cardLineH * limitedLines.length
       }
     })
 
@@ -436,12 +460,11 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     if (infoText) {
       const infoBoxH = 18
       const infoBoxY = y + h - infoBoxH - 3
-      doc.setFillColor(GREEN_LIGHT[0], GREEN_LIGHT[1], GREEN_LIGHT[2])
-      doc.setDrawColor(GREEN_BORDER[0], GREEN_BORDER[1], GREEN_BORDER[2])
+      setFill(GREEN_LIGHT)
+      setDraw(GREEN_BORDER)
       doc.setLineWidth(0.3)
       doc.roundedRect(x + cardPadding, infoBoxY, w - cardPadding * 2, infoBoxH, 2, 2, 'FD')
 
-      // Ícone info
       setFill(GREEN)
       doc.circle(x + cardPadding + 8, infoBoxY + infoBoxH / 2, 5, 'F')
       setText(WHITE)
@@ -449,44 +472,33 @@ export async function gerarPdf(orcamento: OrcamentoData) {
       doc.setFont('helvetica', 'bold')
       doc.text('i', x + cardPadding + 8, infoBoxY + infoBoxH / 2 + 2.5, { align: 'center' })
 
-      // Texto info
       setText(DARK_TEXT)
       doc.setFontSize(7.5)
       doc.setFont('helvetica', 'normal')
-      const safeInfoW = w - cardPadding * 2 - 22
-      const infoLines = doc.splitTextToSize(infoText, Math.max(safeInfoW, 30))
+      const safeInfoW = Math.max(w - cardPadding * 2 - 22, 40)
+      const infoLines = doc.splitTextToSize(infoText, safeInfoW).slice(0, 2)
       doc.text(infoLines, x + cardPadding + 18, infoBoxY + infoBoxH / 2 - 1)
     }
   }
 
   // Desenhar 3 cards com MESMA altura
-  drawFixedCard(
-    margin,
-    cardsY,
-    colWidth,
-    maxCardH,
-    'DADOS DO CLIENTE',
-    '👤',
-    col1Lines
-  )
-
-  drawFixedCard(
+  drawCard(margin, cardsY, colWidth, cardH, 'DADOS DO CLIENTE', '👤', col1Lines)
+  drawCard(
     margin + colWidth + colGap,
     cardsY,
     colWidth,
-    maxCardH,
+    cardH,
     'DADOS PARA EMISSÃO DA NOTA',
     '📋',
     col2Lines,
     showInfoPF ? 'Para Pessoa Física, os dados da nota fiscal são utilizados conforme o cadastro do contato.' : undefined
   )
-
   if (temEntrega) {
-    drawFixedCard(
+    drawCard(
       margin + (colWidth + colGap) * 2,
       cardsY,
       colWidth,
-      maxCardH,
+      cardH,
       'ENDEREÇO DE ENTREGA',
       '🚚',
       col3Lines
@@ -494,9 +506,9 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   }
 
   // ==========================================================
-  // FORNECEDOR E FRETE
+  // FORNECEDOR E FRETE - linha única horizontal
   // ==========================================================
-  let currentY = cardsY + maxCardH + 8
+  let currentY = cardsY + cardH + 8
   if (orcamento.fornecedor || orcamento.carrier) {
     const fornecY = currentY
     const fornecH = 24
@@ -504,19 +516,17 @@ export async function gerarPdf(orcamento: OrcamentoData) {
 
     // Card Fornecedor
     if (orcamento.fornecedor) {
-      doc.setDrawColor(GREEN_BORDER[0], GREEN_BORDER[1], GREEN_BORDER[2])
+      setDraw(GREEN_BORDER)
       doc.setLineWidth(0.5)
       doc.setFillColor(255, 255, 255)
       doc.roundedRect(margin, fornecY, fornecW, fornecH, 4, 4, 'FD')
 
-      // Ícone
       setFill(GREEN)
       doc.circle(margin + 14, fornecY + fornecH / 2, 6, 'F')
       setText(WHITE)
       doc.setFontSize(8)
       doc.text('🏢', margin + 14, fornecY + fornecH / 2 + 2.5, { align: 'center' })
 
-      // Conteúdo
       setText(GREEN)
       doc.setFontSize(10)
       doc.setFont('helvetica', 'bold')
@@ -529,19 +539,17 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     // Card Frete
     if (orcamento.carrier) {
       const freteX = margin + fornecW + 6
-      doc.setDrawColor(GREEN_BORDER[0], GREEN_BORDER[1], GREEN_BORDER[2])
+      setDraw(GREEN_BORDER)
       doc.setLineWidth(0.5)
       doc.setFillColor(255, 255, 255)
       doc.roundedRect(freteX, fornecY, fornecW, fornecH, 4, 4, 'FD')
 
-      // Ícone
       setFill(GREEN)
       doc.circle(freteX + 14, fornecY + fornecH / 2, 6, 'F')
       setText(WHITE)
       doc.setFontSize(8)
       doc.text('🚚', freteX + 14, fornecY + fornecH / 2 + 2.5, { align: 'center' })
 
-      // Conteúdo
       setText(GREEN)
       doc.setFontSize(10)
       doc.setFont('helvetica', 'bold')
@@ -560,20 +568,17 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   const prodY = currentY
   const prodH = 24
 
-  // Card header produtos
-  doc.setDrawColor(GREEN_BORDER[0], GREEN_BORDER[1], GREEN_BORDER[2])
+  setDraw(GREEN_BORDER)
   doc.setLineWidth(0.5)
   doc.setFillColor(255, 255, 255)
   doc.roundedRect(margin, prodY, contentWidth, prodH, 4, 4, 'FD')
 
-  // Ícone
   setFill(GREEN)
   doc.circle(margin + 18, prodY + prodH / 2, 6, 'F')
   setText(WHITE)
   doc.setFontSize(8)
   doc.text('🛒', margin + 18, prodY + prodH / 2 + 2.5, { align: 'center' })
 
-  // Título
   setText(GREEN)
   doc.setFontSize(11)
   doc.setFont('helvetica', 'bold')
@@ -581,29 +586,28 @@ export async function gerarPdf(orcamento: OrcamentoData) {
 
   currentY += prodH + 2
 
-  // Tabela - SEM HTML, SEM QUEBRA DE PÁGINA
-  const tableEndY = pageHeight - 30 // Reservar espaço para resumo e rodapé
+  // Tabela - SEM HTML, SEM quebra de página
+  // Construir linhas com quebras de linha onde necessário
+  const tableBody = orcamento.itens.map((item, i) => {
+    // SEM HTML - apenas texto com \n para quebras
+    const descText = item.descricao +
+      (item.marca ? `\nMarca: ${item.marca}` : '') +
+      (item.codigo ? `\nCódigo: ${item.codigo}` : '')
+    return [
+      (i + 1).toString(),
+      descText,
+      item.unidade || '—',
+      item.quantidade.toString(),
+      formatarMoeda(item.preco_unitario),
+      item.desconto_item > 0 ? `${item.desconto_item}%` : '—',
+      formatarMoeda(item.subtotal),
+    ]
+  })
 
   autoTable(doc, {
     startY: currentY,
     head: [['#', 'DESCRIÇÃO', 'APRESENTAÇÃO', 'QTD', 'VALOR UNIT.', 'DESC.', 'VALOR TOTAL']],
-    body: orcamento.itens.map((item, i) => {
-      // SEM HTML - usar array de linhas para o nome do produto em negrito
-      // mas o autoTable não suporta múltiplas linhas com formatação diferente
-      // então usamos apenas texto simples
-      const descText = item.descricao +
-        (item.marca ? `\nMarca: ${item.marca}` : '') +
-        (item.codigo ? `\nCódigo: ${item.codigo}` : '')
-      return [
-        (i + 1).toString(),
-        descText,
-        item.unidade || '—',
-        item.quantidade.toString(),
-        formatarMoeda(item.preco_unitario),
-        item.desconto_item > 0 ? `${item.desconto_item}%` : '—',
-        formatarMoeda(item.subtotal),
-      ]
-    }),
+    body: tableBody,
     styles: {
       fontSize: 9,
       cellPadding: 4,
@@ -612,6 +616,7 @@ export async function gerarPdf(orcamento: OrcamentoData) {
       textColor: [DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2]],
       valign: 'middle',
       overflow: 'linebreak',
+      font: 'helvetica',
     },
     headStyles: {
       fillColor: [GREEN[0], GREEN[1], GREEN[2]],
@@ -620,46 +625,42 @@ export async function gerarPdf(orcamento: OrcamentoData) {
       fontSize: 9,
       cellPadding: 4,
     },
-    columnStyles: {
-      0: { cellWidth: 12, halign: 'center', fontStyle: 'bold' },
-      1: { cellWidth: 'auto' },
-      2: { cellWidth: 38, fontSize: 8 },
-      3: { cellWidth: 16, halign: 'center' },
-      4: { cellWidth: 30, halign: 'right' },
-      5: { cellWidth: 18, halign: 'center' },
-      6: { cellWidth: 30, halign: 'right', fontStyle: 'bold' },
+    bodyStyles: {
+      fontSize: 9,
     },
-    // SEM pageBreak - manter resumo junto
+    columnStyles: {
+      0: { cellWidth: 10, halign: 'center' },
+      1: { cellWidth: 'auto', minCellWidth: 60 }, // MIN 60mm para evitar quebra
+      2: { cellWidth: 35, fontSize: 8 },
+      3: { cellWidth: 15, halign: 'center' },
+      4: { cellWidth: 28, halign: 'right' },
+      5: { cellWidth: 15, halign: 'center' },
+      6: { cellWidth: 28, halign: 'right', fontStyle: 'bold' },
+    },
     pageBreak: 'avoid',
     showHead: 'everyPage',
-    margin: { left: margin, right: margin, bottom: 80 }, // Reservar 80px para resumo + rodapé
+    margin: { left: margin, right: margin, bottom: 75 },
   })
 
   // ==========================================================
-  // RESUMO FINANCEIRO (sempre junto da tabela)
+  // RESUMO FINANCEIRO
   // ==========================================================
   const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? currentY + 20
-  const resumoY = finalY + 6
+  let ry = finalY + 8
 
-  // Verificar se cabe na página
-  const resumoH = 55
-  if (resumoY + resumoH > pageHeight - 15) {
-    // Não cabe, adicionar nova página APENAS aqui
+  // Verificar espaço - se não couber, forçar página nova
+  if (ry + 65 > pageHeight - 15) {
     doc.addPage()
-    var ry = 20
-  } else {
-    var ry = resumoY
+    ry = 20
   }
 
   const rightAlign = pageWidth - margin
-  const labelX = rightAlign - 90
-  const valueX = rightAlign
-
-  // Card de resumo
   const resumoW = 100
   const resumoX = rightAlign - resumoW
+  const resumoH = 60
 
-  doc.setDrawColor(GREEN_BORDER[0], GREEN_BORDER[1], GREEN_BORDER[2])
+  // Card de resumo
+  setDraw(GREEN_BORDER)
   doc.setLineWidth(0.5)
   doc.setFillColor(255, 255, 255)
   doc.roundedRect(resumoX, ry, resumoW, resumoH, 3, 3, 'FD')
@@ -691,7 +692,7 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   doc.text(`+${formatarMoeda(orcamento.frete)}`, rightAlign - 4, ryi, { align: 'right' })
   ryi += 6
 
-  // TOTAL - destaque verde
+  // TOTAL
   setFill(GREEN)
   doc.roundedRect(resumoX, ryi, resumoW, 14, 2, 2, 'F')
   setText(WHITE)
@@ -706,7 +707,7 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   // ==========================================================
   const footerY = pageHeight - 12
 
-  doc.setDrawColor(GREEN[0], GREEN[1], GREEN[2])
+  setDraw(GREEN)
   doc.setLineWidth(0.5)
   doc.line(margin, footerY - 6, pageWidth - margin, footerY - 6)
 
