@@ -132,114 +132,170 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   }
 
   // ==========================================================
-  // 1. HEADER PREMIUM
+  // 1. HEADER PREMIUM (3 áreas: Identidade | Contatos | Proposta)
   // ==========================================================
   const headerTop = 8
   const org = orcamento.organizacao
+  const headerHeight = 50
 
-  // Logo da empresa (proporção correta: 35x15mm)
+  // === ÁREA 1: IDENTIDADE DPRIME (ESQUERDA) ===
+  // Logo DPRIME (42mm x 18mm)
   if (org?.logo_url) {
     const logoData = await loadLogo(org.logo_url)
     if (logoData) {
       try {
-        doc.addImage(logoData, 'PNG', margin, headerTop, 32, 14)
+        doc.addImage(logoData, 'PNG', margin, headerTop, 42, 18)
       } catch {
         // Logo não carregado
       }
     }
   }
 
-  // Nome da empresa + subtítulo
+  // Nome da empresa
   setText(DARK_TEXT)
   doc.setFontSize(11)
   doc.setFont('helvetica', 'bold')
-  doc.text(org?.nome_fantasia || org?.nome || 'DPRIME', margin, headerTop + 18)
+  doc.text(org?.nome_fantasia || org?.nome || 'DPRIME', margin, headerTop + 22)
 
+  // Subtítulo
   setText(GRAY_TEXT)
   doc.setFontSize(7)
   doc.setFont('helvetica', 'normal')
-  doc.text('Representacao Farmaceutica', margin, headerTop + 23)
+  doc.text('Representacao Farmaceutica', margin, headerTop + 27)
 
   // CNPJ
   if (org?.cnpj) {
-    doc.text(`CNPJ: ${org.cnpj}`, margin, headerTop + 28)
+    doc.text(`CNPJ: ${org.cnpj}`, margin, headerTop + 32)
   }
 
-  // Contatos em linha organizada
-  const contactY = headerTop + 33
-  let contactX = margin
-
-  if (org?.email) {
-    setText(GRAY_TEXT)
-    doc.setFontSize(7)
-    doc.setFont('helvetica', 'normal')
-    doc.text(org.email, contactX, contactY)
-    contactX += doc.getTextWidth(org.email) + 8
-  }
-
-  if (org?.telefone) {
-    doc.text(org.telefone, contactX, contactY)
-    contactX += doc.getTextWidth(org.telefone) + 8
-  }
-
-  if (org?.site) {
-    doc.text(org.site, contactX, contactY)
-  }
-
-  // Divisor vertical entre logo e proposta
-  const dividerX = pageWidth - margin - 90
+  // === SEPARADOR 1: Divisor vertical fino ===
+  const sep1X = margin + 72
   setDraw(GREEN_BORDER)
-  doc.setLineWidth(0.3)
-  doc.line(dividerX - 8, headerTop, dividerX - 8, headerTop + 35)
+  doc.setLineWidth(0.2)
+  doc.line(sep1X, headerTop + 2, sep1X, headerTop + headerHeight - 2)
 
-  // Lado direito: PROPOSTA COMERCIAL (título forte)
-  setText(GREEN)
-  doc.setFontSize(18)
+  // === ÁREA 2: CONTATOS (CENTRO) ===
+  const centerX = sep1X + 8
+  let contactY = headerTop + 6
+
+  // Telefone
+  setText(GRAY_TEXT)
+  doc.setFontSize(6)
+  doc.setFont('helvetica', 'normal')
+  doc.text('TEL', centerX, contactY)
+  contactY += 4
+  setText(DARK_TEXT)
+  doc.setFontSize(8)
   doc.setFont('helvetica', 'bold')
-  doc.text('PROPOSTA COMERCIAL', pageWidth - margin, headerTop + 6, { align: 'right' })
+  if (org?.telefone) {
+    doc.text(org.telefone, centerX, contactY)
+  }
+  contactY += 8
 
-  // Número da proposta em box verde elegante
-  const numBoxW = 60
-  const numBoxH = 11
-  const numBoxX = pageWidth - margin - numBoxW
-  const numBoxY = headerTop + 10
+  // E-mail
+  setText(GRAY_TEXT)
+  doc.setFontSize(6)
+  doc.setFont('helvetica', 'normal')
+  doc.text('EMAIL', centerX, contactY)
+  contactY += 4
+  setText(DARK_TEXT)
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'bold')
+  if (org?.email) {
+    const emailDisplay = org.email.length > 25 ? org.email.substring(0, 25) + '...' : org.email
+    doc.text(emailDisplay, centerX, contactY)
+  }
+  contactY += 8
+
+  // Site
+  setText(GRAY_TEXT)
+  doc.setFontSize(6)
+  doc.setFont('helvetica', 'normal')
+  doc.text('SITE', centerX, contactY)
+  contactY += 4
+  setText(DARK_TEXT)
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'bold')
+  if (org?.site) {
+    doc.text(org.site, centerX, contactY)
+  }
+  contactY += 8
+
+  // Instagram
+  if (org?.instagram) {
+    setText(GRAY_TEXT)
+    doc.setFontSize(6)
+    doc.setFont('helvetica', 'normal')
+    doc.text('INSTAGRAM', centerX, contactY)
+    contactY += 4
+    setText(DARK_TEXT)
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'bold')
+    doc.text(org.instagram, centerX, contactY)
+  }
+
+  // === SEPARADOR 2: Divisor vertical fino ===
+  const sep2X = centerX + 55
+  setDraw(GREEN_BORDER)
+  doc.setLineWidth(0.2)
+  doc.line(sep2X, headerTop + 2, sep2X, headerTop + headerHeight - 2)
+
+  // === ÁREA 3: DADOS DA PROPOSTA (DIREITA) ===
+  const rightX = pageWidth - margin
+  const rightW = 90
+
+  // Título PROPOSTA COMERCIAL
+  setText(GREEN)
+  doc.setFontSize(16)
+  doc.setFont('helvetica', 'bold')
+  doc.text('PROPOSTA', rightX, headerTop + 6, { align: 'right' })
+  doc.setFontSize(12)
+  doc.text('COMERCIAL', rightX, headerTop + 13, { align: 'right' })
+
+  // Box com número da proposta
+  const numBoxW = 65
+  const numBoxH = 12
+  const numBoxX = rightX - numBoxW
+  const numBoxY = headerTop + 18
 
   setDraw(GREEN)
   doc.setLineWidth(0.8)
-  setFill(GREEN)
-  doc.roundedRect(numBoxX, numBoxY, numBoxW, numBoxH, 2, 2, 'F')
+  setFill(GREEN_LIGHT2)
+  doc.roundedRect(numBoxX, numBoxY, numBoxW, numBoxH, 2, 2, 'FD')
 
-  setText(WHITE)
-  doc.setFontSize(11)
+  setText(GREEN)
+  doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
   doc.text(`N. ${orcamento.numero.toString().padStart(3, '0')}`, numBoxX + numBoxW / 2, numBoxY + 8, { align: 'center' })
 
-  // Data formatada com label
+  // Data
   const dataFormatada = new Date(orcamento.criado_em).toLocaleDateString('pt-BR', {
     day: '2-digit', month: 'long', year: 'numeric'
   })
 
   setText(GRAY_TEXT)
-  doc.setFontSize(8)
+  doc.setFontSize(6)
   doc.setFont('helvetica', 'normal')
-  doc.text('Data:', pageWidth - margin - 130, numBoxY + numBoxH + 5, { align: 'right' })
+  doc.text('DATA', rightX, numBoxY + numBoxH + 5, { align: 'right' })
   setText(DARK_TEXT)
+  doc.setFontSize(8)
   doc.setFont('helvetica', 'bold')
-  doc.text(dataFormatada, pageWidth - margin, numBoxY + numBoxH + 5, { align: 'right' })
+  doc.text(dataFormatada, rightX, numBoxY + numBoxH + 9, { align: 'right' })
 
-  // Responsável
+  // Responsável/Vendedor
   if (orcamento.responsavel?.nome) {
     setText(GRAY_TEXT)
-    doc.setFontSize(8)
+    doc.setFontSize(6)
     doc.setFont('helvetica', 'normal')
-    doc.text('Responsavel:', pageWidth - margin - 130, numBoxY + numBoxH + 9, { align: 'right' })
+    doc.text('VENDEDOR', rightX, numBoxY + numBoxH + 14, { align: 'right' })
     setText(DARK_TEXT)
+    doc.setFontSize(8)
     doc.setFont('helvetica', 'bold')
-    doc.text(orcamento.responsavel.nome, pageWidth - margin, numBoxY + numBoxH + 9, { align: 'right' })
+    doc.text(orcamento.responsavel.nome, rightX, numBoxY + numBoxH + 18, { align: 'right' })
   }
 
-  // Linha separadora elegante
-  const headerBottom = headerTop + 40
+  // === LINHA SEPARADORA FINAL ===
+  const headerBottom = headerTop + headerHeight
   setDraw(GREEN)
   doc.setLineWidth(1)
   doc.line(margin, headerBottom, pageWidth - margin, headerBottom)
