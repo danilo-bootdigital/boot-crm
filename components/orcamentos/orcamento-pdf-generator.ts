@@ -55,7 +55,12 @@ interface OrcamentoData {
   } | null
   deal: { id: string; titulo: string; contato_id: string } | null
   aprovador: { nome: string } | null
-  fornecedor: { nome: string } | null
+  fornecedor: {
+    id: string
+    nome: string
+    hub_id: string | null
+    health_hubs: { id: string; nome: string; logo_url: string | null } | null
+  } | null
   carrier: { nome: string } | null
   organizacao: {
     nome: string
@@ -127,17 +132,17 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   }
 
   // ==========================================================
-  // 1. HEADER PREMIUM
+  // 1. HEADER COMPACTO
   // ==========================================================
-  const headerTop = 10
+  const headerTop = 8
   const org = orcamento.organizacao
 
-  // Logo da empresa
+  // Logo da empresa (proporção correta: 40x15mm)
   if (org?.logo_url) {
     const logoData = await loadLogo(org.logo_url)
     if (logoData) {
       try {
-        doc.addImage(logoData, 'PNG', margin, headerTop, 40, 20)
+        doc.addImage(logoData, 'PNG', margin, headerTop, 35, 15)
       } catch {
         // Logo não carregado
       }
@@ -146,54 +151,54 @@ export async function gerarPdf(orcamento: OrcamentoData) {
 
   // Nome da empresa
   setText(DARK_TEXT)
-  doc.setFontSize(12)
+  doc.setFontSize(11)
   doc.setFont('helvetica', 'bold')
-  doc.text(org?.nome_fantasia || org?.nome || 'DPRIME', margin, headerTop + 26)
+  doc.text(org?.nome_fantasia || org?.nome || 'DPRIME', margin, headerTop + 19)
 
   // CNPJ
   if (org?.cnpj) {
     setText(GRAY_TEXT)
-    doc.setFontSize(9)
+    doc.setFontSize(8)
     doc.setFont('helvetica', 'normal')
-    doc.text(`CNPJ: ${org.cnpj}`, margin, headerTop + 32)
+    doc.text(`CNPJ: ${org.cnpj}`, margin, headerTop + 24)
   }
 
   // Contatos (sem emojis)
-  const contactY = headerTop + 38
+  const contactY = headerTop + 29
   let contactX = margin
 
   if (org?.email) {
     setText(GRAY_TEXT)
-    doc.setFontSize(8)
+    doc.setFontSize(7)
     doc.setFont('helvetica', 'normal')
     doc.text(org.email, contactX, contactY)
-    contactX += doc.getTextWidth(org.email) + 8
+    contactX += doc.getTextWidth(org.email) + 6
   }
 
   if (org?.telefone) {
     setText(GRAY_TEXT)
-    doc.setFontSize(8)
+    doc.setFontSize(7)
     doc.text(org.telefone, contactX, contactY)
-    contactX += doc.getTextWidth(org.telefone) + 8
+    contactX += doc.getTextWidth(org.telefone) + 6
   }
 
   if (org?.site) {
     setText(GRAY_TEXT)
-    doc.setFontSize(8)
+    doc.setFontSize(7)
     doc.text(org.site, contactX, contactY)
   }
 
   // Lado direito: PROPOSTA COMERCIAL
   setText(GREEN)
-  doc.setFontSize(20)
+  doc.setFontSize(16)
   doc.setFont('helvetica', 'bold')
-  doc.text('PROPOSTA COMERCIAL', pageWidth - margin, headerTop + 8, { align: 'right' })
+  doc.text('PROPOSTA COMERCIAL', pageWidth - margin, headerTop + 6, { align: 'right' })
 
   // Número e data
-  const numBoxW = 60
-  const numBoxH = 12
+  const numBoxW = 55
+  const numBoxH = 10
   const numBoxX = pageWidth - margin - numBoxW
-  const numBoxY = headerTop + 14
+  const numBoxY = headerTop + 10
 
   setDraw(GREEN_BORDER)
   doc.setLineWidth(0.5)
@@ -201,9 +206,9 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   doc.roundedRect(numBoxX, numBoxY, numBoxW, numBoxH, 2, 2, 'FD')
 
   setText(GREEN)
-  doc.setFontSize(11)
+  doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
-  doc.text(`N. ${orcamento.numero.toString().padStart(3, '0')}`, numBoxX + numBoxW / 2, numBoxY + 8, { align: 'center' })
+  doc.text(`N. ${orcamento.numero.toString().padStart(3, '0')}`, numBoxX + numBoxW / 2, numBoxY + 7, { align: 'center' })
 
   // Data formatada
   const dataFormatada = new Date(orcamento.criado_em).toLocaleDateString('pt-BR', {
@@ -211,38 +216,33 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   })
 
   setText(GRAY_TEXT)
-  doc.setFontSize(9)
+  doc.setFontSize(8)
   doc.setFont('helvetica', 'normal')
-  doc.text(dataFormatada, pageWidth - margin, numBoxY + numBoxH + 6, { align: 'right' })
+  doc.text(dataFormatada, pageWidth - margin, numBoxY + numBoxH + 5, { align: 'right' })
 
   // Responsável
   if (orcamento.responsavel?.nome) {
-    doc.text(`Responsavel: ${orcamento.responsavel.nome}`, pageWidth - margin, numBoxY + numBoxH + 11, { align: 'right' })
+    doc.text(`Responsavel: ${orcamento.responsavel.nome}`, pageWidth - margin, numBoxY + numBoxH + 9, { align: 'right' })
   }
 
   // Linha separadora
-  const headerBottom = headerTop + 52
+  const headerBottom = headerTop + 38
   setDraw(GREEN)
-  doc.setLineWidth(1)
+  doc.setLineWidth(0.8)
   doc.line(margin, headerBottom, pageWidth - margin, headerBottom)
 
   // ==========================================================
   // 2. DADOS DO CLIENTE
   // ==========================================================
   const cliente = orcamento.contato || orcamento.lead
-  let currentY = headerBottom + 8
+  let currentY = headerBottom + 6
 
   // Título da seção
   setText(GRAY_TEXT)
   doc.setFontSize(9)
   doc.setFont('helvetica', 'bold')
   doc.text('DADOS DO CLIENTE', margin, currentY)
-  currentY += 4
-
-  setDraw(GREEN_BORDER)
-  doc.setLineWidth(0.3)
-  doc.line(margin, currentY, margin + 40, currentY)
-  currentY += 6
+  currentY += 5
 
   // Montar endereço
   function montarEnderecoContato(): string | null {
@@ -265,16 +265,16 @@ export async function gerarPdf(orcamento: OrcamentoData) {
 
   const endereco = montarEnderecoContato()
 
-  // Card do cliente
+  // Card do cliente (altura compacta)
   const cardW = contentWidth
-  const cardH = 38
+  const cardH = 30
 
   setDraw(GREEN_BORDER)
   doc.setLineWidth(0.3)
   setFill(WHITE)
   doc.roundedRect(margin, currentY, cardW, cardH, 2, 2, 'FD')
 
-  let cardY = currentY + 6
+  let cardY = currentY + 5
   const leftColX = margin + 4
   const rightColX = margin + cardW / 2 + 4
 
@@ -283,7 +283,7 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
   doc.text(cliente?.nome || '—', leftColX, cardY)
-  cardY += 5
+  cardY += 4
 
   // CPF/CNPJ
   const docCliente = orcamento.contato?.cpf_cnpj || orcamento.lead?.cpf_cnpj
@@ -308,25 +308,17 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     cardY += 4
   }
 
-  // Conselho e especialidade
+  // Conselho
   if (orcamento.contato?.tipo_conselho && orcamento.contato?.numero_conselho) {
     setText(GRAY_TEXT)
     doc.setFontSize(8)
     doc.setFont('helvetica', 'normal')
     const conselho = `${orcamento.contato.tipo_conselho} ${orcamento.contato.numero_conselho}${orcamento.contato.uf_conselho ? `/${orcamento.contato.uf_conselho}` : ''}`
     doc.text(conselho, leftColX, cardY)
-    cardY += 4
-  }
-
-  if (orcamento.contato?.especialidade) {
-    setText(GRAY_TEXT)
-    doc.setFontSize(8)
-    doc.setFont('helvetica', 'italic')
-    doc.text(orcamento.contato.especialidade, leftColX, cardY)
   }
 
   // Coluna direita - empresa e endereço
-  let rightCardY = currentY + 6
+  let rightCardY = currentY + 5
 
   // Empresa
   if (orcamento.contato?.empresa?.nome || orcamento.contato?.categoria_cliente) {
@@ -335,15 +327,6 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     doc.setFont('helvetica', 'bold')
     const empresaNome = orcamento.contato?.empresa?.nome || orcamento.contato?.categoria_cliente || ''
     doc.text(empresaNome, rightColX, rightCardY)
-    rightCardY += 5
-  }
-
-  // Tipo de pessoa
-  if (orcamento.contato?.tipo_pessoa && orcamento.contato?.categoria_cliente) {
-    setText(GRAY_TEXT)
-    doc.setFontSize(8)
-    doc.setFont('helvetica', 'normal')
-    doc.text(`${orcamento.contato.tipo_pessoa} - ${orcamento.contato.categoria_cliente}`, rightColX, rightCardY)
     rightCardY += 4
   }
 
@@ -356,12 +339,12 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     endLines.forEach((line) => {
       if (line.trim()) {
         doc.text(line.trim(), rightColX, rightCardY)
-        rightCardY += 4
+        rightCardY += 3
       }
     })
   }
 
-  currentY += cardH + 6
+  currentY += cardH + 5
 
   // ==========================================================
   // 3. DADOS PARA EMISSÃO DA NOTA (se existirem)
@@ -374,22 +357,17 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     doc.setFontSize(9)
     doc.setFont('helvetica', 'bold')
     doc.text('DADOS PARA EMISSAO DA NOTA', margin, currentY)
-    currentY += 4
-
-    setDraw(GREEN_BORDER)
-    doc.setLineWidth(0.3)
-    doc.line(margin, currentY, margin + 60, currentY)
-    currentY += 6
+    currentY += 5
 
     // Card de nota
-    const notaCardH = isPF ? 28 : 32
+    const notaCardH = isPF ? 22 : 26
 
     setDraw(GREEN_BORDER)
     doc.setLineWidth(0.3)
     setFill(WHITE)
     doc.roundedRect(margin, currentY, cardW, notaCardH, 2, 2, 'FD')
 
-    let notaY = currentY + 6
+    let notaY = currentY + 5
     const notaLeftX = margin + 4
     const notaRightX = margin + cardW / 2 + 4
 
@@ -398,7 +376,7 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     doc.setFontSize(9)
     doc.setFont('helvetica', 'bold')
     doc.text(isPF ? 'Pessoa Fisica' : 'Pessoa Juridica', notaLeftX, notaY)
-    notaY += 5
+    notaY += 4
 
     setText(GRAY_TEXT)
     doc.setFontSize(8)
@@ -416,18 +394,10 @@ export async function gerarPdf(orcamento: OrcamentoData) {
       doc.text(isPF ? 'CPF:' : 'CNPJ:', notaLeftX, notaY)
       setText(DARK_TEXT)
       doc.text(orcamento.nota_documento, notaLeftX + 15, notaY)
-      notaY += 4
-    }
-
-    if (isPF && cliente?.telefone) {
-      setText(GRAY_TEXT)
-      doc.text('Telefone:', notaLeftX, notaY)
-      setText(DARK_TEXT)
-      doc.text(cliente.telefone, notaLeftX + 25, notaY)
     }
 
     // Coluna direita
-    let notaRightY = currentY + 6
+    let notaRightY = currentY + 5
 
     if (!isPF && orcamento.nota_nome_fantasia) {
       setText(GRAY_TEXT)
@@ -465,12 +435,12 @@ export async function gerarPdf(orcamento: OrcamentoData) {
       notaEndLines.forEach((line) => {
         if (line.trim()) {
           doc.text(line.trim(), notaRightX, notaRightY)
-          notaRightY += 4
+          notaRightY += 3
         }
       })
     }
 
-    currentY += notaCardH + 6
+    currentY += notaCardH + 5
   }
 
   // ==========================================================
@@ -483,24 +453,19 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     doc.setFontSize(9)
     doc.setFont('helvetica', 'bold')
     doc.text('ENDERECO DE ENTREGA', margin, currentY)
-    currentY += 4
-
-    setDraw(GREEN_BORDER)
-    doc.setLineWidth(0.3)
-    doc.line(margin, currentY, margin + 50, currentY)
-    currentY += 6
+    currentY += 5
 
     // Calcular altura dinâmica
     const entregaLines = orcamento.endereco_entrega!.split('\n').filter(l => l.trim()).length
     const temComplementos = !!(orcamento.contato?.endereco_bairro || orcamento.contato?.endereco_cidade)
-    const entregaH = Math.max(20, 14 + (entregaLines * 4) + (temComplementos ? 6 : 0))
+    const entregaH = Math.max(18, 12 + (entregaLines * 3) + (temComplementos ? 4 : 0))
 
     setDraw(GREEN_BORDER)
     doc.setLineWidth(0.3)
     setFill(GREEN_LIGHT2)
     doc.roundedRect(margin, currentY, cardW, entregaH, 2, 2, 'FD')
 
-    let entregaY = currentY + 6
+    let entregaY = currentY + 5
     const entregaX = margin + 4
 
     // Destinatário
@@ -508,7 +473,7 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     doc.setFontSize(9)
     doc.setFont('helvetica', 'bold')
     doc.text(`Destinatario: ${cliente?.nome || '—'}`, entregaX, entregaY)
-    entregaY += 5
+    entregaY += 4
 
     // Endereço
     doc.setFont('helvetica', 'normal')
@@ -516,14 +481,14 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     entregaLinesContent.forEach((line) => {
       if (line.trim()) {
         doc.text(line.trim(), entregaX, entregaY)
-        entregaY += 4
+        entregaY += 3
       }
     })
 
     // Complementos
     if (temComplementos) {
       setText(GRAY_TEXT)
-      doc.setFontSize(8)
+      doc.setFontSize(7)
       const compParts: string[] = []
       if (orcamento.contato?.endereco_bairro) compParts.push(orcamento.contato.endereco_bairro)
       if (orcamento.contato?.endereco_cidade) {
@@ -538,98 +503,103 @@ export async function gerarPdf(orcamento: OrcamentoData) {
       }
     }
 
-    currentY += entregaH + 6
+    currentY += entregaH + 5
   }
 
   // ==========================================================
   // 5. DADOS COMERCIAIS (Fornecedor, Hub, Transportadora, Pagamento)
   // ==========================================================
-  const temFornecedor = !!(orcamento.fornecedor?.nome || orcamento.carrier?.nome)
+  const temFornecedor = !!(orcamento.fornecedor?.nome)
+  const temTransportadora = !!(orcamento.carrier?.nome)
   const temFormaPagamento = !!(orcamento.forma_pagamento)
   const temObs = !!(orcamento.observacoes)
+  const temHub = !!(orcamento.fornecedor?.health_hubs?.nome)
 
-  if (temFornecedor || temFormaPagamento || temObs) {
+  if (temFornecedor || temTransportadora || temFormaPagamento) {
     setText(GRAY_TEXT)
     doc.setFontSize(9)
     doc.setFont('helvetica', 'bold')
     doc.text('DADOS COMERCIAIS', margin, currentY)
-    currentY += 4
-
-    setDraw(GREEN_BORDER)
-    doc.setLineWidth(0.3)
-    doc.line(margin, currentY, margin + 45, currentY)
-    currentY += 6
+    currentY += 5
 
     // Cards na mesma linha
-    const cardComH = 18
+    const cardComH = 16
     let cardX = margin
 
     // Card Fornecedor
     if (temFornecedor) {
-      const fornW = 70
+      const fornW = 65
       setDraw(GREEN_BORDER)
       doc.setLineWidth(0.3)
       setFill(GREEN_LIGHT2)
       doc.roundedRect(cardX, currentY, fornW, cardComH, 2, 2, 'FD')
 
       setText(GREEN)
-      doc.setFontSize(7)
+      doc.setFontSize(6)
       doc.setFont('helvetica', 'bold')
-      doc.text('FORNECEDOR', cardX + 3, currentY + 5)
+      doc.text('FORNECEDOR', cardX + 3, currentY + 4)
 
       setText(DARK_TEXT)
-      doc.setFontSize(9)
+      doc.setFontSize(8)
       doc.setFont('helvetica', 'bold')
-      doc.text(orcamento.fornecedor?.nome || '', cardX + 3, currentY + 12)
+      doc.text(orcamento.fornecedor!.nome, cardX + 3, currentY + 10)
 
-      cardX += fornW + 4
+      // Hub (se existir)
+      if (temHub) {
+        setText(GRAY_TEXT)
+        doc.setFontSize(6)
+        doc.setFont('helvetica', 'normal')
+        doc.text(`Hub: ${orcamento.fornecedor!.health_hubs!.nome}`, cardX + 3, currentY + 14)
+      }
+
+      cardX += fornW + 3
     }
 
     // Card Transportadora
-    if (orcamento.carrier?.nome) {
-      const transW = 60
+    if (temTransportadora) {
+      const transW = 55
       setDraw(GREEN_BORDER)
       doc.setLineWidth(0.3)
       setFill(GREEN_LIGHT2)
       doc.roundedRect(cardX, currentY, transW, cardComH, 2, 2, 'FD')
 
       setText(GREEN)
-      doc.setFontSize(7)
+      doc.setFontSize(6)
       doc.setFont('helvetica', 'bold')
-      doc.text('TRANSPORTADORA', cardX + 3, currentY + 5)
+      doc.text('TRANSPORTADORA', cardX + 3, currentY + 4)
 
       setText(DARK_TEXT)
-      doc.setFontSize(9)
+      doc.setFontSize(8)
       doc.setFont('helvetica', 'bold')
-      doc.text(orcamento.carrier.nome, cardX + 3, currentY + 12)
+      doc.text(orcamento.carrier!.nome, cardX + 3, currentY + 10)
 
-      cardX += transW + 4
+      cardX += transW + 3
     }
 
     // Card Forma de Pagamento
     if (temFormaPagamento) {
-      const pagW = 60
+      const pagW = 55
       setDraw(GREEN_BORDER)
       doc.setLineWidth(0.3)
       setFill(GREEN_LIGHT2)
       doc.roundedRect(cardX, currentY, pagW, cardComH, 2, 2, 'FD')
 
       setText(GREEN)
-      doc.setFontSize(7)
+      doc.setFontSize(6)
       doc.setFont('helvetica', 'bold')
-      doc.text('PAGAMENTO', cardX + 3, currentY + 5)
+      doc.text('PAGAMENTO', cardX + 3, currentY + 4)
 
       setText(DARK_TEXT)
-      doc.setFontSize(9)
+      doc.setFontSize(8)
       doc.setFont('helvetica', 'bold')
-      doc.text(orcamento.forma_pagamento!, cardX + 3, currentY + 12)
+      doc.text(orcamento.forma_pagamento!, cardX + 3, currentY + 10)
     }
 
-    currentY += cardComH + 6
+    currentY += cardComH + 5
 
     // Observações (se existirem)
     if (temObs) {
-      const obsH = Math.max(14, 8 + (Math.min(orcamento.observacoes!.split('\n').length, 2) * 5))
+      const obsH = Math.max(12, 6 + (Math.min(orcamento.observacoes!.split('\n').length, 2) * 4))
 
       setDraw(GREEN_BORDER)
       doc.setLineWidth(0.3)
@@ -637,19 +607,19 @@ export async function gerarPdf(orcamento: OrcamentoData) {
       doc.roundedRect(margin, currentY, cardW, obsH, 2, 2, 'FD')
 
       setText(GREEN)
-      doc.setFontSize(7)
+      doc.setFontSize(6)
       doc.setFont('helvetica', 'bold')
-      doc.text('OBSERVACOES', margin + 3, currentY + 5)
+      doc.text('OBSERVACOES', margin + 3, currentY + 4)
 
       setText(DARK_TEXT)
-      doc.setFontSize(8)
+      doc.setFontSize(7)
       doc.setFont('helvetica', 'normal')
       const obsLines = orcamento.observacoes!.split('\n').slice(0, 2)
       const obsText = obsLines.join(' | ')
       const wrappedObs = doc.splitTextToSize(obsText, cardW - 10)
-      doc.text(wrappedObs.slice(0, 2), margin + 3, currentY + 11)
+      doc.text(wrappedObs.slice(0, 2), margin + 3, currentY + 9)
 
-      currentY += obsH + 6
+      currentY += obsH + 5
     }
   }
 
@@ -657,17 +627,17 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   // 6. TABELA DE PRODUTOS
   // ==========================================================
   const prodY = currentY
-  const prodH = 14
+  const prodH = 12
 
   // Barra de título
   setFill(GREEN)
   doc.roundedRect(margin, prodY, contentWidth, prodH, 2, 2, 'F')
-  doc.rect(margin, prodY + prodH - 3, contentWidth, 3, 'F')
+  doc.rect(margin, prodY + prodH - 2, contentWidth, 2, 'F')
 
   setText(WHITE)
-  doc.setFontSize(10)
+  doc.setFontSize(9)
   doc.setFont('helvetica', 'bold')
-  doc.text('PRODUTOS', margin + 4, prodY + prodH / 2 + 1.5)
+  doc.text('PRODUTOS', margin + 4, prodY + prodH / 2 + 1)
 
   currentY = prodY + prodH + 2
 
@@ -690,9 +660,9 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     body: tableBody,
     styles: {
       fontSize: 8,
-      cellPadding: 3,
+      cellPadding: 2,
       lineColor: [GREEN_BORDER[0], GREEN_BORDER[1], GREEN_BORDER[2]],
-      lineWidth: 0.3,
+      lineWidth: 0.2,
       textColor: [DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2]],
       valign: 'middle',
       font: 'helvetica',
@@ -701,43 +671,43 @@ export async function gerarPdf(orcamento: OrcamentoData) {
       fillColor: [GREEN[0], GREEN[1], GREEN[2]],
       textColor: [WHITE[0], WHITE[1], WHITE[2]],
       fontStyle: 'bold',
-      fontSize: 8,
-      cellPadding: 3,
+      fontSize: 7,
+      cellPadding: 2,
     },
     bodyStyles: {
-      fontSize: 9,
+      fontSize: 8,
       fontStyle: 'bold',
     },
     columnStyles: {
-      0: { cellWidth: 10, halign: 'center', fontStyle: 'bold' },
+      0: { cellWidth: 8, halign: 'center', fontStyle: 'bold' },
       1: { cellWidth: 'auto', minCellWidth: 50, fontStyle: 'bold' },
-      2: { cellWidth: 35, fontSize: 7, textColor: [GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2]], fontStyle: 'normal' },
-      3: { cellWidth: 14, halign: 'center' },
-      4: { cellWidth: 28, halign: 'right' },
-      5: { cellWidth: 15, halign: 'center' },
-      6: { cellWidth: 28, halign: 'right', fontStyle: 'bold' },
+      2: { cellWidth: 30, fontSize: 6, textColor: [GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2]], fontStyle: 'normal' },
+      3: { cellWidth: 12, halign: 'center' },
+      4: { cellWidth: 26, halign: 'right' },
+      5: { cellWidth: 12, halign: 'center' },
+      6: { cellWidth: 26, halign: 'right', fontStyle: 'bold' },
     },
     pageBreak: 'avoid',
     showHead: 'everyPage',
-    margin: { left: margin, right: margin, bottom: 50 },
+    margin: { left: margin, right: margin, bottom: 45 },
   })
 
   // ==========================================================
   // 7. RESUMO FINANCEIRO
   // ==========================================================
   const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? currentY + 20
-  let ry = finalY + 6
+  let ry = finalY + 5
 
   // Verificar espaço
-  if (ry + 40 > pageHeight - 30) {
+  if (ry + 35 > pageHeight - 25) {
     doc.addPage()
-    ry = 20
+    ry = 15
   }
 
   const rightAlign = pageWidth - margin
-  const resumoW = 90
+  const resumoW = 85
   const resumoX = rightAlign - resumoW
-  const resumoH = 40
+  const resumoH = 36
 
   // Card resumo
   setDraw(GREEN_BORDER)
@@ -745,69 +715,69 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   setFill(WHITE)
   doc.roundedRect(resumoX, ry, resumoW, resumoH, 3, 3, 'FD')
 
-  let ryi = ry + 8
-  doc.setFontSize(9)
+  let ryi = ry + 6
+  doc.setFontSize(8)
   doc.setFont('helvetica', 'normal')
 
   // Subtotal
   setText(DARK_TEXT)
-  doc.text('Subtotal:', resumoX + 6, ryi)
-  doc.text(formatarMoeda(orcamento.valor_subtotal), rightAlign - 4, ryi, { align: 'right' })
-  ryi += 6
+  doc.text('Subtotal:', resumoX + 5, ryi)
+  doc.text(formatarMoeda(orcamento.valor_subtotal), rightAlign - 3, ryi, { align: 'right' })
+  ryi += 5
 
   // Desconto
-  doc.text('Desconto:', resumoX + 6, ryi)
+  doc.text('Desconto:', resumoX + 5, ryi)
   if (orcamento.desconto_geral > 0) {
     doc.setTextColor(200, 50, 50)
-    doc.text(`-${formatarMoeda(orcamento.valor_subtotal * orcamento.desconto_geral / 100)}`, rightAlign - 4, ryi, { align: 'right' })
+    doc.text(`-${formatarMoeda(orcamento.valor_subtotal * orcamento.desconto_geral / 100)}`, rightAlign - 3, ryi, { align: 'right' })
   } else {
     setText(DARK_TEXT)
-    doc.text('R$ 0,00', rightAlign - 4, ryi, { align: 'right' })
+    doc.text('R$ 0,00', rightAlign - 3, ryi, { align: 'right' })
   }
-  ryi += 6
+  ryi += 5
 
   // Frete
   setText(DARK_TEXT)
-  doc.text('Frete:', resumoX + 6, ryi)
-  doc.text(`+${formatarMoeda(orcamento.frete)}`, rightAlign - 4, ryi, { align: 'right' })
-  ryi += 6
+  doc.text('Frete:', resumoX + 5, ryi)
+  doc.text(`+${formatarMoeda(orcamento.frete)}`, rightAlign - 3, ryi, { align: 'right' })
+  ryi += 5
 
   // Linha separadora
   setDraw(GREEN_BORDER)
-  doc.setLineWidth(0.5)
-  doc.line(resumoX + 6, ryi, rightAlign - 4, ryi)
-  ryi += 7
+  doc.setLineWidth(0.3)
+  doc.line(resumoX + 5, ryi, rightAlign - 3, ryi)
+  ryi += 6
 
   // Total
   setFill(GREEN)
-  doc.roundedRect(resumoX, ryi - 4, resumoW, 14, 2, 2, 'F')
+  doc.roundedRect(resumoX, ryi - 3, resumoW, 12, 2, 2, 'F')
   setText(WHITE)
-  doc.setFontSize(11)
+  doc.setFontSize(9)
   doc.setFont('helvetica', 'bold')
-  doc.text('VALOR TOTAL', resumoX + 6, ryi + 5)
-  doc.setFontSize(14)
-  doc.text(formatarMoeda(orcamento.valor_total), rightAlign - 4, ryi + 5, { align: 'right' })
+  doc.text('VALOR TOTAL', resumoX + 5, ryi + 4)
+  doc.setFontSize(12)
+  doc.text(formatarMoeda(orcamento.valor_total), rightAlign - 3, ryi + 4, { align: 'right' })
 
   // ==========================================================
   // 8. RODAPÉ
   // ==========================================================
-  const footerY = pageHeight - 10
+  const footerY = pageHeight - 8
 
   // Linha
   setDraw(GREEN)
   doc.setLineWidth(0.5)
-  doc.line(margin, footerY - 6, pageWidth - margin, footerY - 6)
+  doc.line(margin, footerY - 5, pageWidth - margin, footerY - 5)
 
   // Data e hora
   setText(GRAY_TEXT)
-  doc.setFontSize(7)
+  doc.setFontSize(6)
   doc.setFont('helvetica', 'normal')
   const dataGeracao = new Date().toLocaleDateString('pt-BR')
   const horaGeracao = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-  doc.text(`Proposta gerada em ${dataGeracao} as ${horaGeracao}`, margin, footerY - 2)
+  doc.text(`Proposta gerada em ${dataGeracao} as ${horaGeracao}`, margin, footerY - 1)
 
   // Disclaimer
-  doc.setFontSize(7)
+  doc.setFontSize(6)
   doc.setFont('helvetica', 'italic')
   const disclaimer = 'Medicamentos requerem prescricao medica. DPRIME - Representacao Farmaceutica.'
   doc.text(disclaimer, margin, footerY + 3)
