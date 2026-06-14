@@ -59,7 +59,7 @@ interface OrcamentoData {
     id: string
     nome: string
     hub_id: string | null
-    health_hubs: { id: string; nome: string } | null
+    health_hubs: { id: string; nome: string; logo_url: string | null } | null
   } | null
   carrier: { nome: string } | null
   organizacao: {
@@ -96,8 +96,8 @@ interface OrcamentoData {
 function quebrarEnderecoInteligente(text: string): string {
   if (!text) return ''
   return text
-    .replace(/,\s*(\d+)/g, ',\n$1')     // vírgula + número → quebra antes do número
-    .replace(/\s+-\s+/g, '\n')           // " - " → quebra
+    .replace(/,\s*(\d+)/g, ',\n$1')
+    .replace(/\s+-\s+/g, '\n')
 }
 
 export async function gerarPdf(orcamento: OrcamentoData) {
@@ -110,29 +110,38 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   const margin = 15
   const contentWidth = pageWidth - margin * 2
 
+  // Helpers de cor
   const setFill = (color: readonly number[]) => doc.setFillColor(color[0], color[1], color[2])
   const setText = (color: readonly number[]) => doc.setTextColor(color[0], color[1], color[2])
   const setDraw = (color: readonly number[]) => doc.setDrawColor(color[0], color[1], color[2])
 
-  async function loadLogo(url: string): Promise<string | null> {
+  // Carregar logo como base64 com timeout
+  async function loadLogo(url: string, timeoutMs = 5000): Promise<string | null> {
     try {
-      const response = await fetch(url)
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+      const response = await fetch(url, { signal: controller.signal })
+      clearTimeout(timeoutId)
+
       if (!response.ok) return null
       const buffer = await response.arrayBuffer()
       const base64 = Buffer.from(buffer).toString('base64')
       const contentType = response.headers.get('content-type') || 'image/png'
       return `data:${contentType};base64,${base64}`
-    } catch {
+    } catch (e) {
+      // Timeout ou erro de rede - não bloqueia geração
       return null
     }
   }
 
   // ==========================================================
-  // HEADER (50mm de altura)
+  // HEADER PREMIUM
   // ==========================================================
   const headerTop = 10
   const org = orcamento.organizacao
 
+  // Logo da empresa (esquerda)
   if (org?.logo_url) {
     const logoData = await loadLogo(org.logo_url)
     if (logoData) {
@@ -144,116 +153,85 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     }
   }
 
+  // Nome da empresa e CNPJ
+  setText(DARK_TEXT)
+  doc.setFontSize(12)
+  doc.setFont('helvetica', 'bold')
+  doc.text(org?.nome_fantasia || org?.nome || 'DPRIME', margin, headerTop + 26)
+
+  if (org?.cnpj) {
+    setText(GRAY_TEXT)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`CNPJ: ${org.cnpj}`, margin, headerTop + 32)
+  }
+
+  // Contatos na mesma linha
+  const contactY = headerTop + 38
+  let contactX = margin
+  const contactSpacing = 60
+
+  if (org?.email) {
+    setText(GRAY_TEXT)
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'normal')
+    doc.text(org.email, contactX, contactY)
+    contactX += doc.getTextWidth(org.email) + 10
+  }
+
+  if (org?.telefone) {
+    setText(GRAY_TEXT)
+    doc.setFontSize(8)
+    doc.text(org.telefone, contactX, contactY)
+    contactX += doc.getTextWidth(org.telefone) + 10
+  }
+
+  if (org?.site) {
+    setText(GRAY_TEXT)
+    doc.setFontSize(8)
+    doc.text(org.site, contactX, contactY)
+  }
+
+  // Lado direito: PROPOSTA COMERCIAL + Data
+  setText(GREEN)
+  doc.setFontSize(20)
+  doc.setFont('helvetica', 'bold')
+  doc.text('PROPOSTA COMERCIAL', pageWidth - margin, headerTop + 10, { align: 'right' })
+
+  // Data da proposta
+  const dataFormatada = new Date(orcamento.criado_em).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  })
+
+  // Cidade/Estado (se disponível no endereço da org)
+  const cidadeEstado = org?.endereco
+    ? org.endereco.split(',').pop()?.trim()
+    : null
+
   setText(GRAY_TEXT)
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
-  doc.text('Representação Farmacêutica', margin, headerTop + 23)
-
-  const tel = org?.telefone || '(19) 97819-3530'
-  const email = org?.email || 'contato@dprimerepresentacao.com.br'
-  const site = org?.site || 'www.dprimerepresentacao.com.br'
-  const instagram = org?.instagram || '@dprimerepresentacao'
-
-  const drawContact = (x: number, y: number, icon: string, text: string) => {
-    setFill(GREEN)
-    doc.circle(x + 3, y - 2.5, 2, 'F')
-    setText(WHITE)
-    doc.setFontSize(6)
-    doc.text(icon, x + 3, y - 1.5, { align: 'center' })
-    setText(DARK_TEXT)
-    doc.setFontSize(9)
-    doc.text(text, x + 8, y - 1)
+  if (cidadeEstado) {
+    doc.text(`${cidadeEstado}, ${dataFormatada}`, pageWidth - margin, headerTop + 18, { align: 'right' })
+  } else {
+    doc.text(dataFormatada, pageWidth - margin, headerTop + 18, { align: 'right' })
   }
 
-  drawContact(margin, headerTop + 30, '☎', tel)
-  drawContact(margin + 60, headerTop + 30, '✉', email)
-  drawContact(margin, headerTop + 37, '🌐', site)
-  drawContact(margin + 75, headerTop + 37, '📷', instagram)
-
-  // LADO DIREITO: ORÇAMENTO
-  const numBoxW = 55
-  const numBoxH = 14
-  const numBoxX = pageWidth - margin - numBoxW
-  const numBoxY = headerTop + 8
-
-  setText(GREEN)
-  doc.setFontSize(24)
-  doc.setFont('helvetica', 'bold')
-  doc.text('ORÇAMENTO', pageWidth - margin, headerTop + 6, { align: 'right' })
-
-  setDraw(GREEN_BORDER)
-  doc.setLineWidth(0.5)
-  setFill(GREEN_LIGHT2)
-  doc.roundedRect(numBoxX, numBoxY, numBoxW, numBoxH, 2, 2, 'FD')
-  setText(GREEN)
-  doc.setFontSize(12)
-  doc.setFont('helvetica', 'bold')
-  doc.text(`Nº ${orcamento.numero.toString().padStart(3, '0')}`, numBoxX + numBoxW / 2, numBoxY + 9, { align: 'center' })
-
-  const dataFormatada = new Date(orcamento.criado_em).toLocaleDateString('pt-BR')
-  const rightDataY = numBoxY + numBoxH + 5
-  const dataLabelX = numBoxX
-  const propostaLabelX = numBoxX + 45
-
-  setFill(GREEN)
-  doc.circle(dataLabelX + 3, rightDataY - 2, 2, 'F')
-  setText(WHITE)
-  doc.setFontSize(6)
-  doc.text('', dataLabelX + 3, rightDataY - 1, { align: 'center' })
-  setText(GRAY_TEXT)
-  doc.setFontSize(8)
-  doc.text('Data:', dataLabelX + 8, rightDataY - 1)
-  setText(DARK_TEXT)
-  doc.setFont('helvetica', 'normal')
-  doc.text(dataFormatada, dataLabelX + 24, rightDataY - 1)
-
-  setFill(GREEN)
-  doc.circle(propostaLabelX + 3, rightDataY - 2, 2, 'F')
-  setText(WHITE)
-  doc.setFontSize(6)
-  doc.text('', propostaLabelX + 3, rightDataY - 1, { align: 'center' })
-  setText(GRAY_TEXT)
-  doc.setFontSize(8)
-  doc.text('Proposta:', propostaLabelX + 8, rightDataY - 1)
-  setText(DARK_TEXT)
-  doc.setFont('helvetica', 'normal')
-  doc.text(orcamento.numero.toString().padStart(3, '0'), propostaLabelX + 30, rightDataY - 1)
-
-  setFill(GREEN)
-  doc.circle(dataLabelX + 3, rightDataY + 5, 2, 'F')
-  setText(WHITE)
-  doc.setFontSize(6)
-  doc.text('', dataLabelX + 3, rightDataY + 6, { align: 'center' })
-  setText(GRAY_TEXT)
-  doc.setFontSize(8)
-  doc.text('Validade:', dataLabelX + 8, rightDataY + 6)
-  setText(DARK_TEXT)
-  doc.setFont('helvetica', 'normal')
-  doc.text('30 dias', dataLabelX + 30, rightDataY + 6)
-
-  setFill(GREEN)
-  doc.circle(dataLabelX + 3, rightDataY + 11, 2, 'F')
-  setText(WHITE)
-  doc.setFontSize(6)
-  doc.text('', dataLabelX + 3, rightDataY + 12, { align: 'center' })
-  setText(GRAY_TEXT)
-  doc.setFontSize(8)
-  doc.text('Responsável:', dataLabelX + 8, rightDataY + 12)
-  setText(DARK_TEXT)
-  doc.setFont('helvetica', 'normal')
-  doc.text(orcamento.responsavel?.nome || '—', dataLabelX + 36, rightDataY + 12)
-
-  // Linha horizontal verde
-  const headerBottom = headerTop + 50
+  // Linha separadora verde
+  const headerBottom = headerTop + 45
   setDraw(GREEN)
   doc.setLineWidth(1)
   doc.line(margin, headerBottom, pageWidth - margin, headerBottom)
 
   // ==========================================================
-  // TRÊS CARDS
+  // BLOCO: CLIENTE + ENDEREÇO (2 colunas)
   // ==========================================================
   const cliente = orcamento.contato || orcamento.lead
+  let currentY = headerBottom + 8
 
+  // Função para montar endereço completo
   function montarEnderecoContato(): string | null {
     if (!cliente) return null
     if (orcamento.contato) {
@@ -274,360 +252,247 @@ export async function gerarPdf(orcamento: OrcamentoData) {
 
   const endereco = montarEnderecoContato()
 
-  // === CARD 1: DADOS DO CLIENTE ===
-  const col1Lines: { label: string; value: string }[] = [
-    { label: 'Nome:', value: cliente?.nome || '—' },
-    { label: 'CPF/CNPJ:', value: (orcamento.contato?.cpf_cnpj || orcamento.lead?.cpf_cnpj) || '' },
-    { label: 'Telefone:', value: cliente?.telefone || '' },
-    { label: 'E-mail:', value: cliente?.email || '' },
-    { label: 'Empresa:', value: orcamento.contato?.empresa?.nome || '' },
-    { label: 'Categoria:', value: orcamento.contato?.categoria_cliente || '' },
-    { label: 'Especialidade:', value: orcamento.contato?.especialidade || '' },
-    { label: 'Conselho / Nº:', value: (orcamento.contato?.tipo_conselho && orcamento.contato?.numero_conselho)
-      ? `${orcamento.contato.tipo_conselho} ${orcamento.contato.numero_conselho}${orcamento.contato.uf_conselho ? ` - ${orcamento.contato.uf_conselho}` : ''}`
-      : '' },
-    { label: 'Tipo de pessoa:', value: (orcamento.contato?.tipo_pessoa && orcamento.contato?.categoria_cliente)
-      ? `${orcamento.contato.tipo_pessoa} - ${orcamento.contato.categoria_cliente}`
-      : '' },
-    { label: 'Endereço:', value: quebrarEnderecoInteligente(endereco || '') },
-  ].filter(l => l.value)
+  // Título da seção
+  setText(GRAY_TEXT)
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'bold')
+  doc.text('PROPOSTA ENVIADA A', margin, currentY)
+  currentY += 3
+  setDraw(GRAY_TEXT)
+  doc.setLineWidth(0.3)
+  doc.line(margin, currentY, margin + 50, currentY)
+  currentY += 6
 
-  // === CARD 2: DADOS PARA EMISSÃO DA NOTA ===
-  const isPF = orcamento.nota_tipo_pessoa === 'PF'
-  const col2Lines: { label: string; value: string }[] = [
-    { label: 'Tipo:', value: isPF ? 'Pessoa Física' : (orcamento.nota_tipo_pessoa === 'PJ' ? 'Pessoa Jurídica' : '—') },
-    { label: 'Nome:', value: orcamento.nota_nome || '' },
-    { label: isPF ? 'CPF:' : 'CNPJ:', value: orcamento.nota_documento || '' },
-    ...(isPF ? [
-      { label: 'Telefone:', value: cliente?.telefone || '' },
-      { label: 'E-mail:', value: cliente?.email || '' },
-    ] : [
-      { label: 'Nome Fantasia:', value: orcamento.nota_nome_fantasia || '' },
-      { label: 'IE:', value: orcamento.nota_ie || '' },
-      { label: 'IM:', value: orcamento.nota_im || '' },
-    ]),
-    { label: 'Endereço:', value: quebrarEnderecoInteligente(orcamento.nota_endereco || '') },
-  ].filter(l => l.value)
-  const showInfoPF = isPF
+  // Card cliente (coluna esquerda)
+  const colLeftW = contentWidth * 0.45
+  const colRightW = contentWidth * 0.55
 
-  // === CARD 3: ENDEREÇO DE ENTREGA (SEMPRE VISÍVEL) ===
+  // Nome do cliente (destaque)
+  setText(DARK_TEXT)
+  doc.setFontSize(14)
+  doc.setFont('helvetica', 'bold')
+  doc.text(cliente?.nome || '—', margin, currentY)
+
+  // Conselho e especialidade
+  let infoY = currentY + 5
+  if (orcamento.contato?.tipo_conselho && orcamento.contato?.numero_conselho) {
+    setText(GRAY_TEXT)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    const conselho = `${orcamento.contato.tipo_conselho} ${orcamento.contato.numero_conselho}${orcamento.contato.uf_conselho ? `/${orcamento.contato.uf_conselho}` : ''}`
+    doc.text(conselho, margin, infoY)
+    infoY += 4
+  }
+
+  if (orcamento.contato?.especialidade) {
+    setText(GRAY_TEXT)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'italic')
+    doc.text(orcamento.contato.especialidade, margin, infoY)
+    infoY += 4
+  }
+
+  // Email e telefone
+  if (cliente?.email || cliente?.telefone) {
+    infoY += 2
+    setText(GRAY_TEXT)
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'normal')
+    if (cliente?.email) doc.text(cliente.email, margin, infoY)
+    if (cliente?.telefone) {
+      const emailWidth = cliente?.email ? doc.getTextWidth(cliente.email) + 10 : 0
+      doc.text(cliente.telefone, margin + emailWidth, infoY)
+    }
+  }
+
+  // Endereço (coluna direita)
+  const rightColX = margin + colLeftW + 5
+  const rightColW = colRightW - 5
+
+  if (endereco) {
+    setText(GRAY_TEXT)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'bold')
+    doc.text('ENDERECO', rightColX, currentY - 2)
+
+    setText(DARK_TEXT)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    const enderecoLines = quebrarEnderecoInteligente(endereco).split('\n')
+    let endY = currentY + 4
+    enderecoLines.forEach((line) => {
+      if (line.trim()) doc.text(line.trim(), rightColX, endY)
+      endY += 4
+    })
+  }
+
+  currentY = infoY + 8
+
+  // Linha separadora
+  setDraw(GREEN_BORDER)
+  doc.setLineWidth(0.3)
+  doc.line(margin, currentY, pageWidth - margin, currentY)
+  currentY += 8
+
+  // ==========================================================
+  // BLOCO: ENDEREÇO DE ENTREGA (condicional)
+  // ==========================================================
   const temEntrega = !!(orcamento.endereco_entrega && orcamento.endereco_entrega.trim().length > 0)
-  const col3Lines: { label: string; value: string }[] = []
 
   if (temEntrega) {
-    col3Lines.push(
-      { label: 'Nome / Destinatário:', value: cliente?.nome || '' },
-      { label: 'Telefone:', value: cliente?.telefone || '' },
-      { label: 'Endereço:', value: quebrarEnderecoInteligente(orcamento.endereco_entrega!) },
-    )
-    if (orcamento.contato?.endereco_bairro) {
-      col3Lines.push({ label: 'Bairro:', value: orcamento.contato.endereco_bairro })
-    }
-    if (orcamento.contato?.endereco_cidade) {
-      const cidadeUF = orcamento.contato.endereco_estado
-        ? `${orcamento.contato.endereco_cidade} - ${orcamento.contato.endereco_estado}`
-        : orcamento.contato.endereco_cidade
-      col3Lines.push({ label: 'Cidade / UF:', value: cidadeUF })
-    }
-    if (orcamento.contato?.endereco_cep) {
-      col3Lines.push({ label: 'CEP:', value: orcamento.contato.endereco_cep })
-    }
-  } else {
-    // Mensagem quebrada em 2 linhas para caber no card
-    col3Lines.push({
-      label: 'Endereço de entrega',
-      value: 'não informado.'
-    })
-  }
-
-  // === CÁLCULO DE ALTURA DOS BLOCOS ===
-  const blockLineH = 5
-  const blockPadding = 5
-  const blockTitleH = 8
-  const blockInfoH = showInfoPF ? 14 : 0
-
-  // Lista de campos que ocupam linha inteira (campos longos)
-  const longFieldLabels = ['Nome:', 'E-mail:', 'Endereço:', 'Razão Social:', 'Nome Fantasia:', 'Observações:', 'Bairro:', 'Cidade / UF:']
-
-  // Calcular quantas linhas cada bloco precisa com grid 2 colunas
-  const calculateBlockLines = (lines: { label: string; value: string }[]) => {
-    let totalLines = 0
-    lines.forEach(({ label, value }) => {
-      if (value) {
-        if (longFieldLabels.includes(label)) {
-          // Linha inteira: cada linha do valor conta
-          const lineCount = value.split('\n').length
-          totalLines += Math.max(1, lineCount)
-        } else {
-          // Grid 2 colunas: 2 campos por linha
-          totalLines += 1
-        }
-      }
-    })
-    // Converter para linhas de grid: ceil(total / 2)
-    return Math.ceil(totalLines / 2)
-  }
-
-  // Altura dos blocos baseada no conteúdo
-  const block1Lines = calculateBlockLines(col1Lines)
-  const block2Lines = calculateBlockLines(col2Lines)
-  const block3Lines = calculateBlockLines(col3Lines)
-
-  // Cada bloco tem sua própria altura
-  const block1H = blockTitleH + 4 + (block1Lines * blockLineH * 2) + blockInfoH + 4
-  const block2H = blockTitleH + 4 + (block2Lines * blockLineH * 2) + (showInfoPF ? 14 : 0) + 4
-  const block3H = blockTitleH + 4 + (block3Lines * blockLineH * 2) + 4
-
-  const blocksY = headerBottom + 6
-
-  // === HELPER: DESENHAR BLOCO HORIZONTAL ===
-  const drawBloco = (
-    x: number,
-    y: number,
-    w: number,
-    title: string,
-    lines: { label: string; value: string }[],
-    infoText?: string,
-    fixedH?: number
-  ) => {
-    // Calcular altura do bloco baseada no conteúdo
-    let contentH = 4 // padding inicial
-    const lineHeight = blockLineH * 2 // 2x para legibilidade
-
-    lines.forEach((line) => {
-      if (line.value) {
-        if (longFieldLabels.includes(line.label)) {
-          // Linha inteira
-          const wrapped = doc.splitTextToSize(line.value, w - blockPadding * 2)
-          contentH += Math.max(1, wrapped.length) * blockLineH
-        } else {
-          // Grid 2 colunas - conta como 1 linha
-          contentH += blockLineH
-        }
-      }
-    })
-
-    const infoH = infoText ? 14 : 0
-    const blocoH = fixedH || (blockTitleH + contentH + infoH + 4)
-
-    // Borda do bloco
-    setDraw(GREEN_BORDER)
-    doc.setLineWidth(0.5)
-    doc.setFillColor(255, 255, 255)
-    doc.roundedRect(x, y, w, blocoH, 3, 3, 'FD')
-
-    // Barra de título verde (sem ícones, sem círculos)
-    setFill(GREEN)
-    doc.roundedRect(x, y, w, blockTitleH, 3, 3, 'F')
-    doc.rect(x, y + blockTitleH - 3, w, 3, 'F')
-
     // Título
-    setText(WHITE)
-    doc.setFontSize(10)
+    setText(GRAY_TEXT)
+    doc.setFontSize(9)
     doc.setFont('helvetica', 'bold')
-    doc.text(title, x + blockPadding, y + 5.5)
+    doc.text('ENDERECO DE ENTREGA', margin, currentY)
+    currentY += 5
 
-    // Conteúdo
-    let cy = y + blockTitleH + 4
-    const colW = (w - blockPadding * 2 - 6) / 2 // 2 colunas com gap de 6
+    // Calcular altura dinâmica do box de entrega
+    const entregaLines = orcamento.endereco_entrega!.split('\n').filter(l => l.trim()).length
+    const temComplementos = !!(orcamento.contato?.endereco_bairro || orcamento.contato?.endereco_cidade || orcamento.contato?.endereco_cep)
+    const entregaH = Math.max(20, 12 + (entregaLines * 4) + (temComplementos ? 6 : 0))
 
-    let i = 0
-    while (i < lines.length) {
-      const line = lines[i]
-      if (!line.value) {
-        i++
-        continue
-      }
-
-      if (longFieldLabels.includes(line.label)) {
-        // Campo longo: linha inteira
-        setText(GRAY_TEXT)
-        doc.setFontSize(8)
-        doc.setFont('helvetica', 'normal')
-        doc.text(line.label, x + blockPadding, cy)
-
-        setText(DARK_TEXT)
-        doc.setFontSize(10)
-        const wrapped = doc.splitTextToSize(line.value, w - blockPadding * 2)
-        doc.text(wrapped, x + blockPadding, cy + 3.5)
-        cy += blockLineH * Math.max(1, wrapped.length) + 1
-
-        i++
-      } else {
-        // Campo curto: grid 2 colunas
-        const next = lines[i + 1]
-        const col1X = x + blockPadding
-        const col2X = x + blockPadding + colW + 6
-
-        // Coluna 1
-        setText(GRAY_TEXT)
-        doc.setFontSize(8)
-        doc.setFont('helvetica', 'normal')
-        doc.text(line.label, col1X, cy)
-
-        setText(DARK_TEXT)
-        doc.setFontSize(10)
-        const val1Wrapped = doc.splitTextToSize(line.value, colW - 35)
-        doc.text(val1Wrapped, col1X + 35, cy)
-
-        // Coluna 2 (se existir próximo campo curto)
-        if (next && next.value && !longFieldLabels.includes(next.label)) {
-          setText(GRAY_TEXT)
-          doc.setFontSize(8)
-          doc.setFont('helvetica', 'normal')
-          doc.text(next.label, col2X, cy)
-
-          setText(DARK_TEXT)
-          doc.setFontSize(10)
-          const val2Wrapped = doc.splitTextToSize(next.value, colW - 35)
-          doc.text(val2Wrapped, col2X + 35, cy)
-        }
-
-        cy += Math.max(
-          val1Wrapped.length,
-          (next && next.value && !longFieldLabels.includes(next.label)) ? doc.splitTextToSize(next.value, colW - 35).length : 0
-        ) * blockLineH + 1
-        i += 2
-      }
-    }
-
-    // Info box (PF)
-    if (infoText) {
-      const infoBoxH = 12
-      const infoBoxY = y + blocoH - infoBoxH - 2
-      setFill(GREEN_LIGHT)
-      setDraw(GREEN_BORDER)
-      doc.setLineWidth(0.3)
-      doc.roundedRect(x + blockPadding, infoBoxY, w - blockPadding * 2, infoBoxH, 2, 2, 'FD')
-
-      setText(DARK_TEXT)
-      doc.setFontSize(7.5)
-      doc.setFont('helvetica', 'italic')
-      const safeInfoW = Math.max(w - blockPadding * 2 - 6, 30)
-      const infoLines = infoText.split('\n')
-      doc.text(infoLines, x + blockPadding + 4, infoBoxY + infoBoxH / 2 + 1)
-    }
-
-    return blocoH
-  }
-
-  // Desenhar 3 blocos horizontais
-  let currentBlockY = blocksY
-  const bloco1H = drawBloco(margin, currentBlockY, contentWidth, 'DADOS DO CLIENTE', col1Lines)
-  currentBlockY += bloco1H + 4
-
-  const bloco2H = drawBloco(
-    margin,
-    currentBlockY,
-    contentWidth,
-    'DADOS PARA EMISSÃO DA NOTA',
-    col2Lines,
-    showInfoPF ? 'Para Pessoa Física, os dados da nota fiscal são do cadastro do contato.' : undefined
-  )
-  currentBlockY += bloco2H + 4
-
-  const bloco3H = drawBloco(margin, currentBlockY, contentWidth, 'ENDEREÇO DE ENTREGA', col3Lines)
-  currentBlockY += bloco3H + 4
-
-  // ==========================================================
-  // FORNECEDOR E FRETE (linha única horizontal)
-  // ==========================================================
-  if (orcamento.fornecedor || orcamento.carrier) {
-    const fornecY = currentBlockY
-    const fornecH = 14
-
-    // Borda
+    // Box do endereço de entrega
     setDraw(GREEN_BORDER)
-    doc.setLineWidth(0.5)
-    doc.setFillColor(255, 255, 255)
-    doc.roundedRect(margin, fornecY, contentWidth, fornecH, 3, 3, 'FD')
+    doc.setLineWidth(0.3)
+    setFill(GREEN_LIGHT2)
+    doc.roundedRect(margin, currentY, contentWidth, entregaH, 2, 2, 'FD')
 
-    let fx = margin + 4
-    const cyMid = fornecY + fornecH / 2 + 1
+    let entregaY = currentY + 6
+    const entregaX = margin + 4
 
-    // Fornecedor
-    if (orcamento.fornecedor) {
-      setText(GREEN)
+    // Destinatário
+    setText(DARK_TEXT)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`Destinatario: ${cliente?.nome || '—'}`, entregaX, entregaY)
+    entregaY += 5
+
+    // Endereço
+    doc.setFont('helvetica', 'normal')
+    const entregaLinesContent = orcamento.endereco_entrega!.split('\n')
+    entregaLinesContent.forEach((line) => {
+      if (line.trim()) {
+        doc.text(line.trim(), entregaX, entregaY)
+        entregaY += 4
+      }
+    })
+
+    // Complementos do contato (bairro, cidade, CEP)
+    if (temComplementos) {
+      let compY = entregaY
+      setText(GRAY_TEXT)
       doc.setFontSize(8)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Fornecedor:', fx, cyMid)
-      fx += 22
-
-      setText(DARK_TEXT)
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(9)
-      doc.text(orcamento.fornecedor.nome, fx, cyMid)
-      fx += doc.getTextWidth(orcamento.fornecedor.nome) + 15
-
-      // Hub (se existir)
-      if (orcamento.fornecedor.health_hubs) {
-        setText(GREEN)
-        doc.setFontSize(8)
-        doc.setFont('helvetica', 'bold')
-        doc.text('Hub:', fx, cyMid)
-        fx += 12
-
-        setText(DARK_TEXT)
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(9)
-        doc.text(orcamento.fornecedor.health_hubs.nome, fx, cyMid)
-        fx += doc.getTextWidth(orcamento.fornecedor.health_hubs.nome) + 15
+      const compParts: string[] = []
+      if (orcamento.contato?.endereco_bairro) compParts.push(orcamento.contato.endereco_bairro)
+      if (orcamento.contato?.endereco_cidade) {
+        const cidadeUF = orcamento.contato.endereco_estado
+          ? `${orcamento.contato.endereco_cidade} - ${orcamento.contato.endereco_estado}`
+          : orcamento.contato.endereco_cidade
+        compParts.push(cidadeUF)
+      }
+      if (orcamento.contato?.endereco_cep) compParts.push(`CEP: ${orcamento.contato.endereco_cep}`)
+      if (compParts.length > 0) {
+        doc.text(compParts.join(' | '), entregaX, compY)
       }
     }
 
-    // Separador
-    if (orcamento.fornecedor && orcamento.carrier) {
-      setDraw(GREEN_BORDER)
-      doc.setLineWidth(0.3)
-      doc.line(fx - 8, fornecY + 3, fx - 8, fornecY + fornecH - 3)
-    }
-
-    // Frete
-    if (orcamento.carrier) {
-      setText(GREEN)
-      doc.setFontSize(8)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Frete por:', fx, cyMid)
-      fx += 22
-
-      setText(DARK_TEXT)
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(9)
-      doc.text(orcamento.carrier.nome, fx, cyMid)
-    }
-
-    currentBlockY += fornecH + 4
+    currentY += entregaH + 4
   }
 
   // ==========================================================
-  // PRODUTOS
+  // BLOCO: CONDIÇÕES COMERCIAIS (Forma de Pagamento + Observações)
   // ==========================================================
-  const prodY = currentBlockY
+  const temFormaPagamento = !!(orcamento.forma_pagamento)
+  const temObservacoes = !!(orcamento.observacoes)
+
+  if (temFormaPagamento || temObservacoes) {
+    // Título
+    setText(GRAY_TEXT)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'bold')
+    doc.text('CONDICOES COMERCIAIS', margin, currentY)
+    currentY += 5
+
+    // Calcular altura dinâmica dos cards
+    let condH = 18
+    if (temObservacoes) {
+      const obsLines = orcamento.observacoes!.split('\n').length
+      condH = Math.max(18, 6 + (Math.min(obsLines, 3) * 5))
+    }
+
+    // Cards de condições
+    const condY = currentY
+
+    if (temFormaPagamento) {
+      // Box forma de pagamento
+      setDraw(GREEN_BORDER)
+      doc.setLineWidth(0.3)
+      setFill(GREEN_LIGHT2)
+      doc.roundedRect(margin, condY, 70, condH, 2, 2, 'FD')
+
+      setText(GREEN)
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'bold')
+      doc.text('PAGAMENTO', margin + 4, condY + 5)
+
+      setText(DARK_TEXT)
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'bold')
+      doc.text(orcamento.forma_pagamento!, margin + 4, condY + 12)
+    }
+
+    // Observações (se existirem)
+    if (temObservacoes) {
+      const obsX = temFormaPagamento ? margin + 75 : margin
+      const obsW = temFormaPagamento ? contentWidth - 70 : contentWidth
+
+      setDraw(GREEN_BORDER)
+      doc.setLineWidth(0.3)
+      setFill(GREEN_LIGHT2)
+      doc.roundedRect(obsX, condY, obsW, condH, 2, 2, 'FD')
+
+      setText(GREEN)
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'bold')
+      doc.text('OBSERVACOES', obsX + 4, condY + 5)
+
+      setText(DARK_TEXT)
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'normal')
+      // Limitar a 3 linhas
+      const obsLinesContent = orcamento.observacoes!.split('\n').slice(0, 3)
+      const obsText = obsLinesContent.join(' | ')
+      const wrappedObs = doc.splitTextToSize(obsText, obsW - 10)
+      doc.text(wrappedObs.slice(0, 3), obsX + 4, condY + 12)
+    }
+
+    currentY = condY + condH + 6
+  }
+
+  // ==========================================================
+  // TABELA: PRODUTOS
+  // ==========================================================
+  const prodY = currentY
   const prodH = 14
 
-  setDraw(GREEN_BORDER)
-  doc.setLineWidth(0.5)
-  doc.setFillColor(255, 255, 255)
-  doc.roundedRect(margin, prodY, contentWidth, prodH, 3, 3, 'FD')
-
-  // Título
+  // Barra de título
   setFill(GREEN)
-  doc.roundedRect(margin, prodY, contentWidth, prodH, 3, 3, 'F')
+  doc.roundedRect(margin, prodY, contentWidth, prodH, 2, 2, 'F')
   doc.rect(margin, prodY + prodH - 3, contentWidth, 3, 'F')
 
   setText(WHITE)
   doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
-  doc.text('PRODUTOS', margin + 5, prodY + prodH / 2 + 1)
+  doc.text('ITENS DA PROPOSTA', margin + 4, prodY + prodH / 2 + 1.5)
 
-  currentBlockY += prodH + 2
+  currentY = prodY + prodH + 2
 
-  // Construir dados da tabela
+  // Construir dados da tabela (sem coluna APRESENTAÇÃO)
   const tableBody = orcamento.itens.map((item, i) => {
     return [
       (i + 1).toString(),
       item.descricao,
-      item.unidade || '—',
       item.quantidade.toString(),
       formatarMoeda(item.preco_unitario),
       item.desconto_item > 0 ? `${item.desconto_item}%` : '—',
@@ -636,8 +501,8 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   })
 
   autoTable(doc, {
-    startY: currentBlockY,
-    head: [['#', 'DESCRIÇÃO', 'APRESENTAÇÃO', 'QTD', 'VALOR UNIT.', 'DESC.', 'VALOR TOTAL']],
+    startY: currentY,
+    head: [['#', 'PRODUTO', 'QTD', 'UNITARIO', 'DESC.', 'TOTAL']],
     body: tableBody,
     styles: {
       fontSize: 8,
@@ -660,55 +525,52 @@ export async function gerarPdf(orcamento: OrcamentoData) {
       fontStyle: 'bold',
     },
     columnStyles: {
-      0: { cellWidth: 10, halign: 'center', fontStyle: 'bold' },
-      1: { cellWidth: 'auto', minCellWidth: 50, fontStyle: 'bold' },
-      2: { cellWidth: 35, fontSize: 7, textColor: [GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2]], fontStyle: 'normal' },
-      3: { cellWidth: 14, halign: 'center' },
-      4: { cellWidth: 28, halign: 'right' },
-      5: { cellWidth: 15, halign: 'center' },
-      6: { cellWidth: 28, halign: 'right', fontStyle: 'bold' },
-    },
-    didParseCell: (data) => {
-      if (data.section === 'body' && data.column.index === 1) {
-        // Nome do produto em bold (já está bold via bodyStyles)
-      }
+      0: { cellWidth: 12, halign: 'center', fontStyle: 'bold' },
+      1: { cellWidth: 'auto', minCellWidth: 70, fontStyle: 'bold' },
+      2: { cellWidth: 18, halign: 'center' },
+      3: { cellWidth: 35, halign: 'right' },
+      4: { cellWidth: 18, halign: 'center' },
+      5: { cellWidth: 35, halign: 'right', fontStyle: 'bold' },
     },
     pageBreak: 'avoid',
     showHead: 'everyPage',
-    margin: { left: margin, right: margin, bottom: 50 },
+    margin: { left: margin, right: margin, bottom: 60 },
   })
 
   // ==========================================================
-  // RESUMO FINANCEIRO
+  // RESUMO FINANCEIRO + FORNECEDOR (2 colunas)
   // ==========================================================
-  const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? currentBlockY + 20
-  let ry = finalY + 4
+  const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? currentY + 20
+  let ry = finalY + 6
 
-  // Verificar espaço
-  if (ry + 35 > pageHeight - 12) {
+  // Verificar espaço para o resumo
+  if (ry + 40 > pageHeight - 30) {
     doc.addPage()
     ry = 20
   }
 
   const rightAlign = pageWidth - margin
-  const resumoW = 95
-  const resumoX = rightAlign - resumoW
-  const resumoH = 35
+  const resumoW = 85
+  const resumoX = margin
+  const resumoH = 38
 
+  // Card resumo financeiro
   setDraw(GREEN_BORDER)
   doc.setLineWidth(0.5)
-  doc.setFillColor(255, 255, 255)
+  setFill(WHITE)
   doc.roundedRect(resumoX, ry, resumoW, resumoH, 3, 3, 'FD')
 
-  let ryi = ry + 5
-  doc.setFontSize(8)
+  let ryi = ry + 7
+  doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
 
+  // Subtotal
   setText(DARK_TEXT)
   doc.text('Subtotal:', resumoX + 6, ryi)
   doc.text(formatarMoeda(orcamento.valor_subtotal), rightAlign - 4, ryi, { align: 'right' })
-  ryi += 5
+  ryi += 6
 
+  // Desconto
   doc.text('Desconto:', resumoX + 6, ryi)
   if (orcamento.desconto_geral > 0) {
     doc.setTextColor(200, 50, 50)
@@ -717,44 +579,114 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     setText(DARK_TEXT)
     doc.text('R$ 0,00', rightAlign - 4, ryi, { align: 'right' })
   }
-  ryi += 5
+  ryi += 6
 
+  // Frete
   setText(DARK_TEXT)
   doc.text('Frete:', resumoX + 6, ryi)
   doc.text(`+${formatarMoeda(orcamento.frete)}`, rightAlign - 4, ryi, { align: 'right' })
-  ryi += 4
+  ryi += 5
 
+  // Linha separadora
+  setDraw(GREEN_BORDER)
+  doc.setLineWidth(0.5)
+  doc.line(resumoX + 6, ryi, rightAlign - 4, ryi)
+  ryi += 6
+
+  // Total
   setFill(GREEN)
-  doc.roundedRect(resumoX, ryi, resumoW, 12, 2, 2, 'F')
+  doc.roundedRect(resumoX, ryi - 4, resumoW, 12, 2, 2, 'F')
   setText(WHITE)
   doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
-  doc.text('TOTAL', resumoX + 6, ryi + 8)
-  doc.setFontSize(12)
-  doc.text(formatarMoeda(orcamento.valor_total), rightAlign - 4, ryi + 8, { align: 'right' })
+  doc.text('VALOR TOTAL', resumoX + 6, ryi + 4)
+  doc.setFontSize(14)
+  doc.text(formatarMoeda(orcamento.valor_total), rightAlign - 4, ryi + 4, { align: 'right' })
+
+  // ==========================================================
+  // FORNECEDOR | HUB | TRANSPORTADORA (condicional)
+  // ==========================================================
+  const nomeFornecedor = orcamento.fornecedor?.health_hubs?.nome || orcamento.fornecedor?.nome
+  const temFornecedor = !!(nomeFornecedor || orcamento.carrier)
+
+  if (temFornecedor) {
+    const fornX = resumoX + resumoW + 10
+    const fornW = contentWidth - resumoW - 10
+    const fornH = 38
+
+    // Card do fornecedor
+    setDraw(GREEN_BORDER)
+    doc.setLineWidth(0.5)
+    setFill(WHITE)
+    doc.roundedRect(fornX, ry, fornW, fornH, 3, 3, 'FD')
+
+    let fx = fornX + 6
+    const fy = ry + 8
+
+    // Logo do hub (se existir)
+    const hubLogo = orcamento.fornecedor?.health_hubs?.logo_url
+    if (hubLogo) {
+      const hubLogoData = await loadLogo(hubLogo)
+      if (hubLogoData) {
+        try {
+          doc.addImage(hubLogoData, 'PNG', fx, ry + 6, 25, 15)
+        } catch {
+          // Logo não carregado
+        }
+      }
+    }
+
+    // Nome do fornecedor/hub
+    if (nomeFornecedor) {
+      const logoOffset = hubLogo ? 30 : 0
+      setText(GREEN)
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'bold')
+      doc.text(nomeFornecedor, fx + logoOffset, fy)
+
+      // Transportadora (se existir)
+      if (orcamento.carrier) {
+        setText(GRAY_TEXT)
+        doc.setFontSize(8)
+        doc.setFont('helvetica', 'normal')
+        doc.text(`Transportadora: ${orcamento.carrier.nome}`, fx + logoOffset, fy + 8)
+      }
+    } else if (orcamento.carrier) {
+      // Só transportadora, sem fornecedor
+      setText(GREEN)
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Transportadora', fx, fy)
+      setText(GRAY_TEXT)
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'normal')
+      doc.text(orcamento.carrier.nome, fx, fy + 8)
+    }
+  }
 
   // ==========================================================
   // RODAPÉ
   // ==========================================================
-  const footerY = pageHeight - 10
+  const footerY = pageHeight - 8
 
+  // Linha superior do rodapé
   setDraw(GREEN)
   doc.setLineWidth(0.5)
-  doc.line(margin, footerY - 4, pageWidth - margin, footerY - 4)
+  doc.line(margin, footerY - 6, pageWidth - margin, footerY - 6)
 
-  setFill(GREEN)
-  doc.circle(margin + 3, footerY, 3, 'F')
-  setText(WHITE)
-  doc.setFontSize(5)
-  doc.text('', margin + 3, footerY + 0.5, { align: 'center' })
-
-  setText(DARK_TEXT)
+  // Data e hora de geração
+  setText(GRAY_TEXT)
   doc.setFontSize(7)
   doc.setFont('helvetica', 'normal')
   const dataGeracao = new Date().toLocaleDateString('pt-BR')
   const horaGeracao = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-  doc.text(`Proposta gerada em ${dataGeracao} às ${horaGeracao}`, margin + 10, footerY - 0.5)
-  doc.text('Documento gerado automaticamente pelo CRM DPRIME.', margin + 10, footerY + 3)
+  doc.text(`Proposta gerada em ${dataGeracao} as ${horaGeracao}`, margin, footerY - 2)
+
+  // Disclaimer
+  doc.setFontSize(7)
+  doc.setFont('helvetica', 'italic')
+  const disclaimer = 'Os medicamentos requerem prescricao medica. DPRIME - Representacao Farmaceutica.'
+  doc.text(disclaimer, margin, footerY + 3)
 
   return Buffer.from(doc.output('arraybuffer'))
 }
