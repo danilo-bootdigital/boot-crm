@@ -55,7 +55,12 @@ interface OrcamentoData {
   } | null
   deal: { id: string; titulo: string; contato_id: string } | null
   aprovador: { nome: string } | null
-  fornecedor: { nome: string } | null
+  fornecedor: {
+    id: string
+    nome: string
+    hub_id: string | null
+    health_hubs: { id: string; nome: string } | null
+  } | null
   carrier: { nome: string } | null
   organizacao: {
     nome: string
@@ -553,6 +558,21 @@ export async function gerarPdf(orcamento: OrcamentoData) {
       doc.setFontSize(9)
       doc.text(orcamento.fornecedor.nome, fx, cyMid)
       fx += doc.getTextWidth(orcamento.fornecedor.nome) + 15
+
+      // Hub (se existir)
+      if (orcamento.fornecedor.health_hubs) {
+        setText(GREEN)
+        doc.setFontSize(8)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Hub:', fx, cyMid)
+        fx += 12
+
+        setText(DARK_TEXT)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(9)
+        doc.text(orcamento.fornecedor.health_hubs.nome, fx, cyMid)
+        fx += doc.getTextWidth(orcamento.fornecedor.health_hubs.nome) + 15
+      }
     }
 
     // Separador

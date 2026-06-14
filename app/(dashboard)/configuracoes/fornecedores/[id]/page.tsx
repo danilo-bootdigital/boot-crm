@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
 import { GerenciarCategorias } from '@/components/fornecedores/gerenciar-categorias'
 import { TabelaFrete } from '@/components/fornecedores/tabela-frete'
+import { HubSelector } from '@/components/fornecedores/hub-selector'
 import type { SupplierCategory, Product } from '@/types/database'
 
 export default async function FornecedorDetalhePage({ params }: { params: Promise<{ id: string }> }) {
@@ -25,12 +26,19 @@ export default async function FornecedorDetalhePage({ params }: { params: Promis
 
   const { data: fornecedor } = await supabase
     .from('suppliers')
-    .select('*')
+    .select('*, health_hubs(id, nome)')
     .eq('id', id)
     .eq('organization_id', perfil.organization_id)
     .single()
 
   if (!fornecedor) notFound()
+
+  const { data: hubs } = await supabase
+    .from('health_hubs')
+    .select('id, nome')
+    .eq('organization_id', perfil.organization_id)
+    .eq('status', 'ativo')
+    .order('nome')
 
   const { data: categorias } = await supabase
     .from('supplier_categories')
@@ -78,6 +86,8 @@ export default async function FornecedorDetalhePage({ params }: { params: Promis
           </p>
         </div>
       </div>
+
+      <HubSelector fornecedor={fornecedor} hubs={hubs ?? []} />
 
       <TabelaFrete fornecedorId={id} transportadoras={transportadoras} fretes={fretes} />
 

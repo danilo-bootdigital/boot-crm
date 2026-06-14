@@ -26,26 +26,57 @@ export async function criarFornecedor(formData: FormData) {
   const nome = formData.get('nome') as string
   if (!nome?.trim()) throw new Error('Nome é obrigatório.')
 
+  const hubId = formData.get('hub_id') as string | null
+
+  // Validar se hub existe (se fornecido)
+  if (hubId) {
+    const { data: hub } = await supabase
+      .from('health_hubs')
+      .select('id')
+      .eq('id', hubId)
+      .eq('organization_id', perfil.organization_id)
+      .single()
+
+    if (!hub) {
+      throw new Error('Hub não encontrado ou não pertence à sua organização.')
+    }
+  }
+
   const { error } = await supabase.from('suppliers').insert({
     organization_id: perfil.organization_id,
     nome: nome.trim(),
     cnpj: (formData.get('cnpj') as string)?.trim() || null,
     telefone: (formData.get('telefone') as string)?.trim() || null,
     email: (formData.get('email') as string)?.trim() || null,
+    hub_id: hubId || null,
   })
 
   if (error) throw new Error(`Erro ao criar fornecedor: ${error.message}`)
   revalidatePath('/configuracoes/fornecedores')
 }
 
-export async function editarFornecedor(id: string, nome: string) {
+export async function editarFornecedor(id: string, nome: string, hubId?: string | null) {
   const { supabase, perfil } = await getAdminOuGestor()
 
   if (!nome?.trim()) throw new Error('Nome é obrigatório.')
 
+  // Validar se hub existe (se fornecido)
+  if (hubId) {
+    const { data: hub } = await supabase
+      .from('health_hubs')
+      .select('id')
+      .eq('id', hubId)
+      .eq('organization_id', perfil.organization_id)
+      .single()
+
+    if (!hub) {
+      throw new Error('Hub não encontrado ou não pertence à sua organização.')
+    }
+  }
+
   const { error } = await supabase
     .from('suppliers')
-    .update({ nome: nome.trim() })
+    .update({ nome: nome.trim(), hub_id: hubId || null })
     .eq('id', id)
     .eq('organization_id', perfil.organization_id)
 

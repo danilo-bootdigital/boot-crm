@@ -9,13 +9,21 @@ import { Trash2, Pencil, Check, X } from 'lucide-react'
 import { excluirFornecedor, editarFornecedor } from '@/app/(dashboard)/configuracoes/fornecedores/actions'
 import type { Supplier } from '@/types/database'
 
-export function TabelaFornecedores({ fornecedores }: { fornecedores: Supplier[] }) {
+type FornecedorComHub = Supplier & {
+  hub_id: string | null
+  health_hubs?: {
+    id: string
+    nome: string
+  } | null
+}
+
+export function TabelaFornecedores({ fornecedores }: { fornecedores: FornecedorComHub[] }) {
   const [isPending, startTransition] = useTransition()
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const [editNome, setEditNome] = useState('')
   const router = useRouter()
 
-  function iniciarEdicao(f: Supplier, e: React.MouseEvent) {
+  function iniciarEdicao(f: FornecedorComHub, e: React.MouseEvent) {
     e.stopPropagation()
     setEditandoId(f.id)
     setEditNome(f.nome)
@@ -26,7 +34,7 @@ export function TabelaFornecedores({ fornecedores }: { fornecedores: Supplier[] 
     setEditandoId(null)
   }
 
-  function salvarEdicao(id: string, e: React.MouseEvent) {
+  function salvarEdicao(id: string, hubId: string | null, e: React.MouseEvent) {
     e.stopPropagation()
     if (!editNome.trim()) {
       toast.error('Nome é obrigatório.')
@@ -34,7 +42,7 @@ export function TabelaFornecedores({ fornecedores }: { fornecedores: Supplier[] 
     }
     startTransition(async () => {
       try {
-        await editarFornecedor(id, editNome.trim())
+        await editarFornecedor(id, editNome.trim(), hubId)
         toast.success('Fornecedor atualizado.')
         setEditandoId(null)
         router.refresh()
@@ -65,6 +73,7 @@ export function TabelaFornecedores({ fornecedores }: { fornecedores: Supplier[] 
           <tr className="border-b bg-slate-50 text-left">
             <th className="px-4 py-3 font-medium text-slate-600">Nome</th>
             <th className="px-4 py-3 font-medium text-slate-600">CNPJ</th>
+            <th className="px-4 py-3 font-medium text-slate-600">Hub</th>
             <th className="px-4 py-3 font-medium text-slate-600">Telefone</th>
             <th className="px-4 py-3 font-medium text-slate-600">E-mail</th>
             <th className="px-4 py-3 w-24">Ações</th>
@@ -73,7 +82,7 @@ export function TabelaFornecedores({ fornecedores }: { fornecedores: Supplier[] 
         <tbody>
           {fornecedores.length === 0 && (
             <tr>
-              <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
+              <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
                 Nenhum fornecedor cadastrado.
               </td>
             </tr>
@@ -91,7 +100,7 @@ export function TabelaFornecedores({ fornecedores }: { fornecedores: Supplier[] 
                     value={editNome}
                     onChange={(e) => setEditNome(e.target.value)}
                     onClick={(e) => e.stopPropagation()}
-                    onKeyDown={(e) => { if (e.key === 'Enter') salvarEdicao(f.id, e as unknown as React.MouseEvent); if (e.key === 'Escape') setEditandoId(null) }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') salvarEdicao(f.id, f.hub_id, e as unknown as React.MouseEvent); if (e.key === 'Escape') setEditandoId(null) }}
                     autoFocus
                   />
                 ) : (
@@ -99,13 +108,16 @@ export function TabelaFornecedores({ fornecedores }: { fornecedores: Supplier[] 
                 )}
               </td>
               <td className="px-4 py-3 text-slate-600">{f.cnpj ?? '—'}</td>
+              <td className="px-4 py-3 text-slate-600">
+                {f.health_hubs?.nome ?? '—'}
+              </td>
               <td className="px-4 py-3 text-slate-600">{f.telefone ?? '—'}</td>
               <td className="px-4 py-3 text-slate-600">{f.email ?? '—'}</td>
               <td className="px-4 py-3">
                 <div className="flex gap-1">
                   {editandoId === f.id ? (
                     <>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" onClick={(e) => salvarEdicao(f.id, e)} disabled={isPending}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" onClick={(e) => salvarEdicao(f.id, f.hub_id, e)} disabled={isPending}>
                         <Check className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400" onClick={cancelarEdicao}>

@@ -58,7 +58,7 @@ export async function GET(
         ),
         deal:deals!deal_id(id, titulo, contato_id),
         aprovador:profiles!aprovacao_interna_por(nome),
-        fornecedor:suppliers!supplier_id(nome),
+        fornecedor:suppliers!supplier_id(id, nome, hub_id, health_hubs(id, nome)),
         carrier:freight_carriers!carrier_id(nome),
         organizacao:organizations!organization_id(
           nome,

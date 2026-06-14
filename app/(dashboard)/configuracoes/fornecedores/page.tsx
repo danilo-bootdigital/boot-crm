@@ -23,9 +23,9 @@ export default async function FornecedoresPage() {
 
   const { data: fornecedores } = await supabase
     .from('suppliers')
-    .select('*')
+    .select('*, health_hubs(id, nome)')
     .eq('organization_id', perfil.organization_id)
-    .order('nome') as { data: Supplier[] | null }
+    .order('nome')
 
   return (
     <div className="space-y-6">
