@@ -194,7 +194,7 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   doc.circle(dataLabelX + 3, rightDataY - 2, 2, 'F')
   setText(WHITE)
   doc.setFontSize(6)
-  doc.text('📅', dataLabelX + 3, rightDataY - 1, { align: 'center' })
+  doc.text('', dataLabelX + 3, rightDataY - 1, { align: 'center' })
   setText(GRAY_TEXT)
   doc.setFontSize(8)
   doc.text('Data:', dataLabelX + 8, rightDataY - 1)
@@ -206,7 +206,7 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   doc.circle(propostaLabelX + 3, rightDataY - 2, 2, 'F')
   setText(WHITE)
   doc.setFontSize(6)
-  doc.text('📄', propostaLabelX + 3, rightDataY - 1, { align: 'center' })
+  doc.text('', propostaLabelX + 3, rightDataY - 1, { align: 'center' })
   setText(GRAY_TEXT)
   doc.setFontSize(8)
   doc.text('Proposta:', propostaLabelX + 8, rightDataY - 1)
@@ -218,7 +218,7 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   doc.circle(dataLabelX + 3, rightDataY + 5, 2, 'F')
   setText(WHITE)
   doc.setFontSize(6)
-  doc.text('⏰', dataLabelX + 3, rightDataY + 6, { align: 'center' })
+  doc.text('', dataLabelX + 3, rightDataY + 6, { align: 'center' })
   setText(GRAY_TEXT)
   doc.setFontSize(8)
   doc.text('Validade:', dataLabelX + 8, rightDataY + 6)
@@ -230,7 +230,7 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   doc.circle(dataLabelX + 3, rightDataY + 11, 2, 'F')
   setText(WHITE)
   doc.setFontSize(6)
-  doc.text('👤', dataLabelX + 3, rightDataY + 12, { align: 'center' })
+  doc.text('', dataLabelX + 3, rightDataY + 12, { align: 'center' })
   setText(GRAY_TEXT)
   doc.setFontSize(8)
   doc.text('Responsável:', dataLabelX + 8, rightDataY + 12)
@@ -328,9 +328,10 @@ export async function gerarPdf(orcamento: OrcamentoData) {
       col3Lines.push({ label: 'CEP:', value: orcamento.contato.endereco_cep })
     }
   } else {
+    // Mensagem quebrada em 2 linhas para caber no card
     col3Lines.push({
-      label: '',
-      value: 'Endereço de entrega não informado.'
+      label: 'Endereço de entrega',
+      value: 'não informado.'
     })
   }
 
@@ -383,38 +384,48 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     doc.setFillColor(255, 255, 255)
     doc.roundedRect(x, y, w, h, 4, 4, 'FD')
 
+    // Ícone: apenas círculo verde sem caractere (evita quebras de Unicode)
     setFill(GREEN)
-    doc.circle(x + 16, y + 12, 5, 'F')
-    setText(WHITE)
-    doc.setFontSize(7)
-    doc.text(icon, x + 16, y + 14, { align: 'center' })
+    doc.circle(x + 10, y + 12, 4, 'F')
+    // Sem caractere dentro - apenas o círculo
 
     setText(GREEN)
     doc.setFontSize(10)
     doc.setFont('helvetica', 'bold')
-    doc.text(title, x + 26, y + 14)
+    doc.text(title, x + 18, y + 14)
 
     setDraw(GREEN_BORDER)
     doc.setLineWidth(0.3)
     doc.line(x + 4, y + 20, x + w - 4, y + 20)
 
     let cy = y + 25
-    const labelW = 28
-    const valueW = Math.max(w - cardPadding * 2 - labelW, 40)
+    // labelW menor, valueW maior para mais espaço de valor
+    const labelW = 24
+    const valueW = Math.max(w - cardPadding * 2 - labelW - 2, 35)
 
     lines.forEach((line) => {
       if (line.value && cy < y + h - cardInfoH - 4) {
         setText(GRAY_TEXT)
         doc.setFontSize(7.5)
         doc.setFont('helvetica', 'normal')
-        doc.text(line.label || '', x + cardPadding, cy)
+        if (line.label) {
+          doc.text(line.label, x + cardPadding, cy)
+        }
 
         setText(DARK_TEXT)
         doc.setFontSize(9)
-        // Quebras manuais já estão no texto
+        // Quebras manuais já estão no texto (split por \n)
         const valueLines = line.value.split('\n')
-        doc.text(valueLines, x + cardPadding + labelW, cy)
-        cy += cardLineH * Math.max(1, valueLines.length)
+        // Quebrar linhas longas usando largura real disponível
+        const finalLines: string[] = []
+        valueLines.forEach(vl => {
+          const wrapped = doc.splitTextToSize(vl, valueW)
+          finalLines.push(...wrapped)
+        })
+        // SEM LIMITE - todas as linhas são renderizadas para não perder informação
+        // A altura do card é calculada dinamicamente (cardH) para acomodar todo o conteúdo
+        doc.text(finalLines, x + cardPadding + labelW, cy)
+        cy += cardLineH * Math.max(1, finalLines.length)
       }
     })
 
@@ -431,7 +442,7 @@ export async function gerarPdf(orcamento: OrcamentoData) {
       setText(WHITE)
       doc.setFontSize(7)
       doc.setFont('helvetica', 'bold')
-      doc.text('i', x + cardPadding + 7, infoBoxY + infoBoxH / 2 + 2, { align: 'center' })
+      doc.text('', x + cardPadding + 7, infoBoxY + infoBoxH / 2 + 2, { align: 'center' })
 
       setText(DARK_TEXT)
       doc.setFontSize(7)
@@ -442,15 +453,15 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     }
   }
 
-  // Desenhar 3 cards
-  drawCard(margin, cardsY, colWidth, cardH, 'DADOS DO CLIENTE', '👤', col1Lines)
+  // Desenhar 3 cards (ícone vazio, apenas círculo)
+  drawCard(margin, cardsY, colWidth, cardH, 'DADOS DO CLIENTE', '', col1Lines)
   drawCard(
     margin + colWidth + colGap,
     cardsY,
     colWidth,
     cardH,
     'DADOS PARA EMISSÃO DA NOTA',
-    '📋',
+    '',
     col2Lines,
     showInfoPF ? 'Para Pessoa Física, os dados da nota\nfiscal são do cadastro do contato.' : undefined
   )
@@ -460,7 +471,7 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     colWidth,
     cardH,
     'ENDEREÇO DE ENTREGA',
-    '🚚',
+    '',
     col3Lines
   )
 
@@ -483,7 +494,7 @@ export async function gerarPdf(orcamento: OrcamentoData) {
       doc.circle(margin + 12, fornecY + fornecH / 2, 5, 'F')
       setText(WHITE)
       doc.setFontSize(7)
-      doc.text('🏢', margin + 12, fornecY + fornecH / 2 + 2, { align: 'center' })
+      doc.text('', margin + 12, fornecY + fornecH / 2 + 2, { align: 'center' })
 
       setText(GREEN)
       doc.setFontSize(9)
@@ -505,7 +516,7 @@ export async function gerarPdf(orcamento: OrcamentoData) {
       doc.circle(freteX + 12, fornecY + fornecH / 2, 5, 'F')
       setText(WHITE)
       doc.setFontSize(7)
-      doc.text('🚚', freteX + 12, fornecY + fornecH / 2 + 2, { align: 'center' })
+      doc.text('', freteX + 12, fornecY + fornecH / 2 + 2, { align: 'center' })
 
       setText(GREEN)
       doc.setFontSize(9)
@@ -534,7 +545,7 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   doc.circle(margin + 16, prodY + prodH / 2, 5, 'F')
   setText(WHITE)
   doc.setFontSize(7)
-  doc.text('🛒', margin + 16, prodY + prodH / 2 + 2, { align: 'center' })
+  doc.text('', margin + 16, prodY + prodH / 2 + 2, { align: 'center' })
 
   setText(GREEN)
   doc.setFontSize(10)
@@ -667,7 +678,7 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   doc.circle(margin + 3, footerY, 3, 'F')
   setText(WHITE)
   doc.setFontSize(5)
-  doc.text('🛡', margin + 3, footerY + 0.5, { align: 'center' })
+  doc.text('', margin + 3, footerY + 0.5, { align: 'center' })
 
   setText(DARK_TEXT)
   doc.setFontSize(7)
