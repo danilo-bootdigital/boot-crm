@@ -68,7 +68,10 @@ export default async function PreviewPdfPage({
     <>
       <link rel="stylesheet" href="./print.css" />
       <main className="min-h-screen bg-slate-100 py-6 print:bg-white print:py-0">
-        <div className="mx-auto w-[794px] max-w-full bg-white shadow-lg print:shadow-none print:w-[210mm] print:max-w-none">
+        <div
+          data-pdf-page="true"
+          className="mx-auto w-[794px] max-w-full bg-white shadow-lg print:shadow-none print:w-[210mm] print:max-w-none"
+        >
           <OrcamentoPdfTemplate data={orcamento} />
         </div>
         {!isPrint && (

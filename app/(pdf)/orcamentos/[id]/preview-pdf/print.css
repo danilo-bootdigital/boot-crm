@@ -1,4 +1,7 @@
-/* Regras print + página A4 para o preview de PDF de orçamento. */
+/* ============================================================
+   Print CSS — janela de impressão nativa do navegador (window.print)
+   Objetivo: gerar PDF A4 idêntico ao preview HTML
+   ============================================================ */
 
 @page {
   size: A4;
@@ -8,23 +11,103 @@
 * {
   -webkit-print-color-adjust: exact !important;
   print-color-adjust: exact !important;
+  box-sizing: border-box;
+  -webkit-print-color-adjust: exact;
 }
 
-html, body {
-  margin: 0;
-  padding: 0;
-  background: #f1f5f9;
+html,
+body {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: #ffffff !important;
+  width: 100%;
 }
 
-@media print {
-  html, body {
-    background: #ffffff;
-  }
-  /* Tabela: cabeçalho se repete em cada página */
-  thead {
-    display: table-header-group;
-  }
-  tr, th, td {
-    page-break-inside: avoid;
-  }
+/* Wrapper principal da página (route group (pdf)).
+   Ganha padding 6 na tela, ZERO no print. */
+main {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: #ffffff !important;
+  min-height: auto;
+  display: block !important;
+}
+
+/* Container branco de 794px (A4 @ 96dpi) na tela,
+   vira 210mm exato no print sem shadow. */
+[data-pdf-page] {
+  width: 210mm !important;
+  max-width: 210mm !important;
+  min-height: 297mm;
+  margin: 0 auto !important;
+  padding: 12mm !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  overflow: visible !important;
+  display: block !important;
+}
+
+/* Esconde elementos com print:hidden OU .print-hidden
+   (cobre Tailwind v4 escape + classe custom) */
+.print-hidden,
+button[title*="Salvar como PDF"],
+.no-print {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Tabelas: cabeçalho repete em cada página, sem cortar linha no meio */
+table {
+  page-break-inside: auto;
+  border-collapse: collapse;
+}
+
+thead {
+  display: table-header-group;
+}
+
+tr {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+th,
+td {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+/* Impede overflow horizontal (causa comum de PDF quebrado) */
+* {
+  max-width: 100%;
+}
+
+img {
+  max-width: 100% !important;
+  height: auto !important;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+/* Bloqueia transformações e filtros que distorcem o print */
+* {
+  transform: none !important;
+  filter: none !important;
+}
+
+/* Garante que cor de fundo do emerald-700 é preservada */
+.bg-emerald-700,
+.bg-emerald-600 {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+/* Evita que blocos do grid quebrem no meio */
+section,
+article {
+  page-break-inside: avoid;
+  break-inside: avoid;
 }
