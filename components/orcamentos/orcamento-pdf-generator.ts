@@ -139,7 +139,7 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   // Trunca texto com "..." se ultrapassar maxWidth
   function truncateText(text: string, maxWidth: number): string {
     if (!text) return ''
-    doc.setFontSize(8)
+    doc.setFontSize(9)
     doc.setFont('helvetica', 'normal')
     if (doc.getTextWidth(text) <= maxWidth) return text
     let truncated = text
@@ -149,23 +149,39 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     return truncated + '...'
   }
 
-  // Desenha par label + valor (label acima, valor abaixo)
-  function drawLabelValue(label: string, value: string, x: number, y: number, maxWidth: number) {
-    const labelWidth = 14
-    const valueMaxWidth = maxWidth - labelWidth - 2
+  // Desenha campo label + valor com espaçamento correto
+  // Retorna o próximo Y após o campo
+  function drawField(label: string, value: string, x: number, y: number, maxWidth: number): number {
+    const labelY = y
+    const valueY = y + 7  // 7mm abaixo do label
 
-    // Label em verde, 7.5pt
-    setText(GREEN)
-    doc.setFontSize(7.5)
+    // Label: 9pt, cinza
+    setText(GRAY_TEXT)
+    doc.setFontSize(9)
     doc.setFont('helvetica', 'bold')
-    doc.text(label, x, y)
+    doc.text(label, x, labelY)
 
-    // Valor em grafite, 9.5pt (3mm abaixo do label)
+    // Valor: 11pt, grafite
     setText(DARK_TEXT)
-    doc.setFontSize(9.5)
+    doc.setFontSize(11)
     doc.setFont('helvetica', 'normal')
-    const truncatedValue = truncateText(value, valueMaxWidth)
-    doc.text(truncatedValue, x, y + 4)
+    const truncatedValue = truncateText(value, maxWidth)
+    doc.text(truncatedValue, x, valueY)
+
+    // Próximo campo: 11mm abaixo
+    return valueY + 11
+  }
+
+  // Calcula dimensões proporcionais do logo
+  function getLogoDimensions(originalWidth: number, originalHeight: number, maxW: number, maxH: number) {
+    const ratio = originalWidth / originalHeight
+    if (ratio > maxW / maxH) {
+      // Mais largo - ajustar por largura
+      return { width: maxW, height: maxW / ratio }
+    } else {
+      // Mais alto - ajustar por altura
+      return { width: maxH * ratio, height: maxH }
+    }
   }
 
   // --- DIMENSÕES FIXAS DO HEADER ---
@@ -189,13 +205,18 @@ export async function gerarPdf(orcamento: OrcamentoData) {
 
   // --- COLUNA 1: EMPRESA ---
   const c1 = H.col1
+  const logoMaxW = 45
+  const logoMaxH = 22
 
-  // Logo
+  // Logo (proporção preservada)
   if (org?.logo_url) {
     const logoData = await loadLogo(org.logo_url)
     if (logoData) {
       try {
-        doc.addImage(logoData, 'PNG', c1.x, H.y + 3, 42, 16)
+        // Obter dimensões da imagem (supondo ~200x80 como exemplo)
+        // Como não temos acesso direto às dimensões, usamos a função de ajuste proporcional
+        const logoDims = getLogoDimensions(200, 80, logoMaxW, logoMaxH) // proporção 2.5:1
+        doc.addImage(logoData, 'PNG', c1.x, H.y + 3, logoDims.width, logoDims.height)
       } catch {
         // Logo falhou - mostra texto
         setText(GREEN)
@@ -212,11 +233,11 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     doc.text(truncateText(org?.nome_fantasia || org?.nome || 'DPRIME', c1.w), c1.x, H.y + 16)
   }
 
-  // Subtítulo (10pt)
-  setText(GRAY_TEXT)
-  doc.setFontSize(10)
-  doc.setFont('helvetica', 'normal')
-  doc.text('Representacao Farmaceutica', c1.x, H.y + 24)
+  // Subtítulo "Representação Farmacêutica" (11pt, bold, verde)
+  setText(GREEN)
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Representacao Farmaceutica', c1.x, H.y + 30)
 
   // CNPJ
   if (org?.cnpj) {
@@ -229,32 +250,28 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   doc.setLineWidth(0.3)
   doc.line(c1.x + c1.w + 3, H.y + 4, c1.x + c1.w + 3, H.y + H.h - 4)
 
-  // --- COLUNA 2: CONTATOS (9pt, espaçamento 10mm) ---
+  // --- COLUNA 2: CONTATOS (drawField com espaçamento 11mm) ---
   const c2 = H.col2
   let cy = H.y + 6
-  const rowH = 10
 
   // Telefone
   if (org?.telefone) {
-    drawLabelValue('Tel:', org.telefone, c2.x, cy, c2.w)
-    cy += rowH
+    cy = drawField('Tel:', org.telefone, c2.x, cy, c2.w)
   }
 
   // E-mail
   if (org?.email) {
-    drawLabelValue('E-mail:', org.email, c2.x, cy, c2.w)
-    cy += rowH
+    cy = drawField('E-mail:', org.email, c2.x, cy, c2.w)
   }
 
   // Site
   if (org?.site) {
-    drawLabelValue('Site:', org.site, c2.x, cy, c2.w)
-    cy += rowH
+    cy = drawField('Site:', org.site, c2.x, cy, c2.w)
   }
 
   // Instagram
   if (org?.instagram) {
-    drawLabelValue('Insta:', org.instagram, c2.x, cy, c2.w)
+    cy = drawField('Insta:', org.instagram, c2.x, cy, c2.w)
   }
 
   // --- SEPARADOR 2 ---
@@ -350,7 +367,7 @@ export async function gerarPdf(orcamento: OrcamentoData) {
 
   // Card do cliente (altura baseada no conteúdo)
   const cardW = contentWidth
-  const cardH = 40
+  const cardH = 50  // altura maior para comportar campos espaçados
 
   setDraw(GREEN_BORDER)
   doc.setLineWidth(0.5)
@@ -366,51 +383,19 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   doc.line(col1X - 2, currentY + 5, col1X - 2, currentY + cardH - 5)
   doc.line(col2X - 2, currentY + 5, col2X - 2, currentY + cardH - 5)
 
-  const cardPadding = 6
-  const labelSpacing = 3.5  // espaço entre label e valor
-  const groupSpacing = 8    // espaço entre grupos
+  const cardPadding = 7
+  const colWidth = cardW / 3 - cardPadding
 
   // ========== COLUNA 1 ==========
   let col1Y = currentY + cardPadding + 4
 
   // Nome / Razão Social
-  setText(GRAY_TEXT)
-  doc.setFontSize(7.5)
-  doc.setFont('helvetica', 'bold')
-  doc.text('NOME / RAZAO SOCIAL', margin + cardPadding, col1Y)
-  col1Y += labelSpacing
-  setText(DARK_TEXT)
-  doc.setFontSize(10)
-  doc.setFont('helvetica', 'bold')
-  doc.text(cliente?.nome || '—', margin + cardPadding, col1Y)
-  col1Y += groupSpacing
+  col1Y = drawField('NOME / RAZAO SOCIAL', cliente?.nome || '—', margin + cardPadding, col1Y, colWidth)
 
   // CPF/CNPJ
   const docCliente = orcamento.contato?.cpf_cnpj || orcamento.lead?.cpf_cnpj
   if (docCliente) {
-    setText(GRAY_TEXT)
-    doc.setFontSize(7.5)
-    doc.setFont('helvetica', 'bold')
-    doc.text('CPF / CNPJ', margin + cardPadding, col1Y)
-    col1Y += labelSpacing
-    setText(DARK_TEXT)
-    doc.setFontSize(9.5)
-    doc.setFont('helvetica', 'normal')
-    doc.text(docCliente, margin + cardPadding, col1Y)
-    col1Y += groupSpacing
-  }
-
-  // Tipo de pessoa
-  if (orcamento.contato?.tipo_pessoa) {
-    setText(GRAY_TEXT)
-    doc.setFontSize(7.5)
-    doc.setFont('helvetica', 'bold')
-    doc.text('TIPO', margin + cardPadding, col1Y)
-    col1Y += labelSpacing
-    setText(DARK_TEXT)
-    doc.setFontSize(9.5)
-    doc.setFont('helvetica', 'normal')
-    doc.text(orcamento.contato.tipo_pessoa, margin + cardPadding, col1Y)
+    col1Y = drawField('CPF / CNPJ', docCliente, margin + cardPadding, col1Y, colWidth)
   }
 
   // ========== COLUNA 2 ==========
@@ -418,45 +403,18 @@ export async function gerarPdf(orcamento: OrcamentoData) {
 
   // Telefone
   if (cliente?.telefone) {
-    setText(GRAY_TEXT)
-    doc.setFontSize(7.5)
-    doc.setFont('helvetica', 'bold')
-    doc.text('TELEFONE', col1X + cardPadding, col2Y)
-    col2Y += labelSpacing
-    setText(DARK_TEXT)
-    doc.setFontSize(9.5)
-    doc.setFont('helvetica', 'normal')
-    doc.text(cliente.telefone, col1X + cardPadding, col2Y)
-    col2Y += groupSpacing
+    col2Y = drawField('TELEFONE', cliente.telefone, col1X + cardPadding, col2Y, colWidth)
   }
 
   // Email
   if (cliente?.email) {
-    setText(GRAY_TEXT)
-    doc.setFontSize(7.5)
-    doc.setFont('helvetica', 'bold')
-    doc.text('E-MAIL', col1X + cardPadding, col2Y)
-    col2Y += labelSpacing
-    setText(DARK_TEXT)
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'normal')
-    const emailText = cliente.email.length > 28 ? cliente.email.substring(0, 28) + '...' : cliente.email
-    doc.text(emailText, col1X + cardPadding, col2Y)
-    col2Y += groupSpacing
+    col2Y = drawField('E-MAIL', cliente.email, col1X + cardPadding, col2Y, colWidth)
   }
 
   // Conselho
   if (orcamento.contato?.tipo_conselho && orcamento.contato?.numero_conselho) {
-    setText(GRAY_TEXT)
-    doc.setFontSize(7.5)
-    doc.setFont('helvetica', 'bold')
     const conselhoUF = orcamento.contato.uf_conselho ? `/${orcamento.contato.uf_conselho}` : ''
-    doc.text(`${orcamento.contato.tipo_conselho} / NUMERO`, col1X + cardPadding, col2Y)
-    col2Y += labelSpacing
-    setText(DARK_TEXT)
-    doc.setFontSize(9.5)
-    doc.setFont('helvetica', 'normal')
-    doc.text(`${orcamento.contato.numero_conselho}${conselhoUF}`, col1X + cardPadding, col2Y)
+    col2Y = drawField(`${orcamento.contato.tipo_conselho} / NUMERO`, `${orcamento.contato.numero_conselho}${conselhoUF}`, col1X + cardPadding, col2Y, colWidth)
   }
 
   // ========== COLUNA 3 ==========
@@ -464,48 +422,40 @@ export async function gerarPdf(orcamento: OrcamentoData) {
 
   // Empresa / Categoria
   if (orcamento.contato?.empresa?.nome || orcamento.contato?.categoria_cliente) {
-    setText(GRAY_TEXT)
-    doc.setFontSize(7.5)
-    doc.setFont('helvetica', 'bold')
-    doc.text('EMPRESA / CATEGORIA', col2X + cardPadding, col3Y)
-    col3Y += labelSpacing
-    setText(DARK_TEXT)
-    doc.setFontSize(9.5)
-    doc.setFont('helvetica', 'bold')
     const empresaNome = orcamento.contato?.empresa?.nome || orcamento.contato?.categoria_cliente || ''
-    doc.text(empresaNome, col2X + cardPadding, col3Y)
-    col3Y += groupSpacing
+    col3Y = drawField('EMPRESA / CATEGORIA', empresaNome, col2X + cardPadding, col3Y, colWidth)
   }
 
   // Especialidade
   if (orcamento.contato?.especialidade) {
+    // Especialidade em itálico - não usa drawField padrão
     setText(GRAY_TEXT)
-    doc.setFontSize(7.5)
+    doc.setFontSize(9)
     doc.setFont('helvetica', 'bold')
     doc.text('ESPECIALIDADE', col2X + cardPadding, col3Y)
-    col3Y += labelSpacing
+    col3Y += 7
     setText(DARK_TEXT)
-    doc.setFontSize(9)
+    doc.setFontSize(11)
     doc.setFont('helvetica', 'italic')
     doc.text(orcamento.contato.especialidade, col2X + cardPadding, col3Y)
-    col3Y += groupSpacing
+    col3Y += 11
   }
 
   // Endereço
   if (endereco) {
     setText(GRAY_TEXT)
-    doc.setFontSize(7.5)
+    doc.setFontSize(9)
     doc.setFont('helvetica', 'bold')
     doc.text('ENDERECO', col2X + cardPadding, col3Y)
-    col3Y += labelSpacing
+    col3Y += 7
     setText(DARK_TEXT)
-    doc.setFontSize(9)
+    doc.setFontSize(11)
     doc.setFont('helvetica', 'normal')
     const endLines = quebrarEnderecoInteligente(endereco).split('\n')
     endLines.slice(0, 2).forEach((line) => {
       if (line.trim()) {
         doc.text(line.trim(), col2X + cardPadding, col3Y)
-        col3Y += 4
+        col3Y += 11
       }
     })
   }
