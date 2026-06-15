@@ -10,8 +10,6 @@ import {
   ShoppingCart,
   ClipboardList,
   MessageSquare,
-  Info,
-  MapPin,
   Phone,
   Mail,
   Globe,
@@ -19,28 +17,27 @@ import {
   UserCircle2,
 } from 'lucide-react'
 
-// Aliases semânticos (sem renomear imports para evitar shadowing).
-const IconeCliente = User
-const IconeDocumento = FileText
-const IconeCaminhao = Truck
-const IconeCarrinho = ShoppingCart
-const IconeDocTexto = ClipboardList
-const IconeBalao = MessageSquare
-const IconeInfo = Info
-const IconePin = MapPin
-const IconeTelefone = Phone
-const IconeEmail = Mail
-const IconeGlobo = Globe
-const IconeCalendario = Calendar
-const IconeNota = FileText
-const IconeUsuario = UserCircle2
+// Aliases semânticos com tamanho corporativo (informação > ícone):
+// títulos de seção em 16px (h-4); ícones inline em 14px (h-3.5).
+const IconeCliente = () => <User className="h-4 w-4" />
+const IconeDocumento = () => <FileText className="h-4 w-4" />
+const IconeCaminhao = () => <Truck className="h-4 w-4" />
+const IconeCarrinho = () => <ShoppingCart className="h-4 w-4" />
+const IconeDocTexto = () => <ClipboardList className="h-4 w-4" />
+const IconeBalao = () => <MessageSquare className="h-4 w-4" />
+const IconeTelefone = () => <Phone className="h-3.5 w-3.5" />
+const IconeEmail = () => <Mail className="h-3.5 w-3.5" />
+const IconeGlobo = () => <Globe className="h-3.5 w-3.5" />
+const IconeCalendario = () => <Calendar className="h-3.5 w-3.5" />
+const IconeNota = () => <FileText className="h-3.5 w-3.5" />
+const IconeUsuario = () => <UserCircle2 className="h-3.5 w-3.5" />
 
 // Ícone Instagram não está disponível no lucide-react 1.17; mantido como SVG inline
 // (regra da auditoria rápida: não adicionar nova dependência).
 const IconeInstagram = () => (
   <svg
-    width="12"
-    height="12"
+    width="14"
+    height="14"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
@@ -190,11 +187,14 @@ const laboratorioItem = (
 }
 
 function CampoRotulo({ rotulo, valor, valorNegrito = true }: { rotulo: string; valor?: string | null; valorNegrito?: boolean }) {
+  // Oculta campos vazios (sem placeholder "—").
+  const v = valor == null ? '' : String(valor).trim()
+  if (!v || v === '—') return null
   return (
     <div className="flex flex-col gap-0.5">
       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide leading-tight">{rotulo}</span>
       <span className={`text-[12px] text-slate-800 break-words leading-snug ${valorNegrito ? 'font-bold' : 'font-normal'}`}>
-        {valor || '—'}
+        {v}
       </span>
     </div>
   )
@@ -270,10 +270,12 @@ function Cabecalho({ data }: { data: OrcamentoTemplateData }) {
           <span className="text-emerald-700" aria-hidden><IconeNota /></span>
           <span>Proposta: <strong className="text-slate-800">{data.numero}</strong></span>
         </div>
-        <div className="flex items-center gap-2 text-[11px] text-slate-600">
-          <span className="text-emerald-700" aria-hidden><IconeUsuario /></span>
-          <span>Vendedor: <strong className="text-slate-800">{data.responsavel?.nome || '—'}</strong></span>
-        </div>
+        {data.responsavel?.nome && (
+          <div className="flex items-center gap-2 text-[11px] text-slate-600">
+            <span className="text-emerald-700" aria-hidden><IconeUsuario /></span>
+            <span>Vendedor: <strong className="text-slate-800">{data.responsavel.nome}</strong></span>
+          </div>
+        )}
       </div>
     </header>
   )
@@ -310,7 +312,13 @@ function SecaoCards({ data }: { data: OrcamentoTemplateData }) {
           {data.contato?.tipo_pessoa && (
             <CampoRotulo
               rotulo="Tipo de pessoa"
-              valor={data.contato.tipo_pessoa === 'PF' ? 'PF - Médico' : data.contato.tipo_pessoa}
+              valor={
+                data.contato.tipo_pessoa === 'PF'
+                  ? 'Pessoa Física'
+                  : data.contato.tipo_pessoa === 'PJ'
+                    ? 'Pessoa Jurídica'
+                    : data.contato.tipo_pessoa
+              }
             />
           )}
           {data.contato?.endereco && (
@@ -362,12 +370,6 @@ function SecaoCards({ data }: { data: OrcamentoTemplateData }) {
               <CampoRotulo rotulo="Endereço" valor={data.nota_endereco} valorNegrito={false} />
             )}
           </div>
-          {isPF && (
-            <div className="mx-3 mb-3 p-2 bg-emerald-50 border border-emerald-200 rounded text-[11px] text-emerald-800 flex gap-2">
-              <span className="shrink-0 mt-0.5"><IconeInfo /></span>
-              <span>Para Pessoa Física, os dados da nota fiscal são utilizados conforme o cadastro do contato.</span>
-            </div>
-          )}
         </article>
       )}
 
@@ -527,32 +529,38 @@ function SecaoComercial({ data }: { data: OrcamentoTemplateData }) {
           </div>
         </article>
       )}
-      <article className="border border-emerald-300 rounded-md bg-white">
-        <div className="bg-emerald-700 text-white px-3 py-2.5 flex items-center gap-2">
-          <IconeBalao />
-          <h2 className="text-[12px] font-bold tracking-wide">OBSERVAÇÕES</h2>
-        </div>
-        <div className="p-3 text-[12px] text-slate-700 flex flex-col gap-1.5 whitespace-pre-wrap break-words leading-relaxed">
-          <p>Proposta válida mediante confirmação de estoque.</p>
-          <p>Valores sujeitos à alteração sem aviso prévio.</p>
-          <p>Para confirmar o pedido, entre em contato com o seu representante.</p>
-          {data.observacoes && <p className="text-slate-800 font-semibold">{data.observacoes}</p>}
-        </div>
-      </article>
+      {data.observacoes && data.observacoes.trim() && (
+        <article className="border border-emerald-300 rounded-md bg-white">
+          <div className="bg-emerald-700 text-white px-3 py-2.5 flex items-center gap-2">
+            <IconeBalao />
+            <h2 className="text-[12px] font-bold tracking-wide">OBSERVAÇÕES</h2>
+          </div>
+          <div className="p-3 text-[12px] text-slate-800 whitespace-pre-wrap break-words leading-relaxed">
+            {data.observacoes}
+          </div>
+        </article>
+      )}
     </section>
   )
 }
 
 function Rodape({ org }: { org: OrcamentoTemplateData['organizacao'] }) {
+  if (!org) return null
+  if (!org.telefone && !org.email && !org.site && !org.instagram) return null
   return (
-    <footer className="bg-emerald-700 text-white px-4 py-3 rounded-md flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] font-semibold print:break-inside-avoid">
-      <span className="flex items-center gap-1.5">
-        <IconePin />
-        <span>{org?.nome || 'DPRIME Representação Farmacêutica LTDA'}</span>
-      </span>
-      {org?.cnpj && <span>CNPJ: {org.cnpj}</span>}
-      {org?.endereco && <span>{org.endereco}</span>}
-      {org?.email && <span className="break-all">{org.email}</span>}
+    <footer className="bg-emerald-700 text-white px-4 py-2.5 rounded-md flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[11px] font-medium print:break-inside-avoid">
+      {org.telefone && (
+        <span className="flex items-center gap-1.5"><IconeTelefone /><span>{org.telefone}</span></span>
+      )}
+      {org.email && (
+        <span className="flex items-center gap-1.5 break-all"><IconeEmail /><span>{org.email}</span></span>
+      )}
+      {org.site && (
+        <span className="flex items-center gap-1.5 break-all"><IconeGlobo /><span>{org.site}</span></span>
+      )}
+      {org.instagram && (
+        <span className="flex items-center gap-1.5"><IconeInstagram /><span>{org.instagram}</span></span>
+      )}
     </footer>
   )
 }
