@@ -3,22 +3,23 @@ import { NextResponse } from 'next/server'
 import { launchBrowser } from '@/lib/pdf/launch-browser'
 import { buildPrintUrl } from '@/lib/pdf/print-url'
 import { extractCookieHeader } from '@/lib/pdf/auth-cookie'
-import { gerarPdf } from '@/components/orcamentos/orcamento-pdf-generator'
 
-// Feature flag: USE_HTML_PDF=true → Puppeteer (PR 2, em desenvolvimento).
-//                 false → fallback jsPDF (gerador antigo, validado, ESTÁVEL).
+// Rota de download do PDF do orçamento.
+// PR 2: usa Puppeteer + template HTML/Tailwind (preview).
 //
-// Default: false (jsPDF) — prioriza estabilidade na Vercel.
-// Puppeteer/Chromium está desabilitado por padrão porque o binário do
-// @sparticuz/chromium não é incluído corretamente no output 'standalone'
-// do Next.js — falha com "input directory does not exist" em produção.
+// IMPORTANTE — SEM FALLBACK SILENCIOSO:
+// O botão "Baixar PDF" SEMPRE gera o PDF a partir do template HTML
+// novo (preview-pdf). Se o Puppeteer falhar, a rota retorna 500
+// com a mensagem de erro — NUNCA gera o PDF antigo (jsPDF).
 //
-// Para ativar o Puppeteer (quando estabilizado):
-//   Vercel → Settings → Env → USE_HTML_PDF=true → redeploy
-//
-// Para reverter para jsPDF:
-//   Remover a env var OU setar USE_HTML_PDF=false
-const USE_HTML_PDF = process.env.USE_HTML_PDF === 'true'
+// Para diagnóstico, USE_HTML_PDF=false desabilita Puppeteer e
+// retorna 503 com mensagem clara (ao invés de fallback silencioso).
+
+// Default: Puppeteer ativo. O gerador antigo (jsPDF) está preservado
+// em components/orcamentos/orcamento-pdf-generator.ts mas não é mais
+// importado aqui — qualquer tentativa de usá-lo resultaria em erro
+// de build.
+const PUPPETEER_DISABLED = process.env.USE_HTML_PDF === 'false'
 
 // Defesa em profundidade: Puppeteer requer Node.js (não Edge) e
 // resposta dinâmica (não cacheável) por construção.
@@ -30,6 +31,16 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Modo diagnóstico: USE_HTML_PDF=false → Puppeteer desligado, 503 claro
+  if (PUPPETEER_DISABLED) {
+    return new NextResponse(
+      'Geração de PDF via Puppeteer está desabilitada (USE_HTML_PDF=false). ' +
+        'O PR 2 (HTML/Tailwind) está em desenvolvimento. ' +
+        'Veja components/orcamentos/orcamento-pdf-generator.ts (jsPDF legado, preservado).',
+      { status: 503 }
+    )
+  }
+
   try {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -79,19 +90,7 @@ export async function GET(
       return new NextResponse('Orçamento não encontrado', { status: 404 })
     }
 
-    // Branch fallback (feature flag desativada)
-    if (!USE_HTML_PDF) {
-      const pdfBuffer = await gerarPdf(orcamento)
-      return new NextResponse(pdfBuffer, {
-        headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="orcamento-${orcamento.numero}.pdf"`,
-          'Content-Length': pdfBuffer.byteLength.toString(),
-        },
-      })
-    }
-
-    // Branch Puppeteer (PR 2)
+    // Geração via Puppeteer (PR 2) — SEM fallback silencioso.
     const url = buildPrintUrl(id, new URL(request.url).origin)
     const cookieHeader = extractCookieHeader(request)
 
@@ -127,8 +126,9 @@ export async function GET(
       },
     })
   } catch (error) {
+    // Sem fallback silencioso. Retorna 500 com mensagem clara.
     console.error('[pdf route] erro:', error)
     const msg = error instanceof Error ? error.message : 'Erro interno'
-    return new NextResponse(`Erro interno: ${msg.slice(0, 200)}`, { status: 500 })
+    return new NextResponse(`Erro interno (PR 2): ${msg.slice(0, 300)}`, { status: 500 })
   }
 }
