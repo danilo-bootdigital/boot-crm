@@ -1,0 +1,30 @@
+/* Regras print + página A4 para o preview de PDF de orçamento. */
+
+@page {
+  size: A4;
+  margin: 0;
+}
+
+* {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #f1f5f9;
+}
+
+@media print {
+  html, body {
+    background: #ffffff;
+  }
+  /* Tabela: cabeçalho se repete em cada página */
+  thead {
+    display: table-header-group;
+  }
+  tr, th, td {
+    page-break-inside: avoid;
+  }
+}
