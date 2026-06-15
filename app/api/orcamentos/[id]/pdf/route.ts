@@ -5,10 +5,20 @@ import { buildPrintUrl } from '@/lib/pdf/print-url'
 import { extractCookieHeader } from '@/lib/pdf/auth-cookie'
 import { gerarPdf } from '@/components/orcamentos/orcamento-pdf-generator'
 
-// Feature flag: USE_HTML_PDF=true → Puppeteer (PR 2, default).
-//                 false → fallback jsPDF (route antiga, preservada).
-// Rollback: basta setar USE_HTML_PDF=false no painel da Vercel e redeploy.
-const USE_HTML_PDF = process.env.USE_HTML_PDF !== 'false'
+// Feature flag: USE_HTML_PDF=true → Puppeteer (PR 2, em desenvolvimento).
+//                 false → fallback jsPDF (gerador antigo, validado, ESTÁVEL).
+//
+// Default: false (jsPDF) — prioriza estabilidade na Vercel.
+// Puppeteer/Chromium está desabilitado por padrão porque o binário do
+// @sparticuz/chromium não é incluído corretamente no output 'standalone'
+// do Next.js — falha com "input directory does not exist" em produção.
+//
+// Para ativar o Puppeteer (quando estabilizado):
+//   Vercel → Settings → Env → USE_HTML_PDF=true → redeploy
+//
+// Para reverter para jsPDF:
+//   Remover a env var OU setar USE_HTML_PDF=false
+const USE_HTML_PDF = process.env.USE_HTML_PDF === 'true'
 
 // Defesa em profundidade: Puppeteer requer Node.js (não Edge) e
 // resposta dinâmica (não cacheável) por construção.
