@@ -10,6 +10,10 @@ import { gerarPdf } from '@/components/orcamentos/orcamento-pdf-generator'
 // Rollback: basta setar USE_HTML_PDF=false no painel da Vercel e redeploy.
 const USE_HTML_PDF = process.env.USE_HTML_PDF !== 'false'
 
+// Defesa em profundidade: Puppeteer requer Node.js (não Edge) e
+// resposta dinâmica (não cacheável) por construção.
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 export async function GET(
