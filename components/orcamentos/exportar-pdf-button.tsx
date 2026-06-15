@@ -3,6 +3,7 @@
 import { Button } from '@/components/ui/button'
 import { FileDown, Loader2 } from 'lucide-react'
 import { useState } from 'react'
+import { baixarOrcamentoPdf } from '@/lib/pdf/download-pdf'
 
 type Props = {
   orcamentoId: string
@@ -17,24 +18,7 @@ export function ExportarPdfButton({ orcamentoId, numero }: Props) {
 
     setLoading(true)
     try {
-      const response = await fetch(`/api/orcamentos/${orcamentoId}/pdf`)
-
-      if (!response.ok) {
-        const error = await response.text()
-        console.error('Erro ao gerar PDF:', error)
-        alert('Erro ao gerar PDF. Tente novamente.')
-        return
-      }
-
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `orcamento-${numero}.pdf`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
+      await baixarOrcamentoPdf(orcamentoId, numero)
     } catch (error) {
       console.error('Erro ao exportar PDF:', error)
       alert('Erro ao exportar PDF. Tente novamente.')

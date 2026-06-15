@@ -1,28 +1,35 @@
 'use client'
 
 // Botão "Baixar PDF" do preview HTML.
-// Comportamento: chama window.print() — o navegador abre a janela
-// de impressão nativa, e o usuário escolhe "Salvar como PDF".
-// O CSS print.css já cuida do layout A4, @page, e remoção de
-// elementos interativos.
-//
-// Esta é a solução temporária enquanto o serviço externo de PDF
-// (Docker + Puppeteer) está sendo construído. Quando o serviço
-// estiver pronto, este botão volta a chamar /api/orcamentos/{id}/pdf
-// para download direto de PDF.
+// Baixa o PDF do orçamento (formato novo) via a rota Puppeteer existente
+// /api/orcamentos/[id]/pdf, reutilizando a MESMA lógica de download de
+// `ExportarPdfButton` (lib/pdf/download-pdf.ts) — sem duplicar código,
+// sem criar nova rota e sem `window.print()`.
 
-import { Printer } from 'lucide-react'
+import { Printer, Loader2 } from 'lucide-react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { baixarOrcamentoPdf } from '@/lib/pdf/download-pdf'
 
 type Props = {
   orcamentoId: string
   numero?: number
 }
 
-export function BotaoBaixarPdf({ orcamentoId, numero: _numero }: Props) {
-  function handleClick() {
-    if (typeof window !== 'undefined') {
-      window.print()
+export function BotaoBaixarPdf({ orcamentoId, numero }: Props) {
+  const [loading, setLoading] = useState(false)
+
+  async function handleClick() {
+    if (loading) return
+
+    setLoading(true)
+    try {
+      await baixarOrcamentoPdf(orcamentoId, numero ?? 0)
+    } catch (error) {
+      console.error('Erro ao baixar PDF:', error)
+      alert('Erro ao gerar PDF. Tente novamente.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -30,10 +37,15 @@ export function BotaoBaixarPdf({ orcamentoId, numero: _numero }: Props) {
     <Button
       type="button"
       onClick={handleClick}
+      disabled={loading}
       className="gap-2 bg-emerald-700 hover:bg-emerald-800 print:hidden"
-      title="Na janela de impressão, selecione 'Salvar como PDF'."
+      title="Baixar o PDF do orçamento."
     >
-      <Printer className="h-4 w-4" />
+      {loading ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <Printer className="h-4 w-4" />
+      )}
       <span>Baixar PDF</span>
     </Button>
   )
