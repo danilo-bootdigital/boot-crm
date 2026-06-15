@@ -73,6 +73,7 @@ type OrcamentoTemplateData = {
   numero: number
   status: string
   criado_em: string
+  validade_em: string | null
   responsavel: { nome: string } | null
   lead: {
     id: string
@@ -259,6 +260,12 @@ function Cabecalho({ data }: { data: OrcamentoTemplateData }) {
           <span className="text-emerald-700" aria-hidden><IconeCalendario /></span>
           <span>Data: <strong className="text-slate-800">{formatDate(data.criado_em)}</strong></span>
         </div>
+        {data.validade_em && (
+          <div className="flex items-center gap-2 text-[11px] text-slate-600">
+            <span className="text-emerald-700" aria-hidden><IconeCalendario /></span>
+            <span>Validade: <strong className="text-slate-800">{formatDate(data.validade_em)}</strong></span>
+          </div>
+        )}
         <div className="flex items-center gap-2 text-[11px] text-slate-600">
           <span className="text-emerald-700" aria-hidden><IconeNota /></span>
           <span>Proposta: <strong className="text-slate-800">{data.numero}</strong></span>
@@ -331,10 +338,26 @@ function SecaoCards({ data }: { data: OrcamentoTemplateData }) {
           </div>
           <div className="p-3 flex flex-col gap-1">
             <CampoRotulo rotulo="Tipo" valor={isPF ? 'Pessoa Física' : 'Pessoa Jurídica'} />
-            <CampoRotulo rotulo="Nome" valor={data.nota_nome || ''} />
-            <CampoRotulo rotulo={isPF ? 'CPF' : 'CNPJ'} valor={formatDocumento(data.nota_documento)} />
-            <CampoRotulo rotulo="E-mail" valor={data.contato?.email} />
-            <CampoRotulo rotulo="Telefone" valor={formatPhone(data.contato?.telefone)} />
+            {isPF ? (
+              <>
+                <CampoRotulo rotulo="Nome" valor={data.nota_nome || ''} />
+                <CampoRotulo rotulo="CPF" valor={formatDocumento(data.nota_documento)} />
+              </>
+            ) : (
+              <>
+                <CampoRotulo rotulo="Razão Social" valor={data.nota_razao_social || data.nota_nome || ''} />
+                {data.nota_nome_fantasia && (
+                  <CampoRotulo rotulo="Nome Fantasia" valor={data.nota_nome_fantasia} />
+                )}
+                <CampoRotulo rotulo="CNPJ" valor={formatDocumento(data.nota_documento)} />
+                {data.nota_ie && <CampoRotulo rotulo="Inscrição Estadual" valor={data.nota_ie} />}
+                {data.nota_im && <CampoRotulo rotulo="Inscrição Municipal" valor={data.nota_im} />}
+              </>
+            )}
+            {data.contato?.email && <CampoRotulo rotulo="E-mail" valor={data.contato.email} />}
+            {data.contato?.telefone && (
+              <CampoRotulo rotulo="Telefone" valor={formatPhone(data.contato.telefone)} />
+            )}
             {data.nota_endereco && (
               <CampoRotulo rotulo="Endereço" valor={data.nota_endereco} valorNegrito={false} />
             )}
@@ -442,8 +465,14 @@ function SecaoTotais({ data }: { data: OrcamentoTemplateData }) {
           <span className="font-bold">{formatBRL(data.valor_subtotal)}</span>
         </div>
         <div className="px-4 py-2 flex justify-between text-[13px] text-slate-700 border-b border-slate-200">
-          <span className="font-semibold">DESCONTO</span>
-          <span className="font-bold">{formatBRL(0)}</span>
+          <span className="font-semibold">
+            DESCONTO{data.desconto_geral > 0 ? ` (${data.desconto_geral}%)` : ''}
+          </span>
+          <span className="font-bold">
+            {data.desconto_geral > 0
+              ? `- ${formatBRL((data.valor_subtotal * data.desconto_geral) / 100)}`
+              : formatBRL(0)}
+          </span>
         </div>
         <div className="px-4 py-2 flex justify-between text-[13px] text-slate-700 border-b border-slate-200">
           <span className="font-semibold">FRETE</span>
@@ -458,34 +487,46 @@ function SecaoTotais({ data }: { data: OrcamentoTemplateData }) {
   )
 }
 
-function SecaoCondicoes({ data }: { data: OrcamentoTemplateData }) {
-  const org = data.organizacao
-  const condicoes = [
-    { rotulo: 'Condição de pagamento', valor: data.forma_pagamento || 'A combinar' },
-    { rotulo: 'Prazo de produção', valor: 'Até 5 dias úteis' },
-    { rotulo: 'Prazo de entrega', valor: 'A combinar' },
-    { rotulo: 'Validade da proposta', valor: '30 dias' },
-    { rotulo: 'Frete', valor: 'Por conta do comprador' },
-    { rotulo: 'Impostos', valor: 'Inclusos' },
-    { rotulo: 'Observações', valor: '—' },
-  ]
+function SecaoComercial({ data }: { data: OrcamentoTemplateData }) {
+  const hub = data.fornecedor?.health_hubs
+  const linhas: { rotulo: string; valor: string }[] = []
+  if (data.fornecedor?.nome) linhas.push({ rotulo: 'Fornecedor / Laboratório', valor: data.fornecedor.nome })
+  if (hub?.nome) linhas.push({ rotulo: 'Hub de Saúde', valor: hub.nome })
+  if (data.carrier?.nome) linhas.push({ rotulo: 'Transportadora', valor: data.carrier.nome })
+  if (data.frete_regiao) linhas.push({ rotulo: 'Região do frete', valor: data.frete_regiao })
+  if (data.forma_pagamento) linhas.push({ rotulo: 'Forma de pagamento', valor: data.forma_pagamento })
+
+  const temLogoHub = !!hub?.logo_url
+  const temComercial = linhas.length > 0 || temLogoHub
+
   return (
     <section className="grid grid-cols-1 md:grid-cols-2 gap-3 print:break-inside-avoid">
-      <article className="border border-emerald-300 rounded-md bg-white">
-        <div className="bg-emerald-700 text-white px-3 py-2.5 flex items-center gap-2">
-          <IconeDocTexto />
-          <h2 className="text-[12px] font-bold tracking-wide">CONDIÇÕES COMERCIAIS</h2>
-        </div>
-        <div className="p-3 flex flex-col gap-1.5 text-[12px]">
-          {condicoes.map((c) => (
-            <div key={c.rotulo} className="flex items-baseline gap-2">
-              <span className="font-bold text-slate-700 shrink-0">{c.rotulo}:</span>
-              <span className="flex-1 border-b border-dotted border-slate-300 translate-y-0.5" aria-hidden />
-              <span className="text-slate-800 text-right font-medium">{c.valor}</span>
+      {temComercial && (
+        <article className="border border-emerald-300 rounded-md bg-white overflow-hidden">
+          <div className="bg-emerald-700 text-white px-3 py-2.5 flex items-center gap-2">
+            <IconeDocTexto />
+            <h2 className="text-[12px] font-bold tracking-wide">DADOS COMERCIAIS</h2>
+          </div>
+          <div className="p-3 flex items-start gap-3">
+            <div className="flex-1 flex flex-col gap-1.5 text-[12px]">
+              {linhas.map((l) => (
+                <div key={l.rotulo} className="flex items-baseline gap-2">
+                  <span className="font-bold text-slate-700 shrink-0">{l.rotulo}:</span>
+                  <span className="text-slate-800 font-medium break-words">{l.valor}</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </article>
+            {temLogoHub && (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={hub?.logo_url as string}
+                alt={hub?.nome || 'Hub de Saúde'}
+                className="h-12 w-auto max-w-[120px] object-contain shrink-0 self-start"
+              />
+            )}
+          </div>
+        </article>
+      )}
       <article className="border border-emerald-300 rounded-md bg-white">
         <div className="bg-emerald-700 text-white px-3 py-2.5 flex items-center gap-2">
           <IconeBalao />
@@ -526,7 +567,7 @@ export function OrcamentoPdfTemplate({ data }: { data: OrcamentoTemplateData }) 
       <SecaoCards data={data} />
       <SecaoProdutos itens={data.itens} fornecedor={data.fornecedor} />
       <SecaoTotais data={data} />
-      <SecaoCondicoes data={data} />
+      <SecaoComercial data={data} />
       <Rodape org={data.organizacao} />
     </article>
   )
