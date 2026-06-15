@@ -132,217 +132,132 @@ export async function gerarPdf(orcamento: OrcamentoData) {
   }
 
   // ==========================================================
-  // 1. HEADER PDF — GRID FIXO 3 COLUNAS
+  // 1. HEADER PDF — SIMPLES E ESTÁVEL
   // ==========================================================
 
-  // --- HELPERS DE TEXTO ---
-  // Trunca texto com "..." se ultrapassar maxWidth
-  function truncateText(text: string, maxWidth: number): string {
-    if (!text) return ''
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'normal')
-    if (doc.getTextWidth(text) <= maxWidth) return text
-    let truncated = text
-    while (truncated.length > 3 && doc.getTextWidth(truncated + '...') > maxWidth) {
-      truncated = truncated.slice(0, -1)
-    }
-    return truncated + '...'
-  }
-
-  // Desenha campo label + valor com espaçamento correto
-  // Retorna o próximo Y após o campo
-  function drawField(label: string, value: string, x: number, y: number, maxWidth: number): number {
-    const labelY = y
-    const valueY = y + 7  // 7mm abaixo do label
-
-    // Label: 9pt, cinza
-    setText(GRAY_TEXT)
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'bold')
-    doc.text(label, x, labelY)
-
-    // Valor: 11pt, grafite
-    setText(DARK_TEXT)
-    doc.setFontSize(11)
-    doc.setFont('helvetica', 'normal')
-    const truncatedValue = truncateText(value, maxWidth)
-    doc.text(truncatedValue, x, valueY)
-
-    // Próximo campo: 11mm abaixo
-    return valueY + 11
-  }
-
-  // Calcula dimensões proporcionais do logo
+  // Helper para ajustar logo proporcionalmente
   function getLogoDimensions(originalWidth: number, originalHeight: number, maxW: number, maxH: number) {
     const ratio = originalWidth / originalHeight
     if (ratio > maxW / maxH) {
-      // Mais largo - ajustar por largura
       return { width: maxW, height: maxW / ratio }
     } else {
-      // Mais alto - ajustar por altura
       return { width: maxH * ratio, height: maxH }
     }
   }
 
-  // --- DIMENSÕES FIXAS DO HEADER ---
-  const H = {
-    x: margin,                           // 15
-    y: 8,                                  // 8
-    w: contentWidth,                       // 180
-    h: 52,                                 // 52mm altura
-    col1: { x: 15, w: 52 },              // Empresa
-    col2: { x: 72, w: 52 },              // Contatos
-    col3: { x: 130, w: 65 },             // Proposta
-    lineY: 60                              // y da linha separadora
-  }
-
   const org = orcamento.organizacao
-
-  // --- LINHA VERDE FINA NO TOPO (1mm) ---
-  setFill(GREEN)
-  doc.setLineWidth(0)
-  doc.rect(H.x, H.y, H.w, 1, 'F')
-
-  // --- COLUNA 1: EMPRESA ---
-  const c1 = H.col1
+  const headerY = 10
   const logoMaxW = 45
   const logoMaxH = 22
 
-  // Logo (proporção preservada)
+  // Logo à esquerda
   if (org?.logo_url) {
     const logoData = await loadLogo(org.logo_url)
     if (logoData) {
       try {
-        // Obter dimensões da imagem (supondo ~200x80 como exemplo)
-        // Como não temos acesso direto às dimensões, usamos a função de ajuste proporcional
-        const logoDims = getLogoDimensions(200, 80, logoMaxW, logoMaxH) // proporção 2.5:1
-        doc.addImage(logoData, 'PNG', c1.x, H.y + 3, logoDims.width, logoDims.height)
+        const logoDims = getLogoDimensions(200, 80, logoMaxW, logoMaxH)
+        doc.addImage(logoData, 'PNG', margin, headerY, logoDims.width, logoDims.height)
       } catch {
-        // Logo falhou - mostra texto
-        setText(GREEN)
-        doc.setFontSize(14)
-        doc.setFont('helvetica', 'bold')
-        doc.text(truncateText(org.nome_fantasia || org.nome || 'DPRIME', c1.w), c1.x, H.y + 16)
+        // Logo falhou
       }
     }
-  } else {
-    // Sem logo - mostra texto
-    setText(GREEN)
-    doc.setFontSize(14)
-    doc.setFont('helvetica', 'bold')
-    doc.text(truncateText(org?.nome_fantasia || org?.nome || 'DPRIME', c1.w), c1.x, H.y + 16)
   }
 
-  // Subtítulo "Representação Farmacêutica" (11pt, bold, verde)
+  // Nome da empresa abaixo do logo
+  setText(DARK_TEXT)
+  doc.setFontSize(12)
+  doc.setFont('helvetica', 'bold')
+  doc.text(org?.nome_fantasia || org?.nome || 'DPRIME', margin, headerY + 26)
+
+  // Subtítulo
   setText(GREEN)
   doc.setFontSize(11)
   doc.setFont('helvetica', 'bold')
-  doc.text('Representacao Farmaceutica', c1.x, H.y + 30)
+  doc.text('Representacao Farmaceutica', margin, headerY + 33)
 
   // CNPJ
   if (org?.cnpj) {
+    setText(DARK_TEXT)
     doc.setFontSize(9)
-    doc.text(`CNPJ: ${org.cnpj}`, c1.x, H.y + 31)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`CNPJ: ${org.cnpj}`, margin, headerY + 40)
   }
 
-  // --- SEPARADOR 1 ---
-  setDraw(GREEN_BORDER)
-  doc.setLineWidth(0.3)
-  doc.line(c1.x + c1.w + 3, H.y + 4, c1.x + c1.w + 3, H.y + H.h - 4)
+  // Contatos no centro
+  const centerX = 95
+  let contactY = headerY + 5
 
-  // --- COLUNA 2: CONTATOS (drawField com espaçamento 11mm) ---
-  const c2 = H.col2
-  let cy = H.y + 6
-
-  // Telefone
-  if (org?.telefone) {
-    cy = drawField('Tel:', org.telefone, c2.x, cy, c2.w)
-  }
-
-  // E-mail
-  if (org?.email) {
-    cy = drawField('E-mail:', org.email, c2.x, cy, c2.w)
-  }
-
-  // Site
-  if (org?.site) {
-    cy = drawField('Site:', org.site, c2.x, cy, c2.w)
-  }
-
-  // Instagram
-  if (org?.instagram) {
-    cy = drawField('Insta:', org.instagram, c2.x, cy, c2.w)
-  }
-
-  // --- SEPARADOR 2 ---
-  setDraw(GREEN_BORDER)
-  doc.setLineWidth(0.3)
-  doc.line(c2.x + c2.w + 3, H.y + 4, c2.x + c2.w + 3, H.y + H.h - 4)
-
-  // --- COLUNA 3: PROPOSTA ---
-  const c3 = { x: pageWidth - margin - H.col3.w, w: H.col3.w }
-  const rightEdge = pageWidth - margin
-
-  // Título "PROPOSTA COMERCIAL" (16pt, não encostar no topo)
-  setText(GREEN)
-  doc.setFontSize(16)
+  setText(DARK_TEXT)
+  doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
-  doc.text('PROPOSTA', rightEdge, H.y + 10, { align: 'right' })
-  doc.setFontSize(13)
-  doc.text('COMERCIAL', rightEdge, H.y + 18, { align: 'right' })
 
-  // Número da proposta (texto simples, sem box exagerado)
+  if (org?.telefone) {
+    doc.text(org.telefone, centerX, contactY)
+    contactY += 12
+  }
+
+  if (org?.email) {
+    doc.text(org.email, centerX, contactY)
+    contactY += 12
+  }
+
+  if (org?.site) {
+    doc.text(org.site, centerX, contactY)
+    contactY += 12
+  }
+
+  if (org?.instagram) {
+    doc.text(org.instagram, centerX, contactY)
+  }
+
+  // Proposta à direita
+  const rightX = pageWidth - margin
+
   setText(GREEN)
+  doc.setFontSize(18)
+  doc.setFont('helvetica', 'bold')
+  doc.text('PROPOSTA', rightX, headerY + 10, { align: 'right' })
+  doc.setFontSize(14)
+  doc.text('COMERCIAL', rightX, headerY + 20, { align: 'right' })
+
+  // Número da proposta (texto simples)
+  setText(DARK_TEXT)
   doc.setFontSize(12)
   doc.setFont('helvetica', 'bold')
-  doc.text(`Proposta N. ${orcamento.numero.toString().padStart(3, '0')}`, rightEdge, H.y + 28, { align: 'right' })
+  doc.text(`Proposta N. ${orcamento.numero.toString().padStart(3, '0')}`, rightX, headerY + 32, { align: 'right' })
 
   // Data
   const dataFormatada = new Date(orcamento.criado_em).toLocaleDateString('pt-BR', {
     day: '2-digit', month: 'long', year: 'numeric'
   })
-
-  setText(GRAY_TEXT)
-  doc.setFontSize(7)
-  doc.setFont('helvetica', 'normal')
-  doc.text('Data:', rightEdge - 28, H.y + 38, { align: 'right' })
   setText(DARK_TEXT)
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'bold')
-  doc.text(dataFormatada, rightEdge, H.y + 38, { align: 'right' })
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'normal')
+  doc.text(dataFormatada, rightX, headerY + 42, { align: 'right' })
 
-  // Responsável/Vendedor
+  // Responsável
   if (orcamento.responsavel?.nome) {
-    setText(GRAY_TEXT)
-    doc.setFontSize(7)
-    doc.setFont('helvetica', 'normal')
-    doc.text('Vendedor:', rightEdge - 32, H.y + 45, { align: 'right' })
-    setText(DARK_TEXT)
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'bold')
-    const vendedor = truncateText(orcamento.responsavel.nome, 30)
-    doc.text(vendedor, rightEdge, H.y + 45, { align: 'right' })
+    doc.text(orcamento.responsavel.nome, rightX, headerY + 50, { align: 'right' })
   }
 
-  // --- LINHA SEPARADORA FINAL ---
+  // Linha separadora
+  const headerBottom = headerY + 58
   setDraw(GREEN)
   doc.setLineWidth(1)
-  doc.line(H.x, H.lineY, pageWidth - margin, H.lineY)
-
-  const headerBottom = H.lineY + 4
+  doc.line(margin, headerBottom, pageWidth - margin, headerBottom)
 
   // ==========================================================
-  // 2. DADOS DO CLIENTE (3 colunas)
+  // 2. DADOS DO CLIENTE
   // ==========================================================
   const cliente = orcamento.contato || orcamento.lead
-  let currentY = headerBottom + 6
+  let currentY = headerBottom + 10
 
   // Título da seção
   setText(GREEN)
-  doc.setFontSize(9)
+  doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
   doc.text('DADOS DO CLIENTE', margin, currentY)
-  currentY += 5
+  currentY += 8
 
   // Montar endereço
   function montarEnderecoContato(): string | null {
@@ -365,80 +280,143 @@ export async function gerarPdf(orcamento: OrcamentoData) {
 
   const endereco = montarEnderecoContato()
 
-  // Card do cliente (altura baseada no conteúdo)
+  // Card do cliente - altura dinâmica
   const cardW = contentWidth
-  const cardH = 50  // altura maior para comportar campos espaçados
+  let cardH = 20
+
+  // Calcular altura necessária
+  let tempY = 0
+  if (cliente?.nome) tempY += 18
+  if (orcamento.contato?.cpf_cnpj || orcamento.lead?.cpf_cnpj) tempY += 18
+  if (orcamento.contato?.tipo_pessoa) tempY += 18
+  if (cliente?.telefone) tempY += 18
+  if (cliente?.email) tempY += 18
+  if (orcamento.contato?.tipo_conselho) tempY += 18
+  if (orcamento.contato?.empresa?.nome || orcamento.contato?.categoria_cliente) tempY += 18
+  if (orcamento.contato?.especialidade) tempY += 18
+  if (endereco) tempY += 36
+
+  cardH = Math.max(cardH, tempY + 20)
 
   setDraw(GREEN_BORDER)
   doc.setLineWidth(0.5)
   setFill(WHITE)
   doc.roundedRect(margin, currentY, cardW, cardH, 2, 2, 'FD')
 
-  // Divisores verticais
-  const col1X = margin + cardW / 3
-  const col2X = margin + (cardW * 2) / 3
-
-  setDraw(GREEN_BORDER)
-  doc.setLineWidth(0.2)
-  doc.line(col1X - 2, currentY + 5, col1X - 2, currentY + cardH - 5)
-  doc.line(col2X - 2, currentY + 5, col2X - 2, currentY + cardH - 5)
-
-  const cardPadding = 7
-  const colWidth = cardW / 3 - cardPadding
-
-  // ========== COLUNA 1 ==========
-  let col1Y = currentY + cardPadding + 4
+  const cardPadding = 8
+  let cardY = currentY + cardPadding
 
   // Nome / Razão Social
-  col1Y = drawField('NOME / RAZAO SOCIAL', cliente?.nome || '—', margin + cardPadding, col1Y, colWidth)
+  setText(GRAY_TEXT)
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'bold')
+  doc.text('NOME / RAZAO SOCIAL', margin + cardPadding, cardY)
+  cardY += 7
+  setText(DARK_TEXT)
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  doc.text(cliente?.nome || '—', margin + cardPadding, cardY)
+  cardY += 18
 
   // CPF/CNPJ
   const docCliente = orcamento.contato?.cpf_cnpj || orcamento.lead?.cpf_cnpj
   if (docCliente) {
-    col1Y = drawField('CPF / CNPJ', docCliente, margin + cardPadding, col1Y, colWidth)
+    setText(GRAY_TEXT)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'bold')
+    doc.text('CPF / CNPJ', margin + cardPadding, cardY)
+    cardY += 7
+    setText(DARK_TEXT)
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'normal')
+    doc.text(docCliente, margin + cardPadding, cardY)
+    cardY += 18
   }
 
-  // ========== COLUNA 2 ==========
-  let col2Y = currentY + cardPadding + 4
+  // Tipo de pessoa
+  if (orcamento.contato?.tipo_pessoa) {
+    setText(GRAY_TEXT)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'bold')
+    doc.text('TIPO', margin + cardPadding, cardY)
+    cardY += 7
+    setText(DARK_TEXT)
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'normal')
+    doc.text(orcamento.contato.tipo_pessoa, margin + cardPadding, cardY)
+    cardY += 18
+  }
 
   // Telefone
   if (cliente?.telefone) {
-    col2Y = drawField('TELEFONE', cliente.telefone, col1X + cardPadding, col2Y, colWidth)
+    setText(GRAY_TEXT)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'bold')
+    doc.text('TELEFONE', margin + cardPadding, cardY)
+    cardY += 7
+    setText(DARK_TEXT)
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'normal')
+    doc.text(cliente.telefone, margin + cardPadding, cardY)
+    cardY += 18
   }
 
   // Email
   if (cliente?.email) {
-    col2Y = drawField('E-MAIL', cliente.email, col1X + cardPadding, col2Y, colWidth)
+    setText(GRAY_TEXT)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'bold')
+    doc.text('E-MAIL', margin + cardPadding, cardY)
+    cardY += 7
+    setText(DARK_TEXT)
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'normal')
+    doc.text(cliente.email, margin + cardPadding, cardY)
+    cardY += 18
   }
 
   // Conselho
   if (orcamento.contato?.tipo_conselho && orcamento.contato?.numero_conselho) {
+    setText(GRAY_TEXT)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`${orcamento.contato.tipo_conselho} / NUMERO`, margin + cardPadding, cardY)
+    cardY += 7
+    setText(DARK_TEXT)
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'normal')
     const conselhoUF = orcamento.contato.uf_conselho ? `/${orcamento.contato.uf_conselho}` : ''
-    col2Y = drawField(`${orcamento.contato.tipo_conselho} / NUMERO`, `${orcamento.contato.numero_conselho}${conselhoUF}`, col1X + cardPadding, col2Y, colWidth)
+    doc.text(`${orcamento.contato.numero_conselho}${conselhoUF}`, margin + cardPadding, cardY)
+    cardY += 18
   }
-
-  // ========== COLUNA 3 ==========
-  let col3Y = currentY + cardPadding + 4
 
   // Empresa / Categoria
   if (orcamento.contato?.empresa?.nome || orcamento.contato?.categoria_cliente) {
+    setText(GRAY_TEXT)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'bold')
+    doc.text('EMPRESA / CATEGORIA', margin + cardPadding, cardY)
+    cardY += 7
+    setText(DARK_TEXT)
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
     const empresaNome = orcamento.contato?.empresa?.nome || orcamento.contato?.categoria_cliente || ''
-    col3Y = drawField('EMPRESA / CATEGORIA', empresaNome, col2X + cardPadding, col3Y, colWidth)
+    doc.text(empresaNome, margin + cardPadding, cardY)
+    cardY += 18
   }
 
   // Especialidade
   if (orcamento.contato?.especialidade) {
-    // Especialidade em itálico - não usa drawField padrão
     setText(GRAY_TEXT)
     doc.setFontSize(9)
     doc.setFont('helvetica', 'bold')
-    doc.text('ESPECIALIDADE', col2X + cardPadding, col3Y)
-    col3Y += 7
+    doc.text('ESPECIALIDADE', margin + cardPadding, cardY)
+    cardY += 7
     setText(DARK_TEXT)
     doc.setFontSize(11)
     doc.setFont('helvetica', 'italic')
-    doc.text(orcamento.contato.especialidade, col2X + cardPadding, col3Y)
-    col3Y += 11
+    doc.text(orcamento.contato.especialidade, margin + cardPadding, cardY)
+    cardY += 18
   }
 
   // Endereço
@@ -446,155 +424,135 @@ export async function gerarPdf(orcamento: OrcamentoData) {
     setText(GRAY_TEXT)
     doc.setFontSize(9)
     doc.setFont('helvetica', 'bold')
-    doc.text('ENDERECO', col2X + cardPadding, col3Y)
-    col3Y += 7
+    doc.text('ENDERECO', margin + cardPadding, cardY)
+    cardY += 7
     setText(DARK_TEXT)
-    doc.setFontSize(11)
+    doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
-    const endLines = quebrarEnderecoInteligente(endereco).split('\n')
-    endLines.slice(0, 2).forEach((line) => {
-      if (line.trim()) {
-        doc.text(line.trim(), col2X + cardPadding, col3Y)
-        col3Y += 11
-      }
-    })
+    const endLines = doc.splitTextToSize(endereco, cardW - cardPadding * 2)
+    doc.text(endLines, margin + cardPadding, cardY)
+    cardY += endLines.length * 6 + 10
   }
 
-  currentY += cardH + 5
+  currentY += cardH + 8
 
   // ==========================================================
-  // 3. DADOS PARA EMISSÃO DA NOTA (3 colunas)
+  // 3. DADOS PARA EMISSÃO DA NOTA
   // ==========================================================
   const isPF = orcamento.nota_tipo_pessoa === 'PF'
   const temNota = !!(orcamento.nota_nome || orcamento.nota_documento)
 
   if (temNota) {
     setText(GREEN)
-    doc.setFontSize(9)
+    doc.setFontSize(10)
     doc.setFont('helvetica', 'bold')
     doc.text('DADOS PARA EMISSAO DA NOTA', margin, currentY)
-    currentY += 5
+    currentY += 8
 
-    // Card de nota
-    const notaCardH = isPF ? 26 : 32
+    // Card de nota - altura dinâmica
+    let notaCardH = 20
+    if (orcamento.nota_nome) notaCardH += 18
+    if (orcamento.nota_nome_fantasia) notaCardH += 18
+    if (orcamento.nota_ie || orcamento.nota_im) notaCardH += 18
+    if (orcamento.nota_endereco) notaCardH += 36
+    notaCardH += 20
 
     setDraw(GREEN_BORDER)
     doc.setLineWidth(0.5)
     setFill(WHITE)
     doc.roundedRect(margin, currentY, cardW, notaCardH, 2, 2, 'FD')
 
-    // Divisores verticais
-    const notaCol1X = margin + cardW / 3
-    const notaCol2X = margin + (cardW * 2) / 3
-
-    setDraw(GREEN_BORDER)
-    doc.setLineWidth(0.2)
-    doc.line(notaCol1X - 2, currentY + 4, notaCol1X - 2, currentY + notaCardH - 4)
-    doc.line(notaCol2X - 2, currentY + 4, notaCol2X - 2, currentY + notaCardH - 4)
-
-    const notaPadding = 6
-    const notaLabelSpacing = 3.5
-
-    // ========== COLUNA 1 ==========
-    let nota1Y = currentY + notaPadding + 4
+    const notaPadding = 8
+    let notaY = currentY + notaPadding
 
     // Tipo de pessoa
     setText(GRAY_TEXT)
-    doc.setFontSize(7.5)
+    doc.setFontSize(9)
     doc.setFont('helvetica', 'bold')
-    doc.text('TIPO DE PESSOA', margin + notaPadding, nota1Y)
-    nota1Y += notaLabelSpacing
+    doc.text('TIPO DE PESSOA', margin + notaPadding, notaY)
+    notaY += 7
     setText(DARK_TEXT)
-    doc.setFontSize(10)
+    doc.setFontSize(11)
     doc.setFont('helvetica', 'bold')
-    doc.text(isPF ? 'Pessoa Fisica' : 'Pessoa Juridica', margin + notaPadding, nota1Y)
-    nota1Y += 8
+    doc.text(isPF ? 'Pessoa Fisica' : 'Pessoa Juridica', margin + notaPadding, notaY)
+    notaY += 18
 
     // CPF/CNPJ
     if (orcamento.nota_documento) {
       setText(GRAY_TEXT)
-      doc.setFontSize(7.5)
+      doc.setFontSize(9)
       doc.setFont('helvetica', 'bold')
-      doc.text(isPF ? 'CPF' : 'CNPJ', margin + notaPadding, nota1Y)
-      nota1Y += notaLabelSpacing
+      doc.text(isPF ? 'CPF' : 'CNPJ', margin + notaPadding, notaY)
+      notaY += 7
       setText(DARK_TEXT)
-      doc.setFontSize(9.5)
+      doc.setFontSize(11)
       doc.setFont('helvetica', 'normal')
-      doc.text(orcamento.nota_documento, margin + notaPadding, nota1Y)
+      doc.text(orcamento.nota_documento, margin + notaPadding, notaY)
+      notaY += 18
     }
-
-    // ========== COLUNA 2 ==========
-    let nota2Y = currentY + notaPadding + 4
 
     // Nome / Razão Social
     if (orcamento.nota_nome) {
       setText(GRAY_TEXT)
-      doc.setFontSize(7.5)
+      doc.setFontSize(9)
       doc.setFont('helvetica', 'bold')
-      doc.text(isPF ? 'NOME' : 'RAZAO SOCIAL', notaCol1X + notaPadding, nota2Y)
-      nota2Y += notaLabelSpacing
+      doc.text(isPF ? 'NOME' : 'RAZAO SOCIAL', margin + notaPadding, notaY)
+      notaY += 7
       setText(DARK_TEXT)
-      doc.setFontSize(9.5)
+      doc.setFontSize(11)
       doc.setFont('helvetica', 'bold')
-      doc.text(orcamento.nota_nome, notaCol1X + notaPadding, nota2Y)
-      nota2Y += 8
+      doc.text(orcamento.nota_nome, margin + notaPadding, notaY)
+      notaY += 18
     }
 
-    // Nome Fantasia / IE / IM (para PJ)
-    if (!isPF) {
-      if (orcamento.nota_nome_fantasia) {
-        setText(GRAY_TEXT)
-        doc.setFontSize(7.5)
-        doc.setFont('helvetica', 'bold')
-        doc.text('NOME FANTASIA', notaCol1X + notaPadding, nota2Y)
-        nota2Y += notaLabelSpacing
-        setText(DARK_TEXT)
-        doc.setFontSize(9)
-        doc.setFont('helvetica', 'normal')
-        doc.text(orcamento.nota_nome_fantasia, notaCol1X + notaPadding, nota2Y)
-        nota2Y += 8
-      }
-
-      if (orcamento.nota_ie || orcamento.nota_im) {
-        setText(GRAY_TEXT)
-        doc.setFontSize(7.5)
-        doc.setFont('helvetica', 'bold')
-        const inscLabel = orcamento.nota_ie && orcamento.nota_im ? 'IE / IM' : (orcamento.nota_ie ? 'IE' : 'IM')
-        const inscValue = orcamento.nota_ie && orcamento.nota_im
-          ? `${orcamento.nota_ie} / ${orcamento.nota_im}`
-          : (orcamento.nota_ie || orcamento.nota_im || '')
-        doc.text(inscLabel, notaCol1X + notaPadding, nota2Y)
-        nota2Y += notaLabelSpacing
-        setText(DARK_TEXT)
-        doc.setFontSize(9)
-        doc.setFont('helvetica', 'normal')
-        doc.text(inscValue, notaCol1X + notaPadding, nota2Y)
-      }
+    // Nome Fantasia (para PJ)
+    if (!isPF && orcamento.nota_nome_fantasia) {
+      setText(GRAY_TEXT)
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'bold')
+      doc.text('NOME FANTASIA', margin + notaPadding, notaY)
+      notaY += 7
+      setText(DARK_TEXT)
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'normal')
+      doc.text(orcamento.nota_nome_fantasia, margin + notaPadding, notaY)
+      notaY += 18
     }
 
-    // ========== COLUNA 3 ==========
-    let nota3Y = currentY + notaPadding + 4
+    // IE / IM (para PJ)
+    if (!isPF && (orcamento.nota_ie || orcamento.nota_im)) {
+      setText(GRAY_TEXT)
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'bold')
+      const inscLabel = orcamento.nota_ie && orcamento.nota_im ? 'IE / IM' : (orcamento.nota_ie ? 'IE' : 'IM')
+      doc.text(inscLabel, margin + notaPadding, notaY)
+      notaY += 7
+      setText(DARK_TEXT)
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'normal')
+      const inscValue = orcamento.nota_ie && orcamento.nota_im
+        ? `${orcamento.nota_ie} / ${orcamento.nota_im}`
+        : (orcamento.nota_ie || orcamento.nota_im || '')
+      doc.text(inscValue, margin + notaPadding, notaY)
+      notaY += 18
+    }
 
     // Endereço fiscal
     if (orcamento.nota_endereco) {
       setText(GRAY_TEXT)
-      doc.setFontSize(7.5)
-      doc.setFont('helvetica', 'bold')
-      doc.text('ENDERECO FISCAL', notaCol2X + notaPadding, nota3Y)
-      nota3Y += notaLabelSpacing
-      setText(DARK_TEXT)
       doc.setFontSize(9)
+      doc.setFont('helvetica', 'bold')
+      doc.text('ENDERECO FISCAL', margin + notaPadding, notaY)
+      notaY += 7
+      setText(DARK_TEXT)
+      doc.setFontSize(10)
       doc.setFont('helvetica', 'normal')
-      const notaEndLines = quebrarEnderecoInteligente(orcamento.nota_endereco).split('\n')
-      notaEndLines.slice(0, 3).forEach((line) => {
-        if (line.trim()) {
-          doc.text(line.trim(), notaCol2X + notaPadding, nota3Y)
-          nota3Y += 4
-        }
-      })
+      const endLines = doc.splitTextToSize(orcamento.nota_endereco, cardW - notaPadding * 2)
+      doc.text(endLines, margin + notaPadding, notaY)
+      notaY += endLines.length * 6 + 10
     }
 
-    currentY += notaCardH + 5
+    currentY += notaCardH + 8
   }
 
   // ==========================================================
