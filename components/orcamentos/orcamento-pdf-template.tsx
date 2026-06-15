@@ -191,8 +191,8 @@ const laboratorioItem = (
 function CampoRotulo({ rotulo, valor, valorNegrito = true }: { rotulo: string; valor?: string | null; valorNegrito?: boolean }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">{rotulo}</span>
-      <span className={`text-[13px] text-slate-800 break-words leading-snug ${valorNegrito ? 'font-bold' : 'font-normal'}`}>
+      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide leading-tight">{rotulo}</span>
+      <span className={`text-[12px] text-slate-800 break-words leading-snug ${valorNegrito ? 'font-bold' : 'font-normal'}`}>
         {valor || '—'}
       </span>
     </div>
@@ -202,29 +202,29 @@ function CampoRotulo({ rotulo, valor, valorNegrito = true }: { rotulo: string; v
 function Cabecalho({ data }: { data: OrcamentoTemplateData }) {
   const org = data.organizacao
   return (
-    <header className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center border-b-4 border-emerald-700 pb-5">
+    <header className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center border-b-4 border-emerald-700 pb-3">
       {/* Bloco esquerda: logo + empresa */}
-      <div className="md:col-span-5 flex flex-col gap-1">
+      <div className="md:col-span-4 flex flex-col gap-0.5">
         {org?.logo_url ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={org.logo_url}
             alt={org.nome_fantasia || org.nome || 'Logo'}
-            className="h-16 w-auto object-contain self-start"
+            className="h-12 w-auto object-contain self-start"
           />
         ) : (
-          <div className="text-3xl font-extrabold text-slate-800">
+          <div className="text-2xl font-extrabold text-slate-800">
             {(org?.nome_fantasia || org?.nome || 'DPRIME').split(' ')[0]}
             <span className="text-emerald-700">
               {(org?.nome_fantasia || org?.nome || 'DPRIME').split(' ').slice(1).join(' ')}
             </span>
           </div>
         )}
-        <div className="text-[18px] font-extrabold text-emerald-700 mt-1 tracking-tight">Representação Farmacêutica</div>
+        <div className="text-[15px] font-extrabold text-emerald-700 tracking-tight">Representação Farmacêutica</div>
       </div>
 
       {/* Bloco centro: contatos */}
-      <div className="md:col-span-4 flex flex-col gap-1.5 text-[12px] text-slate-700 md:border-l md:border-slate-300 md:pl-4">
+      <div className="md:col-span-5 flex flex-col gap-1 text-[11px] text-slate-700 md:border-l md:border-slate-300 md:pl-3">
         {org?.telefone && (
           <div className="flex items-center gap-2">
             <span className="text-emerald-700" aria-hidden><IconeTelefone /></span>
@@ -252,18 +252,18 @@ function Cabecalho({ data }: { data: OrcamentoTemplateData }) {
       </div>
 
       {/* Bloco direita: ORÇAMENTO + dados */}
-      <div className="md:col-span-3 flex flex-col items-start md:items-end gap-1.5">
-        <h1 className="text-5xl font-black text-emerald-700 leading-none tracking-tight">ORÇAMENTO</h1>
-        <div className="h-1 w-24 bg-emerald-600 md:self-end mt-1 mb-1" />
-        <div className="flex items-center gap-2 text-[12px] text-slate-600">
+      <div className="md:col-span-3 flex flex-col items-start md:items-end gap-1">
+        <h1 className="text-4xl font-black text-emerald-700 leading-none tracking-tight">ORÇAMENTO</h1>
+        <div className="h-0.5 w-20 bg-emerald-600 md:self-end mt-0.5 mb-1" />
+        <div className="flex items-center gap-2 text-[11px] text-slate-600">
           <span className="text-emerald-700" aria-hidden><IconeCalendario /></span>
           <span>Data: <strong className="text-slate-800">{formatDate(data.criado_em)}</strong></span>
         </div>
-        <div className="flex items-center gap-2 text-[12px] text-slate-600">
+        <div className="flex items-center gap-2 text-[11px] text-slate-600">
           <span className="text-emerald-700" aria-hidden><IconeNota /></span>
           <span>Proposta: <strong className="text-slate-800">{data.numero}</strong></span>
         </div>
-        <div className="flex items-center gap-2 text-[12px] text-slate-600">
+        <div className="flex items-center gap-2 text-[11px] text-slate-600">
           <span className="text-emerald-700" aria-hidden><IconeUsuario /></span>
           <span>Vendedor: <strong className="text-slate-800">{data.responsavel?.nome || '—'}</strong></span>
         </div>
@@ -278,14 +278,14 @@ function SecaoCards({ data }: { data: OrcamentoTemplateData }) {
   const temNota = !!(data.nota_nome || data.nota_documento)
 
   return (
-    <section className="grid grid-cols-1 md:grid-cols-3 gap-3 print:break-inside-avoid">
+    <section className="grid grid-cols-1 md:grid-cols-3 gap-2.5 print:break-inside-avoid">
       {/* Card 1: DADOS DO CLIENTE / CONTATO */}
       <article className="border border-emerald-300 rounded-md overflow-hidden bg-white">
-        <div className="bg-emerald-700 text-white px-3 py-2.5 flex items-center gap-2">
+        <div className="bg-emerald-700 text-white px-3 py-2 flex items-center gap-2">
           <IconeCliente />
           <h2 className="text-[12px] font-bold tracking-wide">DADOS DO CLIENTE / CONTATO</h2>
         </div>
-        <div className="p-3 flex flex-col gap-1.5">
+        <div className="p-3 flex flex-col gap-1">
           <CampoRotulo rotulo="Nome" valor={cliente?.nome} />
           <CampoRotulo rotulo="CPF" valor={formatDocumento(data.contato?.cpf_cnpj || data.lead?.cpf_cnpj)} />
           <CampoRotulo rotulo="E-mail" valor={data.contato?.email || data.lead?.email} />
@@ -308,8 +308,8 @@ function SecaoCards({ data }: { data: OrcamentoTemplateData }) {
           )}
           {data.contato?.endereco && (
             <div className="flex flex-col gap-0.5">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Endereço</span>
-              <span className="text-[12px] text-slate-800 break-words leading-snug">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide leading-tight">Endereço</span>
+              <span className="text-[11px] text-slate-800 break-words leading-snug">
                 {data.contato.endereco}
                 {data.contato.endereco_numero ? `, ${data.contato.endereco_numero}` : ''}
                 {data.contato.endereco_bairro ? ` • ${data.contato.endereco_bairro}` : ''}
@@ -325,11 +325,11 @@ function SecaoCards({ data }: { data: OrcamentoTemplateData }) {
       {/* Card 2: DADOS PARA EMISSÃO DA NOTA */}
       {temNota && (
         <article className="border border-emerald-300 rounded-md overflow-hidden bg-white">
-          <div className="bg-emerald-700 text-white px-3 py-2.5 flex items-center gap-2">
+          <div className="bg-emerald-700 text-white px-3 py-2 flex items-center gap-2">
             <IconeDocumento />
             <h2 className="text-[12px] font-bold tracking-wide">DADOS PARA EMISSÃO DA NOTA</h2>
           </div>
-          <div className="p-3 flex flex-col gap-1.5">
+          <div className="p-3 flex flex-col gap-1">
             <CampoRotulo rotulo="Tipo" valor={isPF ? 'Pessoa Física' : 'Pessoa Jurídica'} />
             <CampoRotulo rotulo="Nome" valor={data.nota_nome || ''} />
             <CampoRotulo rotulo={isPF ? 'CPF' : 'CNPJ'} valor={formatDocumento(data.nota_documento)} />
@@ -350,16 +350,16 @@ function SecaoCards({ data }: { data: OrcamentoTemplateData }) {
 
       {/* Card 3: ENDEREÇO DE ENTREGA — sempre visível */}
       <article className="border border-emerald-300 rounded-md overflow-hidden bg-white">
-        <div className="bg-emerald-700 text-white px-3 py-2.5 flex items-center gap-2">
+        <div className="bg-emerald-700 text-white px-3 py-2 flex items-center gap-2">
           <IconeCaminhao />
           <h2 className="text-[12px] font-bold tracking-wide">ENDEREÇO DE ENTREGA</h2>
         </div>
-        <div className="p-3 flex flex-col gap-1.5">
+        <div className="p-3 flex flex-col gap-1">
           <CampoRotulo rotulo="Nome / Destinatário" valor={cliente?.nome} />
           <CampoRotulo rotulo="Telefone" valor={formatPhone(data.contato?.telefone)} />
           <div className="flex flex-col gap-0.5">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Endereço</span>
-            <span className="text-[12px] text-slate-800 whitespace-pre-wrap break-words leading-snug">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide leading-tight">Endereço</span>
+            <span className="text-[11px] text-slate-800 whitespace-pre-wrap break-words leading-snug">
               {(() => {
                 if (data.endereco_entrega && data.endereco_entrega.trim().length > 0) return data.endereco_entrega
                 if (data.contato?.endereco) return 'Mesmo endereço do cliente'
@@ -375,9 +375,6 @@ function SecaoCards({ data }: { data: OrcamentoTemplateData }) {
             />
           )}
           {data.contato?.endereco_cep && <CampoRotulo rotulo="CEP" valor={formatCEP(data.contato.endereco_cep)} />}
-          {data.contato?.observacoes && (
-            <CampoRotulo rotulo="Observações" valor={data.contato.observacoes} valorNegrito={false} />
-          )}
         </div>
       </article>
     </section>
@@ -387,26 +384,26 @@ function SecaoCards({ data }: { data: OrcamentoTemplateData }) {
 function SecaoProdutos({ itens, fornecedor }: { itens: OrcamentoItem[]; fornecedor: OrcamentoTemplateData['fornecedor'] }) {
   return (
     <section className="flex flex-col gap-0 print:break-inside-avoid">
-      <div className="bg-emerald-700 text-white px-3 py-2.5 rounded-t-md flex items-center gap-2">
+      <div className="bg-emerald-700 text-white px-4 py-3 rounded-t-md flex items-center gap-2 shadow-sm">
         <IconeCarrinho />
-        <h2 className="text-[12px] font-bold tracking-wide">PRODUTOS</h2>
+        <h2 className="text-[14px] font-extrabold tracking-wide">PRODUTOS</h2>
       </div>
-      <div className="border border-t-0 border-emerald-300 rounded-b-md overflow-hidden bg-white">
-        <table className="w-full text-[12px] border-collapse">
+      <div className="border-2 border-t-0 border-emerald-700 rounded-b-md overflow-hidden bg-white">
+        <table className="w-full text-[12.5px] border-collapse">
           <thead>
             <tr className="bg-emerald-700 text-white">
-              <th className="px-2 py-2 text-center w-10 font-bold">#</th>
-              <th className="px-3 py-2 text-left font-bold">DESCRIÇÃO</th>
-              <th className="px-3 py-2 text-left font-bold">APRESENTAÇÃO</th>
-              <th className="px-2 py-2 text-center w-14 font-bold">QTD</th>
-              <th className="px-3 py-2 text-right w-28 font-bold">VALOR UNIT.</th>
-              <th className="px-2 py-2 text-center w-16 font-bold">DESC.</th>
-              <th className="px-3 py-2 text-right w-32 font-bold">VALOR TOTAL</th>
+              <th className="px-2 py-2.5 text-center w-10 font-bold text-[12px]">#</th>
+              <th className="px-3 py-2.5 text-left font-bold text-[12px]">DESCRIÇÃO</th>
+              <th className="px-3 py-2.5 text-left font-bold text-[12px]">APRESENTAÇÃO</th>
+              <th className="px-2 py-2.5 text-center w-14 font-bold text-[12px]">QTD</th>
+              <th className="px-3 py-2.5 text-right w-28 font-bold text-[12px]">VALOR UNIT.</th>
+              <th className="px-2 py-2.5 text-center w-16 font-bold text-[12px]">DESC.</th>
+              <th className="px-3 py-2.5 text-right w-32 font-bold text-[12px]">VALOR TOTAL</th>
             </tr>
           </thead>
           <tbody>
             {itens.map((item, idx) => (
-              <tr key={item.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
+              <tr key={item.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-emerald-50/50'}>
                 <td className="px-2 py-2.5 text-center align-top font-bold border-t border-slate-200">{idx + 1}</td>
                 <td className="px-3 py-2.5 align-top border-t border-slate-200">
                   <div className="font-bold text-slate-800 leading-snug">{item.descricao}</div>
@@ -439,22 +436,22 @@ function SecaoProdutos({ itens, fornecedor }: { itens: OrcamentoItem[]; forneced
 function SecaoTotais({ data }: { data: OrcamentoTemplateData }) {
   return (
     <section className="flex justify-end print:break-inside-avoid">
-      <div className="w-full md:w-1/2 lg:w-5/12 border-2 border-emerald-700 rounded-md bg-white overflow-hidden">
-        <div className="px-4 py-2.5 flex justify-between text-[13px] text-slate-700 border-b border-slate-200">
+      <div className="w-full md:w-1/2 lg:w-5/12 border-2 border-emerald-700 rounded-md bg-white overflow-hidden shadow-md">
+        <div className="px-4 py-2 flex justify-between text-[13px] text-slate-700 border-b border-slate-200">
           <span className="font-semibold">SUBTOTAL</span>
           <span className="font-bold">{formatBRL(data.valor_subtotal)}</span>
         </div>
-        <div className="px-4 py-2.5 flex justify-between text-[13px] text-slate-700 border-b border-slate-200">
+        <div className="px-4 py-2 flex justify-between text-[13px] text-slate-700 border-b border-slate-200">
           <span className="font-semibold">DESCONTO</span>
           <span className="font-bold">{formatBRL(0)}</span>
         </div>
-        <div className="px-4 py-2.5 flex justify-between text-[13px] text-slate-700 border-b border-slate-200">
+        <div className="px-4 py-2 flex justify-between text-[13px] text-slate-700 border-b border-slate-200">
           <span className="font-semibold">FRETE</span>
           <span className="font-bold">{formatBRL(data.frete)}</span>
         </div>
-        <div className="bg-emerald-700 text-white px-4 py-3 flex justify-between items-center">
-          <span className="text-[14px] font-extrabold tracking-widest">TOTAL</span>
-          <span className="text-[22px] font-black">{formatBRL(data.valor_total)}</span>
+        <div className="bg-emerald-700 text-white px-5 py-4 flex justify-between items-center">
+          <span className="text-[15px] font-black tracking-[0.2em]">TOTAL</span>
+          <span className="text-[26px] font-black leading-none">{formatBRL(data.valor_total)}</span>
         </div>
       </div>
     </section>
@@ -523,7 +520,7 @@ export function OrcamentoPdfTemplate({ data }: { data: OrcamentoTemplateData }) 
   return (
     <article
       data-pdf-template="ready"
-      className="grid gap-4 p-6 bg-white text-slate-800 w-full"
+      className="grid gap-3 p-4 bg-white text-slate-800 w-full"
     >
       <Cabecalho data={data} />
       <SecaoCards data={data} />
