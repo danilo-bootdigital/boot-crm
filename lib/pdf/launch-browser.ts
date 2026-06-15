@@ -2,49 +2,34 @@
 // - Em produção (Vercel/Fluid Compute): usa @sparticuz/chromium (empacotado).
 // - Em dev local: tenta CHROME_PATH (env) ou cai no Chromium do sistema.
 //
-// IMPORTANTE (Vercel Fluid Compute):
-// @sparticuz/chromium decide se extrai al2.tar.br (que contém libnss3.so,
-// libatk, libxkbcommon, etc) checando helper.isRunningInAwsLambda() que
-// verifica process.env.AWS_EXECUTION_ENV. No Vercel Fluid Compute essa
-// env var NÃO existe, então as libs nunca são extraídas e o binário
-// falha com "error while loading shared libraries: libnss3.so".
+// @sparticuz/chromium@149+ detecta Vercel Fluid Compute nativamente
+// via isRunningInAmazonLinux2023 (helper.js), extrai al2023.tar.br
+// automaticamente, e configura LD_LIBRARY_PATH / FONTCONFIG_PATH.
 //
-// Workaround: chamamos setupLambdaEnvironment(baseLibPath) passando o
-// caminho após extrair al2.tar.br via lambdafs.inflate().
+// API pública da v149:
+//   const chromium = (await import('@sparticuz/chromium')).default
+//   const executablePath = await chromium.executablePath()
 
 import puppeteer, { type Browser } from 'puppeteer-core'
-import helper from '@sparticuz/chromium/build/helper.js'
-import lambdafsMod from '@sparticuz/chromium/build/lambdafs.js'
-import { join, dirname } from 'node:path'
-
-const lambdafs = (lambdafsMod as { default?: { inflate: (p: string) => Promise<string> } }).default
-  ?? (lambdafsMod as unknown as { inflate: (p: string) => Promise<string> })
 
 const isVercel = process.env.VERCEL === '1' || !!process.env.VERCEL_ENV
 
 export async function launchBrowser(): Promise<Browser> {
   if (isVercel) {
+    // API pública única — não usar subpaths.
     const chromium = (await import('@sparticuz/chromium')).default
 
-    // 1) Configura headless + graphics
-    chromium.setHeadlessMode = true
+    // Desativa graphics stack (lib mais leve, ~1s mais rápido no cold start)
     chromium.setGraphicsMode = false
 
-    // 2) Resolve caminho do bin/ e extrai al2.tar.br manualmente
-    //    (já que isRunningInAwsLambda() retorna false no Vercel Fluid Compute)
-    const pkgUrl = new URL(import.meta.resolve('@sparticuz/chromium/package.json'))
-    const binPath = join(dirname(pkgUrl.pathname), 'bin')
-    const al2Path = await lambdafs.inflate(join(binPath, 'al2.tar.br'))
-    console.log('[pdf] al2 libs extraídas em:', al2Path)
-
-    // 3) Configura LD_LIBRARY_PATH / FONTCONFIG_PATH com base no diretório extraído
-    helper.setupLambdaEnvironment(al2Path)
-    console.log('[pdf] LD_LIBRARY_PATH:', process.env.LD_LIBRARY_PATH)
-    console.log('[pdf] FONTCONFIG_PATH:', process.env.FONTCONFIG_PATH)
-
-    // 4) Executa o chromium
+    // Detecta Vercel automaticamente e extrai al2023.tar.br
+    // (que contém libnss3.so, libatk, libxkbcommon, etc).
     const executablePath = await chromium.executablePath()
     console.log('[pdf] chromium executablePath:', executablePath)
+    console.log('[pdf] graphics:', chromium.graphics)
+    console.log('[pdf] args count:', chromium.args.length)
+    console.log('[pdf] LD_LIBRARY_PATH:', process.env.LD_LIBRARY_PATH)
+    console.log('[pdf] FONTCONFIG_PATH:', process.env.FONTCONFIG_PATH)
 
     return puppeteer.launch({
       args: [
@@ -54,8 +39,7 @@ export async function launchBrowser(): Promise<Browser> {
         '--disable-dev-shm-usage',
       ],
       executablePath,
-      defaultViewport: chromium.defaultViewport,
-      headless: chromium.headless,
+      headless: true,
     })
   }
 
