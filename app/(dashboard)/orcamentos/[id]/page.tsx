@@ -7,6 +7,7 @@ import { OrcamentoDetalhe } from '@/components/orcamentos/orcamento-detalhe'
 import { BadgeStatusOrcamento } from '@/components/orcamentos/badge-status-orcamento'
 import { AcoesOrcamento } from './acoes-orcamento'
 import { ExportarPdfButton } from '@/components/orcamentos/exportar-pdf-button'
+import { BotaoPreviewPdfNovo } from '@/components/orcamentos/botao-preview-pdf-novo'
 import { canEditQuote } from '@/lib/quote-permissions'
 import type { QuoteStatus, UserRole } from '@/types/database'
 
@@ -147,6 +148,7 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
             pedidoExistente={pedidoExistente}
           />
           <ExportarPdfButton orcamentoId={id} numero={orcamento.numero} />
+          <BotaoPreviewPdfNovo orcamentoId={id} />
           {podeEditar && (
             <Link href={`/orcamentos/${id}/editar`}>
               <Button variant="default" size="sm" className="gap-1.5 h-9">
