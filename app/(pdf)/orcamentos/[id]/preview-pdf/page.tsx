@@ -1,11 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import { OrcamentoPdfTemplate } from '@/components/orcamentos/orcamento-pdf-template'
-import { BotaoBaixarPdfPlaceholder } from '@/components/orcamentos/botao-baixar-pdf-placeholder'
+import { BotaoBaixarPdf } from '@/components/orcamentos/botao-baixar-pdf'
 
 // Página de preview HTML do orçamento.
 // PR 1: renderiza o template com dados reais. Botão "Baixar PDF" é apenas visual.
-// PR 2: substituirá o placeholder pelo client component que chama a API Puppeteer.
+// PR 2: usa BotaoBaixarPdf real que chama a API Puppeteer.
 
 export default async function PreviewPdfPage({
   params,
@@ -73,7 +73,7 @@ export default async function PreviewPdfPage({
         </div>
         {!isPrint && (
           <div className="mx-auto mt-4 w-[794px] max-w-full flex justify-end print:hidden">
-            <BotaoBaixarPdfPlaceholder />
+            <BotaoBaixarPdf orcamentoId={id} numero={orcamento.numero} />
           </div>
         )}
       </main>
