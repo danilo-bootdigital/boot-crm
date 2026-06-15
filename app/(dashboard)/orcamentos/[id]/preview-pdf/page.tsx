@@ -67,12 +67,12 @@ export default async function PreviewPdfPage({
   return (
     <>
       <link rel="stylesheet" href="./print.css" />
-      <main className="min-h-screen bg-slate-100 py-8 print:bg-white print:py-0">
-        <div className="mx-auto max-w-[210mm] bg-white shadow-lg print:shadow-none print:max-w-none">
+      <main className="min-h-screen bg-slate-100 py-6 print:bg-white print:py-0">
+        <div className="mx-auto w-[794px] max-w-full bg-white shadow-lg print:shadow-none print:w-[210mm] print:max-w-none">
           <OrcamentoPdfTemplate data={orcamento} />
         </div>
         {!isPrint && (
-          <div className="mx-auto mt-4 max-w-[210mm] flex justify-end print:hidden">
+          <div className="mx-auto mt-4 w-[794px] max-w-full flex justify-end print:hidden">
             <BotaoBaixarPdfPlaceholder />
           </div>
         )}
