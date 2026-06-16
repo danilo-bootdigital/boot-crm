@@ -5,7 +5,7 @@
 
 @page {
   size: A4;
-  margin: 0;
+  margin: 14mm 0;
 }
 
 * {
@@ -40,7 +40,7 @@ main {
   max-width: 210mm !important;
   min-height: 297mm;
   margin: 0 auto !important;
-  padding: 12mm !important;
+  padding: 0 12mm !important;
   background: #ffffff !important;
   box-shadow: none !important;
   border: none !important;

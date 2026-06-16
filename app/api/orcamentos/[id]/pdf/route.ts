@@ -108,7 +108,7 @@ export async function GET(
       pdf = await page.pdf({
         format: 'A4',
         printBackground: true,
-        margin: { top: '0', bottom: '0', left: '0', right: '0' },
+        margin: { top: '14mm', bottom: '14mm', left: '0', right: '0' },
       })
     } finally {
       await browser.close()
