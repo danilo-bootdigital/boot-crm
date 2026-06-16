@@ -46,7 +46,8 @@ main {
   max-width: 210mm !important;
   min-height: 297mm;
   margin: 0 auto !important;
-  padding: 12mm !important;
+  /* Topo menor na página 1 (laterais e base mantêm 12mm). */
+  padding: 4mm 12mm 12mm !important;
   background: #ffffff !important;
   box-shadow: none !important;
   border: none !important;
@@ -116,4 +117,19 @@ section,
 article {
   page-break-inside: avoid;
   break-inside: avoid;
+}
+
+/* Exceção: a seção de PRODUTOS deve fluir entre páginas — começa logo abaixo
+   dos cards e, se não couber, continua nas páginas seguintes (sem pular em
+   bloco e sem deixar áreas vazias). As linhas (tr) seguem inteiras e o
+   cabeçalho da tabela se repete em cada página (regras de table/tr/thead acima).
+   O overflow:visible libera a quebra dentro do wrapper arredondado da tabela. */
+@media print {
+  [data-pdf-products] {
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+  [data-pdf-products] > div {
+    overflow: visible !important;
+  }
 }

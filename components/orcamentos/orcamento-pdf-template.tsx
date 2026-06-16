@@ -408,7 +408,7 @@ function SecaoCards({ data }: { data: OrcamentoTemplateData }) {
 
 function SecaoProdutos({ itens, fornecedor }: { itens: OrcamentoItem[]; fornecedor: OrcamentoTemplateData['fornecedor'] }) {
   return (
-    <section className="flex flex-col gap-0 print:break-inside-avoid">
+    <section data-pdf-products className="flex flex-col gap-0">
       <div className="bg-[#e8f5e8] text-slate-700 px-4 py-3 rounded-t-md flex items-center gap-2 shadow-sm">
         <IconeCarrinho />
         <h2 className="text-[14px] font-extrabold tracking-wide">PRODUTOS</h2>
