@@ -1,31 +1,27 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  // IMPORTANTE: NÃO usar 'standalone' aqui.
+  // `output` condicional por ambiente — o CRM é deployado em DOIS lugares:
   //
-  // O tracer estático de output: 'standalone' só copia arquivos JS que
-  // são referenciados estaticamente pelo código. Os binários .br do
-  // @sparticuz/chromium (chromium.br, al2023.tar.br, fonts.tar.br,
-  // swiftshader.tar.br) são lidos em runtime via lambdafs.inflate() e
-  // NÃO são detectados pelo tracer. Resultado: em produção, o
-  // diretório bin/ não existe e a geração de PDF falha com
-  // "input directory does not exist".
+  //  • Vercel (preview/staging): NÃO usar 'standalone'. O tracer estático do
+  //    standalone não copia os binários .br do @sparticuz/chromium (lidos em
+  //    runtime via lambdafs), quebrando o PDF. Saída padrão inclui node_modules.
   //
-  // Saída padrão (sem 'standalone') inclui TODO o node_modules no
-  // bundle, garantindo que os binários cheguem na Vercel.
+  //  • EasyPanel (produção, container Docker): PRECISA de 'standalone' — o
+  //    Dockerfile faz `COPY .next/standalone` + `node server.js`. Lá o PDF usa
+  //    o Chromium do SISTEMA (apk add chromium + CHROME_PATH), não o @sparticuz.
   //
-  // O custo é um bundle ~50MB maior (Chromium inteiro), mas a Vercel
-  // aceita e o cold start é similar.
-  // A chave DEVE ser a rota canônica do manifest
-  // (.next/app-path-routes-manifest.json → "/api/orcamentos/[id]/pdf"),
-  // NÃO o caminho do arquivo. Com o caminho de arquivo o glob não casava
-  // e os binários .br (lidos em runtime via lambdafs, invisíveis ao tracer
-  // estático) não eram copiados para a Function — causando
-  // "The input directory .../@sparticuz/chromium/bin does not exist".
-  // Fallback aprovado: a chave exata "/api/orcamentos/[id]/pdf" não casava
-  // (o Next interpreta "[id]" como classe de caractere no glob → 0 refs no
-  // trace). O glob "/api/orcamentos/**" casa com a rota com certeza; o custo
-  // é incluir os binários do Chromium apenas nas Functions de /api/orcamentos/*.
+  // `process.env.VERCEL` é "1" só durante o build na Vercel; ausente no Docker.
+  output: process.env.VERCEL ? undefined : 'standalone',
+
+  // Fixa a raiz do projeto: evita o Next inferir um workspace-root errado
+  // (lockfile em diretório pai) e aninhar o .next/standalone num caminho
+  // profundo, o que quebraria o `node server.js` do Dockerfile.
+  outputFileTracingRoot: process.cwd(),
+
+  // Só relevante no build Vercel (@sparticuz/chromium). Inofensivo no container.
+  // Glob "/api/orcamentos/**" casa a rota (a chave com "[id]" é interpretada
+  // como classe de caractere e não casaria).
   outputFileTracingIncludes: {
     '/api/orcamentos/**': [
       './node_modules/@sparticuz/chromium/bin/**',

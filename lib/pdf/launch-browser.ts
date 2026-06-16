@@ -39,12 +39,15 @@ export async function launchBrowser(): Promise<Browser> {
     })
   }
 
-  // Dev local: usa o Chrome/Chromium instalado na máquina.
+  // Fora da Vercel: container (EasyPanel) ou dev local.
+  // - Container: CHROME_PATH=/usr/bin/chromium-browser (setado no Dockerfile).
+  // - Dev macOS: Google Chrome local.
+  // - Dev/CI Linux sem CHROME_PATH: cai no chromium do sistema, se houver.
   const executablePath =
     process.env.CHROME_PATH ||
     (process.platform === 'darwin'
       ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-      : undefined)
+      : '/usr/bin/chromium-browser')
 
   return puppeteer.launch({
     executablePath,
