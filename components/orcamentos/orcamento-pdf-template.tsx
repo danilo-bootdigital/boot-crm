@@ -203,7 +203,7 @@ function CampoRotulo({ rotulo, valor, valorNegrito = true }: { rotulo: string; v
 function Cabecalho({ data }: { data: OrcamentoTemplateData }) {
   const org = data.organizacao
   return (
-    <header className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center border-b-2 border-emerald-500 pb-3">
+    <header className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center border-b-2 border-emerald-500 pb-4">
       {/* Bloco esquerda: logo + empresa */}
       <div className="md:col-span-4 flex flex-col gap-0.5">
         {org?.logo_url ? (
@@ -287,14 +287,14 @@ function SecaoCards({ data }: { data: OrcamentoTemplateData }) {
   const temNota = !!(data.nota_nome || data.nota_documento)
 
   return (
-    <section className="grid grid-cols-1 md:grid-cols-3 gap-2.5 print:break-inside-avoid">
+    <section className="grid grid-cols-1 md:grid-cols-3 gap-4 print:break-inside-avoid">
       {/* Card 1: DADOS DO CLIENTE / CONTATO */}
       <article className="border border-slate-200 shadow-sm rounded-md overflow-hidden bg-white">
         <div className="bg-emerald-100 text-emerald-700 px-3 py-2 flex items-center gap-2">
           <IconeCliente />
           <h2 className="text-[12px] font-bold tracking-wide">DADOS DO CLIENTE / CONTATO</h2>
         </div>
-        <div className="p-3 flex flex-col gap-1">
+        <div className="p-4 flex flex-col gap-1">
           <CampoRotulo rotulo="Nome" valor={cliente?.nome} />
           <CampoRotulo rotulo="CPF" valor={formatDocumento(data.contato?.cpf_cnpj || data.lead?.cpf_cnpj)} />
           <CampoRotulo rotulo="E-mail" valor={data.contato?.email || data.lead?.email} />
@@ -344,7 +344,7 @@ function SecaoCards({ data }: { data: OrcamentoTemplateData }) {
             <IconeDocumento />
             <h2 className="text-[12px] font-bold tracking-wide">DADOS PARA EMISSÃO DA NOTA</h2>
           </div>
-          <div className="p-3 flex flex-col gap-1">
+          <div className="p-4 flex flex-col gap-1">
             <CampoRotulo rotulo="Tipo" valor={isPF ? 'Pessoa Física' : 'Pessoa Jurídica'} />
             {isPF ? (
               <>
@@ -379,7 +379,7 @@ function SecaoCards({ data }: { data: OrcamentoTemplateData }) {
           <IconeCaminhao />
           <h2 className="text-[12px] font-bold tracking-wide">ENDEREÇO DE ENTREGA</h2>
         </div>
-        <div className="p-3 flex flex-col gap-1">
+        <div className="p-4 flex flex-col gap-1">
           <CampoRotulo rotulo="Nome / Destinatário" valor={cliente?.nome} />
           <CampoRotulo rotulo="Telefone" valor={formatPhone(data.contato?.telefone)} />
           <div className="flex flex-col gap-0.5">
@@ -417,36 +417,36 @@ function SecaoProdutos({ itens, fornecedor }: { itens: OrcamentoItem[]; forneced
         <table className="w-full text-[12.5px] border-collapse">
           <thead>
             <tr className="bg-slate-100 text-slate-700">
-              <th className="px-2 py-2.5 text-center w-10 font-bold text-[12px]">#</th>
-              <th className="px-3 py-2.5 text-left font-bold text-[12px]">DESCRIÇÃO</th>
-              <th className="px-3 py-2.5 text-left font-bold text-[12px]">APRESENTAÇÃO</th>
-              <th className="px-2 py-2.5 text-center w-14 font-bold text-[12px]">QTD</th>
-              <th className="px-3 py-2.5 text-right w-28 font-bold text-[12px]">VALOR UNIT.</th>
-              <th className="px-2 py-2.5 text-center w-16 font-bold text-[12px]">DESC.</th>
-              <th className="px-3 py-2.5 text-right w-32 font-bold text-[12px]">VALOR TOTAL</th>
+              <th className="px-2 py-3 text-center w-10 font-bold text-[12px]">#</th>
+              <th className="px-3 py-3 text-left font-bold text-[12px]">DESCRIÇÃO</th>
+              <th className="px-3 py-3 text-left font-bold text-[12px]">APRESENTAÇÃO</th>
+              <th className="px-2 py-3 text-center w-14 font-bold text-[12px]">QTD</th>
+              <th className="px-3 py-3 text-right w-28 font-bold text-[12px]">VALOR UNIT.</th>
+              <th className="px-2 py-3 text-center w-16 font-bold text-[12px]">DESC.</th>
+              <th className="px-3 py-3 text-right w-32 font-bold text-[12px]">VALOR TOTAL</th>
             </tr>
           </thead>
           <tbody>
             {itens.map((item, idx) => (
               <tr key={item.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                <td className="px-2 py-2.5 text-center align-top font-bold border-t border-slate-200">{idx + 1}</td>
-                <td className="px-3 py-2.5 align-top border-t border-slate-200">
+                <td className="px-2 py-3 text-center align-top font-bold border-t border-slate-200">{idx + 1}</td>
+                <td className="px-3 py-3 align-top border-t border-slate-200">
                   <div className="font-bold text-slate-800 leading-snug">{item.descricao}</div>
                   <div className="text-[11px] text-slate-500 mt-0.5">Laboratório: {laboratorioItem(item, fornecedor)}</div>
                 </td>
-                <td className="px-3 py-2.5 align-top text-slate-700 border-t border-slate-200">
+                <td className="px-3 py-3 align-top text-slate-700 border-t border-slate-200">
                   {item.unidade || '—'}
                 </td>
-                <td className="px-2 py-2.5 text-center align-top text-slate-700 border-t border-slate-200 font-semibold">
+                <td className="px-2 py-3 text-center align-top text-slate-700 border-t border-slate-200 font-semibold">
                   {item.quantidade}
                 </td>
-                <td className="px-3 py-2.5 text-right align-top text-slate-700 border-t border-slate-200">
+                <td className="px-3 py-3 text-right align-top text-slate-700 border-t border-slate-200">
                   {formatBRL(item.preco_unitario)}
                 </td>
-                <td className="px-2 py-2.5 text-center align-top text-slate-700 border-t border-slate-200">
+                <td className="px-2 py-3 text-center align-top text-slate-700 border-t border-slate-200">
                   {item.desconto_item > 0 ? `${item.desconto_item}%` : '—'}
                 </td>
-                <td className="px-3 py-2.5 text-right align-top font-bold text-slate-800 border-t border-slate-200">
+                <td className="px-3 py-3 text-right align-top font-bold text-slate-800 border-t border-slate-200">
                   {formatBRL(item.subtotal)}
                 </td>
               </tr>
@@ -502,14 +502,14 @@ function SecaoComercial({ data }: { data: OrcamentoTemplateData }) {
   const temComercial = linhas.length > 0 || temLogoHub
 
   return (
-    <section className="grid grid-cols-1 md:grid-cols-2 gap-3 print:break-inside-avoid">
+    <section className="grid grid-cols-1 md:grid-cols-2 gap-4 print:break-inside-avoid">
       {temComercial && (
         <article className="border border-slate-200 shadow-sm rounded-md bg-white overflow-hidden">
           <div className="bg-emerald-100 text-emerald-700 px-3 py-2.5 flex items-center gap-2">
             <IconeDocTexto />
             <h2 className="text-[12px] font-bold tracking-wide">DADOS COMERCIAIS</h2>
           </div>
-          <div className="p-3 flex items-start gap-3">
+          <div className="p-4 flex items-start gap-3">
             <div className="flex-1 flex flex-col gap-1.5 text-[12px]">
               {linhas.map((l) => (
                 <div key={l.rotulo} className="flex items-baseline gap-2">
@@ -535,7 +535,7 @@ function SecaoComercial({ data }: { data: OrcamentoTemplateData }) {
             <IconeBalao />
             <h2 className="text-[12px] font-bold tracking-wide">OBSERVAÇÕES</h2>
           </div>
-          <div className="p-3 text-[12px] text-slate-800 whitespace-pre-wrap break-words leading-relaxed">
+          <div className="p-4 text-[12px] text-slate-800 whitespace-pre-wrap break-words leading-relaxed">
             {data.observacoes}
           </div>
         </article>
@@ -569,7 +569,7 @@ export function OrcamentoPdfTemplate({ data }: { data: OrcamentoTemplateData }) 
   return (
     <article
       data-pdf-template="ready"
-      className="grid gap-3 p-4 bg-white text-slate-800 w-full"
+      className="grid gap-5 p-10 bg-white text-slate-800 w-full"
     >
       <Cabecalho data={data} />
       <SecaoCards data={data} />
