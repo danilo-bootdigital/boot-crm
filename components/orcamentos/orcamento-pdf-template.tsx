@@ -203,7 +203,7 @@ function CampoRotulo({ rotulo, valor, valorNegrito = true }: { rotulo: string; v
 function Cabecalho({ data }: { data: OrcamentoTemplateData }) {
   const org = data.organizacao
   return (
-    <header className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center border-b-2 border-emerald-500 pb-4">
+    <header className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center border-b-2 border-emerald-600 pb-4">
       {/* Bloco esquerda: logo + empresa */}
       <div className="md:col-span-4 flex flex-col gap-0.5">
         {org?.logo_url ? (
@@ -216,37 +216,37 @@ function Cabecalho({ data }: { data: OrcamentoTemplateData }) {
         ) : (
           <div className="text-2xl font-extrabold text-slate-800">
             {(org?.nome_fantasia || org?.nome || 'DPRIME').split(' ')[0]}
-            <span className="text-emerald-600">
+            <span className="text-slate-800">
               {(org?.nome_fantasia || org?.nome || 'DPRIME').split(' ').slice(1).join(' ')}
             </span>
           </div>
         )}
-        <div className="text-[15px] font-extrabold text-emerald-600 tracking-tight">Representação Farmacêutica</div>
+        <div className="text-[15px] font-extrabold text-slate-600 tracking-tight">Representação Farmacêutica</div>
       </div>
 
       {/* Bloco centro: contatos */}
       <div className="md:col-span-5 flex flex-col gap-1 text-[11px] text-slate-700 md:border-l md:border-slate-300 md:pl-3">
         {org?.telefone && (
           <div className="flex items-center gap-2">
-            <span className="text-emerald-500" aria-hidden><IconeTelefone /></span>
+            <span className="text-slate-500" aria-hidden><IconeTelefone /></span>
             <span>{org.telefone}</span>
           </div>
         )}
         {org?.email && (
           <div className="flex items-center gap-2 break-all">
-            <span className="text-emerald-500" aria-hidden><IconeEmail /></span>
+            <span className="text-slate-500" aria-hidden><IconeEmail /></span>
             <span>{org.email}</span>
           </div>
         )}
         {org?.site && (
           <div className="flex items-center gap-2 break-all">
-            <span className="text-emerald-500" aria-hidden><IconeGlobo /></span>
+            <span className="text-slate-500" aria-hidden><IconeGlobo /></span>
             <span>{org.site}</span>
           </div>
         )}
         {org?.instagram && (
           <div className="flex items-center gap-2">
-            <span className="text-emerald-500" aria-hidden><IconeInstagram /></span>
+            <span className="text-slate-500" aria-hidden><IconeInstagram /></span>
             <span>{org.instagram}</span>
           </div>
         )}
@@ -254,25 +254,25 @@ function Cabecalho({ data }: { data: OrcamentoTemplateData }) {
 
       {/* Bloco direita: ORÇAMENTO + dados */}
       <div className="md:col-span-3 flex flex-col items-start md:items-end gap-1">
-        <h1 className="text-4xl font-black text-emerald-600 leading-none tracking-tight">ORÇAMENTO</h1>
-        <div className="h-0.5 w-20 bg-emerald-500 md:self-end mt-0.5 mb-1" />
+        <h1 className="text-4xl font-black text-slate-800 leading-none tracking-tight">ORÇAMENTO</h1>
+        <div className="h-0.5 w-20 bg-slate-300 md:self-end mt-0.5 mb-1" />
         <div className="flex items-center gap-2 text-[11px] text-slate-600">
-          <span className="text-emerald-500" aria-hidden><IconeCalendario /></span>
+          <span className="text-slate-500" aria-hidden><IconeCalendario /></span>
           <span>Data: <strong className="text-slate-800">{formatDate(data.criado_em)}</strong></span>
         </div>
         {data.validade_em && (
           <div className="flex items-center gap-2 text-[11px] text-slate-600">
-            <span className="text-emerald-500" aria-hidden><IconeCalendario /></span>
+            <span className="text-slate-500" aria-hidden><IconeCalendario /></span>
             <span>Validade: <strong className="text-slate-800">{formatDate(data.validade_em)}</strong></span>
           </div>
         )}
         <div className="flex items-center gap-2 text-[11px] text-slate-600">
-          <span className="text-emerald-500" aria-hidden><IconeNota /></span>
+          <span className="text-slate-500" aria-hidden><IconeNota /></span>
           <span>Proposta: <strong className="text-slate-800">{data.numero}</strong></span>
         </div>
         {data.responsavel?.nome && (
           <div className="flex items-center gap-2 text-[11px] text-slate-600">
-            <span className="text-emerald-500" aria-hidden><IconeUsuario /></span>
+            <span className="text-slate-500" aria-hidden><IconeUsuario /></span>
             <span>Vendedor: <strong className="text-slate-800">{data.responsavel.nome}</strong></span>
           </div>
         )}
@@ -290,7 +290,7 @@ function SecaoCards({ data }: { data: OrcamentoTemplateData }) {
     <section className="grid grid-cols-1 md:grid-cols-3 gap-4 print:break-inside-avoid">
       {/* Card 1: DADOS DO CLIENTE / CONTATO */}
       <article className="border border-slate-200 shadow-sm rounded-md overflow-hidden bg-white">
-        <div className="bg-emerald-100 text-emerald-700 px-3 py-2 flex items-center gap-2">
+        <div className="bg-slate-100 text-slate-700 px-3 py-2 flex items-center gap-2">
           <IconeCliente />
           <h2 className="text-[12px] font-bold tracking-wide">DADOS DO CLIENTE / CONTATO</h2>
         </div>
@@ -340,7 +340,7 @@ function SecaoCards({ data }: { data: OrcamentoTemplateData }) {
       {/* Card 2: DADOS PARA EMISSÃO DA NOTA */}
       {temNota && (
         <article className="border border-slate-200 shadow-sm rounded-md overflow-hidden bg-white">
-          <div className="bg-emerald-100 text-emerald-700 px-3 py-2 flex items-center gap-2">
+          <div className="bg-slate-100 text-slate-700 px-3 py-2 flex items-center gap-2">
             <IconeDocumento />
             <h2 className="text-[12px] font-bold tracking-wide">DADOS PARA EMISSÃO DA NOTA</h2>
           </div>
@@ -375,7 +375,7 @@ function SecaoCards({ data }: { data: OrcamentoTemplateData }) {
 
       {/* Card 3: ENDEREÇO DE ENTREGA — sempre visível */}
       <article className="border border-slate-200 shadow-sm rounded-md overflow-hidden bg-white">
-        <div className="bg-emerald-100 text-emerald-700 px-3 py-2 flex items-center gap-2">
+        <div className="bg-slate-100 text-slate-700 px-3 py-2 flex items-center gap-2">
           <IconeCaminhao />
           <h2 className="text-[12px] font-bold tracking-wide">ENDEREÇO DE ENTREGA</h2>
         </div>
@@ -409,7 +409,7 @@ function SecaoCards({ data }: { data: OrcamentoTemplateData }) {
 function SecaoProdutos({ itens, fornecedor }: { itens: OrcamentoItem[]; fornecedor: OrcamentoTemplateData['fornecedor'] }) {
   return (
     <section className="flex flex-col gap-0 print:break-inside-avoid">
-      <div className="bg-emerald-600 text-white px-4 py-3 rounded-t-md flex items-center gap-2 shadow-sm">
+      <div className="bg-slate-100 text-slate-700 px-4 py-3 rounded-t-md flex items-center gap-2 shadow-sm">
         <IconeCarrinho />
         <h2 className="text-[14px] font-extrabold tracking-wide">PRODUTOS</h2>
       </div>
@@ -480,7 +480,7 @@ function SecaoTotais({ data }: { data: OrcamentoTemplateData }) {
           <span className="font-semibold">FRETE</span>
           <span className="font-bold">{formatBRL(data.frete)}</span>
         </div>
-        <div className="bg-emerald-600 text-white px-5 py-4 flex justify-between items-center">
+        <div className="bg-slate-800 text-white px-5 py-4 flex justify-between items-center">
           <span className="text-[15px] font-black tracking-[0.2em]">TOTAL</span>
           <span className="text-[26px] font-black leading-none">{formatBRL(data.valor_total)}</span>
         </div>
@@ -505,7 +505,7 @@ function SecaoComercial({ data }: { data: OrcamentoTemplateData }) {
     <section className="grid grid-cols-1 md:grid-cols-2 gap-4 print:break-inside-avoid">
       {temComercial && (
         <article className="border border-slate-200 shadow-sm rounded-md bg-white overflow-hidden">
-          <div className="bg-emerald-100 text-emerald-700 px-3 py-2.5 flex items-center gap-2">
+          <div className="bg-slate-100 text-slate-700 px-3 py-2.5 flex items-center gap-2">
             <IconeDocTexto />
             <h2 className="text-[12px] font-bold tracking-wide">DADOS COMERCIAIS</h2>
           </div>
@@ -531,7 +531,7 @@ function SecaoComercial({ data }: { data: OrcamentoTemplateData }) {
       )}
       {data.observacoes && data.observacoes.trim() && (
         <article className="border border-slate-200 shadow-sm rounded-md bg-white">
-          <div className="bg-emerald-100 text-emerald-700 px-3 py-2.5 flex items-center gap-2">
+          <div className="bg-slate-100 text-slate-700 px-3 py-2.5 flex items-center gap-2">
             <IconeBalao />
             <h2 className="text-[12px] font-bold tracking-wide">OBSERVAÇÕES</h2>
           </div>
@@ -548,7 +548,7 @@ function Rodape({ org }: { org: OrcamentoTemplateData['organizacao'] }) {
   if (!org) return null
   if (!org.telefone && !org.email && !org.site && !org.instagram) return null
   return (
-    <footer className="bg-slate-800 text-white px-4 py-2.5 rounded-md flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[11px] font-medium print:break-inside-avoid">
+    <footer className="border-t border-slate-200 text-slate-600 px-4 pt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[11px] font-medium print:break-inside-avoid">
       {org.telefone && (
         <span className="flex items-center gap-1.5"><IconeTelefone /><span>{org.telefone}</span></span>
       )}
