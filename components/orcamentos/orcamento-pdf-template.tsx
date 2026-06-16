@@ -569,7 +569,7 @@ export function OrcamentoPdfTemplate({ data }: { data: OrcamentoTemplateData }) 
   return (
     <article
       data-pdf-template="ready"
-      className="grid gap-5 p-10 bg-white text-slate-800 w-full"
+      className="font-sans grid gap-5 p-10 bg-white text-slate-800 w-full"
     >
       <Cabecalho data={data} />
       <SecaoCards data={data} />
