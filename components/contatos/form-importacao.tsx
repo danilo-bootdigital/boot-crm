@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { read, utils } from 'xlsx'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -45,7 +44,10 @@ function detectarColuna(header: string): string | null {
   return MAPEAMENTO_NOME[normalizado] ?? null
 }
 
-function parsearPlanilha(data: ArrayBuffer): { headers: string[]; rows: string[][] } {
+async function parsearPlanilha(data: ArrayBuffer): Promise<{ headers: string[]; rows: string[][] }> {
+  // xlsx (SheetJS) é pesado e só é necessário ao importar planilha —
+  // carregado sob demanda para não entrar no bundle inicial.
+  const { read, utils } = await import('xlsx')
   const wb = read(data, { type: 'array' })
   const ws = wb.Sheets[wb.SheetNames[0]]
   const raw = utils.sheet_to_json<string[]>(ws, { header: 1, defval: '' })
@@ -105,7 +107,7 @@ export function FormImportacao() {
     setArquivo(file)
     setModoDuplicados(null)
     const buffer = await file.arrayBuffer()
-    const { headers, rows } = parsearPlanilha(buffer)
+    const { headers, rows } = await parsearPlanilha(buffer)
     const mapeados = mapearContatos(headers, rows)
     setContatos(mapeados)
     setTotalLinhas(rows.length)

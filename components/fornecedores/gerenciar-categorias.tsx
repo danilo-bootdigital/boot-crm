@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { read, utils } from 'xlsx'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -43,7 +42,10 @@ const MAPEAMENTO: Record<string, 'nome' | 'descricao' | 'preco' | 'unidade'> = {
   'unit': 'unidade',
 }
 
-function parsearPlanilha(data: ArrayBuffer): { headers: string[]; rows: string[][] } {
+async function parsearPlanilha(data: ArrayBuffer): Promise<{ headers: string[]; rows: string[][] }> {
+  // xlsx (SheetJS) é pesado e só é necessário ao importar planilha —
+  // carregado sob demanda para não entrar no bundle inicial.
+  const { read, utils } = await import('xlsx')
   const wb = read(data, { type: 'array' })
   const ws = wb.Sheets[wb.SheetNames[0]]
   const raw = utils.sheet_to_json<string[]>(ws, { header: 1, defval: '' })
@@ -113,7 +115,7 @@ export function GerenciarCategorias({ fornecedorId, categorias, produtos }: Prop
     if (!file) return
     setArquivo(file)
     const buffer = await file.arrayBuffer()
-    const { headers, rows } = parsearPlanilha(buffer)
+    const { headers, rows } = await parsearPlanilha(buffer)
     const mapeados = mapearProdutos(headers, rows)
     setProdutosImport(mapeados)
   }

@@ -34,6 +34,9 @@ export default async function PreviewPdfPage({
 
   // Query INLINE — mesma do route.ts atual (29-91) e da page.tsx atual (18-52).
   // Helper de extração (lib/orcamentos/queries.ts) está fora do escopo do PR 1.
+  // [pdf-perf] mede a query pesada (~10 joins) que roda durante o page.goto
+  // do Puppeteer. Somente medição — não altera comportamento.
+  const tQuery = performance.now()
   const { data: orcamento, error } = await supabase
     .from('quotes')
     .select(`
@@ -61,6 +64,16 @@ export default async function PreviewPdfPage({
     .eq('id', id)
     .eq('organization_id', perfil.organization_id)
     .single()
+
+  console.log(
+    '[pdf-perf]',
+    JSON.stringify({
+      stage: 'preview-pdf:query_pesada',
+      id,
+      itens: Array.isArray(orcamento?.itens) ? orcamento.itens.length : 0,
+      query_ms: Math.round(performance.now() - tQuery),
+    })
+  )
 
   if (error || !orcamento) notFound()
 

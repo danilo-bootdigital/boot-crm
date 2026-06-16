@@ -42,6 +42,9 @@ export async function GET(
   }
 
   try {
+    // [pdf-perf] Instrumentação de baseline (somente medição — não altera
+    // comportamento). Logs prefixados com [pdf-perf] para grep nos logs.
+    const tStart = performance.now()
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
@@ -56,35 +59,19 @@ export async function GET(
       .single()
     if (!perfil) return new NextResponse('Unauthorized', { status: 401 })
 
+    // Esta rota NÃO renderiza o orçamento — quem monta o HTML completo é a
+    // página /preview-pdf (que refaz a query pesada com todos os joins). Aqui
+    // basta validar existência + escopo da organização (RLS) e obter o número
+    // para o nome do arquivo. Buscar só `numero` evita duplicar a query pesada
+    // de `quotes` (~10 joins) a cada download.
+    const tQuery = performance.now()
     const { data: orcamento, error } = await supabase
       .from('quotes')
-      .select(`
-        *,
-        responsavel:profiles!responsavel_id(nome),
-        lead:leads!lead_id(id, nome, telefone, email, endereco, cpf_cnpj),
-        contato:contacts!contato_id(
-          id, nome, telefone, email, cpf_cnpj, cargo, tipo_pessoa, categoria_cliente,
-          especialidade, tipo_conselho, numero_conselho, uf_conselho, observacoes,
-          empresa_id, empresa:companies!empresa_id(id, nome),
-          endereco, endereco_numero, endereco_complemento, endereco_bairro,
-          endereco_cidade, endereco_estado, endereco_cep
-        ),
-        deal:deals!deal_id(id, titulo, contato_id),
-        aprovador:profiles!aprovacao_interna_por(nome),
-        fornecedor:suppliers!supplier_id(
-          id, nome, hub_id, health_hubs:health_hubs(id, nome, logo_url)
-        ),
-        carrier:freight_carriers!carrier_id(nome),
-        organizacao:organizations!organization_id(
-          nome, nome_fantasia, cnpj, telefone, email, endereco, logo_url, site, instagram
-        ),
-        itens:quote_items!quote_id(
-          id, descricao, quantidade, preco_unitario, desconto_item, subtotal, product_id
-        )
-      `)
+      .select('numero')
       .eq('id', id)
       .eq('organization_id', perfil.organization_id)
       .single()
+    const dQuery = performance.now() - tQuery
 
     if (error || !orcamento) {
       return new NextResponse('Orçamento não encontrado', { status: 404 })
@@ -94,17 +81,27 @@ export async function GET(
     const url = buildPrintUrl(id, new URL(request.url).origin)
     const cookieHeader = extractCookieHeader(request)
 
+    const tLaunch = performance.now()
     const browser = await launchBrowser()
+    const dLaunch = performance.now() - tLaunch
     let pdf: Uint8Array | null = null
+    let dGoto = 0
+    let dWaitSelector = 0
+    let dPdf = 0
     try {
       const page = await browser.newPage()
       if (cookieHeader) {
         await page.setExtraHTTPHeaders({ Cookie: cookieHeader })
       }
+      const tGoto = performance.now()
       await page.goto(url, { waitUntil: 'networkidle0', timeout: 30_000 })
+      dGoto = performance.now() - tGoto
       // data-pdf-template="ready" é emitido server-side pelo <article> raiz;
       // garante que o Puppeteer só captura depois do template montado.
+      const tWait = performance.now()
       await page.waitForSelector('[data-pdf-template="ready"]', { timeout: 10_000 })
+      dWaitSelector = performance.now() - tWait
+      const tPdf = performance.now()
       pdf = await page.pdf({
         format: 'A4',
         printBackground: true,
@@ -113,6 +110,7 @@ export async function GET(
         // que seria aplicada uniformemente a todas as páginas (inclusive a 1ª).
         preferCSSPageSize: true,
       })
+      dPdf = performance.now() - tPdf
     } finally {
       await browser.close()
     }
@@ -120,6 +118,22 @@ export async function GET(
     if (!pdf) {
       return new NextResponse('Falha ao gerar PDF', { status: 500 })
     }
+
+    // [pdf-perf] Resumo do baseline (ms) — uma linha por download.
+    console.log(
+      '[pdf-perf]',
+      JSON.stringify({
+        id,
+        query_ms: Math.round(dQuery),
+        launchBrowser_ms: Math.round(dLaunch),
+        goto_networkidle0_ms: Math.round(dGoto),
+        waitSelector_ms: Math.round(dWaitSelector),
+        pdf_ms: Math.round(dPdf),
+        total_ms: Math.round(performance.now() - tStart),
+        pdf_bytes: pdf.byteLength,
+        pdf_kb: Math.round(pdf.byteLength / 1024),
+      })
+    )
 
     return new NextResponse(Buffer.from(pdf), {
       headers: {

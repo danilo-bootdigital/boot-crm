@@ -97,24 +97,32 @@ export default async function PipelinePage() {
   const conversaIds = (conversasRaw ?? []).map((c) => c.id)
   const ultimasMensagensMap = new Map<string, { conteudo: string | null; direcao: string; enviado_em: string }[]>()
   if (conversaIds.length > 0) {
-    const promises = conversaIds.map((cId) =>
-      supabase
-        .from('messages')
-        .select('conversation_id, conteudo, direcao, enviado_em')
-        .eq('conversation_id', cId)
-        .order('enviado_em', { ascending: false })
-        .limit(3)
-    )
-    const results = await Promise.all(promises)
-    for (const { data } of results) {
-      if (data && data.length > 0) {
-        const cId = data[0].conversation_id as string
-        ultimasMensagensMap.set(cId, data.map((m) => ({
+    // Antes: 1 query por conversa (N+1) via conversaIds.map + Promise.all.
+    // Agora: 1 única query com .in(), ordenada por mais recente, e o "máx. 3
+    // por conversa" é aplicado em memória — reproduzindo exatamente o resultado
+    // anterior (limit(3) por conversa + reverse() para ordem ascendente).
+    const { data: mensagens } = await supabase
+      .from('messages')
+      .select('conversation_id, conteudo, direcao, enviado_em')
+      .in('conversation_id', conversaIds)
+      .order('enviado_em', { ascending: false })
+
+    for (const m of mensagens ?? []) {
+      const cId = m.conversation_id as string
+      const lista = ultimasMensagensMap.get(cId) ?? []
+      if (lista.length < 3) {
+        lista.push({
           conteudo: m.conteudo as string | null,
           direcao: m.direcao as string,
           enviado_em: m.enviado_em as string,
-        })).reverse())
+        })
+        ultimasMensagensMap.set(cId, lista)
       }
+    }
+    // As mensagens foram inseridas em ordem decrescente; inverte para ascendente
+    // (mesmo formato que o .reverse() produzia por conversa).
+    for (const lista of ultimasMensagensMap.values()) {
+      lista.reverse()
     }
   }
 
