@@ -5,7 +5,13 @@
 
 @page {
   size: A4;
-  margin: 14mm 0;
+  margin: 14mm 0 0 0;
+}
+
+/* Página 1 inicia sem margem extra (respiro vem do padding do container).
+   Margem de 14mm no topo vale apenas da página 2 em diante. */
+@page :first {
+  margin-top: 0;
 }
 
 * {
@@ -40,7 +46,7 @@ main {
   max-width: 210mm !important;
   min-height: 297mm;
   margin: 0 auto !important;
-  padding: 0 12mm !important;
+  padding: 12mm !important;
   background: #ffffff !important;
   box-shadow: none !important;
   border: none !important;

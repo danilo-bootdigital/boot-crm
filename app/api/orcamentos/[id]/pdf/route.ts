@@ -108,7 +108,10 @@ export async function GET(
       pdf = await page.pdf({
         format: 'A4',
         printBackground: true,
-        margin: { top: '14mm', bottom: '14mm', left: '0', right: '0' },
+        // Honra as margens do CSS @page (inclui @page :first), garantindo
+        // margem superior apenas da página 2 em diante. Sem margem fixa aqui,
+        // que seria aplicada uniformemente a todas as páginas (inclusive a 1ª).
+        preferCSSPageSize: true,
       })
     } finally {
       await browser.close()
