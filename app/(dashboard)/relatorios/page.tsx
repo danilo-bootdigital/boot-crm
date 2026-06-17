@@ -60,6 +60,7 @@ export default async function RelatoriosPage({
     params.fim ?? null
   )
   const filtroResponsavel = params.responsavel ?? null
+  const filtroFornecedor = params.fornecedor ?? null
 
   // Buscar responsáveis para o filtro (admin/gestor)
   const { data: responsaveisRaw } = isAdminGestor
@@ -73,6 +74,15 @@ export default async function RelatoriosPage({
     : { data: [] }
 
   const responsaveis = (responsaveisRaw ?? []) as { id: string; nome: string }[]
+
+  // Buscar fornecedores para o filtro
+  const { data: fornecedoresRaw } = await supabase
+    .from('suppliers')
+    .select('id, nome')
+    .eq('organization_id', orgId)
+    .order('nome')
+
+  const fornecedores = (fornecedoresRaw ?? []) as { id: string; nome: string }[]
 
   // Queries paralelas
   let queryLeadsNovos = supabase
@@ -108,7 +118,7 @@ export default async function RelatoriosPage({
 
   let queryPedidosReceita = supabase
     .from('orders')
-    .select('id, responsavel_id, valor_total, frete')
+    .select('id, responsavel_id, valor_total, frete, quote:quotes!quote_id(supplier_id, fornecedor:suppliers!supplier_id(id, nome)), itens:order_items(product_id, descricao, quantidade, subtotal)')
     .eq('organization_id', orgId)
     .neq('status', 'cancelado')
     .gte('criado_em', inicio)
@@ -169,11 +179,48 @@ export default async function RelatoriosPage({
     queryPedidosReceita,
   ])
 
-  // Métricas
-  const totalDealsGanhos = pedidosReceita?.length ?? 0
+  // Agregação de pedidos: alimenta métricas, ranking por fornecedor e produtos.
+  // Fornecedor vem de orders → quote.supplier_id (não há coluna na própria order).
+  type AggFornecedor = { nome: string; pedidos: number; itens: number; receita: number }
+  const fornecedorMap = new Map<string, AggFornecedor>()
+  const produtosMap = new Map<string, { nome: string; fornecedor: string; quantidade: number; receita: number }>()
 
-  // Total de Vendas = soma de (valor_total - frete) dos pedidos no período
-  const receitaTotal = (pedidosReceita ?? []).reduce((acc, p) => acc + (Number(p.valor_total ?? 0) - Number(p.frete ?? 0)), 0)
+  let totalDealsGanhos = 0
+  let receitaTotal = 0
+
+  ;(pedidosReceita ?? []).forEach((p) => {
+    const quote = Array.isArray(p.quote) ? p.quote[0] : p.quote
+    const fornRel = quote ? (Array.isArray(quote.fornecedor) ? quote.fornecedor[0] : quote.fornecedor) : null
+    const fornId = (fornRel?.id ?? quote?.supplier_id ?? '__sem_fornecedor__') as string
+    const fornNome = fornRel?.nome ?? 'Sem fornecedor'
+    const itens = Array.isArray(p.itens) ? p.itens : []
+    const receitaPedido = Number(p.valor_total ?? 0) - Number(p.frete ?? 0)
+    const qtdItensPedido = itens.reduce((acc, it) => acc + Number(it.quantidade ?? 0), 0)
+
+    // Ranking por fornecedor: sempre considera todos os fornecedores
+    const aggF = fornecedorMap.get(fornId) ?? { nome: fornNome, pedidos: 0, itens: 0, receita: 0 }
+    aggF.pedidos += 1
+    aggF.itens += qtdItensPedido
+    aggF.receita += receitaPedido
+    fornecedorMap.set(fornId, aggF)
+
+    // Filtro de fornecedor afeta métricas e produtos
+    if (filtroFornecedor && fornId !== filtroFornecedor) return
+
+    totalDealsGanhos += 1
+    receitaTotal += receitaPedido
+
+    itens.forEach((item) => {
+      const key = (item.product_id || item.descricao) as string
+      const aggP = produtosMap.get(key) ?? { nome: item.descricao, fornecedor: fornNome, quantidade: 0, receita: 0 }
+      aggP.quantidade += Number(item.quantidade ?? 0)
+      aggP.receita += Number(item.subtotal ?? 0)
+      produtosMap.set(key, aggP)
+    })
+  })
+
+  const dadosFornecedor = Array.from(fornecedorMap.values()).sort((a, b) => b.receita - a.receita)
+  const dadosProdutos = Array.from(produtosMap.values()).sort((a, b) => b.receita - a.receita).slice(0, 20)
 
   const ticketMedio = totalDealsGanhos > 0 ? receitaTotal / totalDealsGanhos : 0
   const taxaConversao = (leadsNovos ?? 0) > 0
@@ -246,29 +293,6 @@ export default async function RelatoriosPage({
   })
   const dadosVendas = Array.from(vendasMap.values()).sort((a, b) => b.valor - a.valor)
 
-  // Produtos mais vendidos (via quote_items → quotes)
-  const { data: itensVendidos } = await supabase
-    .from('quote_items')
-    .select('descricao, quantidade, preco_unitario, subtotal, product_id, quote:quotes!quote_id(organization_id, status, supplier_id, criado_em)')
-    .in('quote.status', ['aprovado_pelo_cliente', 'enviado_ao_cliente'])
-    .eq('quote.organization_id', orgId)
-    .gte('quote.criado_em', inicio)
-    .lte('quote.criado_em', fim)
-
-  // Agrupar por produto
-  const produtosMap = new Map<string, { nome: string; fornecedor: string; quantidade: number; receita: number }>()
-  ;(itensVendidos ?? []).forEach((item) => {
-    const quote = Array.isArray(item.quote) ? item.quote[0] : item.quote
-    if (!quote) return
-
-    const key = item.product_id || item.descricao
-    const atual = produtosMap.get(key) ?? { nome: item.descricao, fornecedor: '', quantidade: 0, receita: 0 }
-    atual.quantidade += item.quantidade
-    atual.receita += item.subtotal
-    produtosMap.set(key, atual)
-  })
-  const dadosProdutos = Array.from(produtosMap.values()).sort((a, b) => b.receita - a.receita).slice(0, 20)
-
   // Período formatado para exibição
   const periodoLabel = params.periodo === '7' ? 'Últimos 7 dias'
     : params.periodo === '90' ? 'Últimos 90 dias'
@@ -296,6 +320,7 @@ export default async function RelatoriosPage({
           dadosLeadsSemana={dadosLeadsSemana}
           dadosVendas={dadosVendas}
           dadosProdutos={dadosProdutos}
+          dadosFornecedor={dadosFornecedor}
           periodo={periodoLabel}
         />
       </div>
@@ -303,6 +328,7 @@ export default async function RelatoriosPage({
       <FiltrosRelatorio
         responsaveis={responsaveis}
         mostrarFiltroResponsavel={isAdminGestor}
+        fornecedores={fornecedores}
       />
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
@@ -334,6 +360,36 @@ export default async function RelatoriosPage({
           <CardContent><TabelaResumoVendas dados={dadosVendas} /></CardContent>
         </Card>
       </div>
+
+      {dadosFornecedor.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Vendas por Fornecedor</CardTitle></CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs font-medium text-slate-500">
+                    <th className="pb-2 pr-4">Fornecedor</th>
+                    <th className="pb-2 pr-4 text-right">Pedidos</th>
+                    <th className="pb-2 pr-4 text-right">Itens</th>
+                    <th className="pb-2 text-right">Receita</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dadosFornecedor.map((f, i) => (
+                    <tr key={i} className="border-b last:border-0">
+                      <td className="py-2 pr-4 text-slate-700">{f.nome}</td>
+                      <td className="py-2 pr-4 text-right text-slate-600">{f.pedidos}</td>
+                      <td className="py-2 pr-4 text-right text-slate-600">{f.itens}</td>
+                      <td className="py-2 text-right font-medium text-slate-900">{formatarMoeda(f.receita)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {dadosProdutos.length > 0 && (
         <Card>

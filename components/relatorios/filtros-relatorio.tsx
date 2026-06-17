@@ -10,6 +10,7 @@ import { Download } from 'lucide-react'
 type Props = {
   responsaveis: { id: string; nome: string }[]
   mostrarFiltroResponsavel: boolean
+  fornecedores: { id: string; nome: string }[]
 }
 
 const PERIODOS = [
@@ -20,7 +21,7 @@ const PERIODOS = [
   { valor: 'custom', label: 'Personalizado' },
 ]
 
-export function FiltrosRelatorio({ responsaveis, mostrarFiltroResponsavel }: Props) {
+export function FiltrosRelatorio({ responsaveis, mostrarFiltroResponsavel, fornecedores }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -29,6 +30,7 @@ export function FiltrosRelatorio({ responsaveis, mostrarFiltroResponsavel }: Pro
   const inicio = searchParams.get('inicio') ?? ''
   const fim = searchParams.get('fim') ?? ''
   const responsavel = searchParams.get('responsavel') ?? ''
+  const fornecedor = searchParams.get('fornecedor') ?? ''
 
   const atualizarFiltro = useCallback((chave: string, valor: string) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -92,6 +94,23 @@ export function FiltrosRelatorio({ responsaveis, mostrarFiltroResponsavel }: Pro
             <SelectItem value="__all__">Todos os vendedores</SelectItem>
             {responsaveis.map((r) => (
               <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+
+      {fornecedores.length > 0 && (
+        <Select
+          value={fornecedor || '__all__'}
+          onValueChange={(v) => atualizarFiltro('fornecedor', v === '__all__' ? '' : (v ?? ''))}
+        >
+          <SelectTrigger className="w-52">
+            <SelectValue placeholder="Todos os fornecedores" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todos os fornecedores</SelectItem>
+            {fornecedores.map((f) => (
+              <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
             ))}
           </SelectContent>
         </Select>
