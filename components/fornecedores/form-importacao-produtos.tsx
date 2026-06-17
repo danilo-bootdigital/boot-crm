@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { read, utils } from 'xlsx'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -53,7 +52,10 @@ function detectarColuna(header: string): string | null {
   return MAPEAMENTO[normalizado] ?? null
 }
 
-function parsearPlanilha(data: ArrayBuffer): { headers: string[]; rows: string[][] } {
+async function parsearPlanilha(data: ArrayBuffer): Promise<{ headers: string[]; rows: string[][] }> {
+  // xlsx (SheetJS) é pesado (~centenas de KB) e só é necessário ao importar
+  // planilha — carregado sob demanda para não entrar no bundle inicial.
+  const { read, utils } = await import('xlsx')
   const wb = read(data, { type: 'array' })
   const ws = wb.Sheets[wb.SheetNames[0]]
   const raw = utils.sheet_to_json<string[]>(ws, { header: 1, defval: '' })
@@ -62,7 +64,8 @@ function parsearPlanilha(data: ArrayBuffer): { headers: string[]; rows: string[]
   return { headers, rows }
 }
 
-function parsearPlanilhaCompleta(data: ArrayBuffer): { abas: { nome: string; headers: string[]; rows: string[][] }[] } {
+async function parsearPlanilhaCompleta(data: ArrayBuffer): Promise<{ abas: { nome: string; headers: string[]; rows: string[][] }[] }> {
+  const { read, utils } = await import('xlsx')
   const wb = read(data, { type: 'array' })
   const abas = wb.SheetNames.map((sheetName) => {
     const ws = wb.Sheets[sheetName]
@@ -155,7 +158,7 @@ export function FormImportacaoProdutos({ fornecedores }: Props) {
     const buffer = await file.arrayBuffer()
 
     if (modo === 'simples') {
-      const { headers, rows } = parsearPlanilha(buffer)
+      const { headers, rows } = await parsearPlanilha(buffer)
       const mapeados = mapearProdutos(headers, rows)
       setProdutos(mapeados)
       setTotalLinhas(rows.length)
@@ -168,7 +171,7 @@ export function FormImportacaoProdutos({ fornecedores }: Props) {
         return
       }
 
-      const { abas } = parsearPlanilhaCompleta(buffer)
+      const { abas } = await parsearPlanilhaCompleta(buffer)
       const todosProdutos: ProdutoImportado[] = []
       const infos: { nome: string; qtd: number }[] = []
 

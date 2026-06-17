@@ -8,6 +8,7 @@ type DadosFunil = { nome: string; cor: string; total: number }
 type DadosLeadsSemana = { semana: string; total: number }
 type DadosVendas = { nome: string; valor: number; deals: number }
 type DadosProdutos = { nome: string; fornecedor: string; quantidade: number; receita: number }
+type DadosFornecedor = { nome: string; pedidos: number; itens: number; receita: number }
 
 type Props = {
   metricas: {
@@ -22,6 +23,7 @@ type Props = {
   dadosLeadsSemana: DadosLeadsSemana[]
   dadosVendas: DadosVendas[]
   dadosProdutos: DadosProdutos[]
+  dadosFornecedor: DadosFornecedor[]
   periodo: string
 }
 
@@ -151,6 +153,28 @@ export function BotoesExportar(props: Props) {
       y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 12
     }
 
+    // === VENDAS POR FORNECEDOR ===
+    if (props.dadosFornecedor.length > 0) {
+      if (y > 220) { doc.addPage(); y = 20 }
+
+      doc.setFontSize(11)
+      doc.setFont(undefined!, 'bold')
+      doc.setTextColor(30, 41, 59)
+      doc.text('Vendas por Fornecedor', margin, y)
+      y += 4
+
+      autoTable(doc, {
+        startY: y,
+        head: [['Fornecedor', 'Pedidos', 'Itens', 'Receita']],
+        body: props.dadosFornecedor.map(d => [d.nome, String(d.pedidos), String(d.itens), formatarMoeda(d.receita)]),
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [51, 65, 85], textColor: [255, 255, 255] },
+        margin: { left: margin, right: margin },
+      })
+
+      y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 12
+    }
+
     // === PRODUTOS MAIS VENDIDOS ===
     if (props.dadosProdutos.length > 0) {
       if (y > 220) { doc.addPage(); y = 20 }
@@ -225,6 +249,15 @@ export function BotoesExportar(props: Props) {
         ...props.dadosVendas.map(d => [d.nome, d.deals, d.valor]),
       ])
       XLSX.utils.book_append_sheet(wb, wsVendas, 'Vendas por Vendedor')
+    }
+
+    // Aba Vendas por Fornecedor
+    if (props.dadosFornecedor.length > 0) {
+      const wsFornecedor = XLSX.utils.aoa_to_sheet([
+        ['Fornecedor', 'Pedidos', 'Itens Vendidos', 'Receita (R$)'],
+        ...props.dadosFornecedor.map(d => [d.nome, d.pedidos, d.itens, d.receita]),
+      ])
+      XLSX.utils.book_append_sheet(wb, wsFornecedor, 'Vendas por Fornecedor')
     }
 
     // Aba Produtos

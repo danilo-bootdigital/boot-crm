@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { read, utils } from 'xlsx'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -67,7 +66,10 @@ type ItemPreview = {
   product_id: string | null
 }
 
-function parsearEMapear(data: ArrayBuffer, produtos: Product[]): ItemPreview[] {
+async function parsearEMapear(data: ArrayBuffer, produtos: Product[]): Promise<ItemPreview[]> {
+  // xlsx (SheetJS) é pesado e só é necessário ao importar planilha —
+  // carregado sob demanda para não entrar no bundle inicial.
+  const { read, utils } = await import('xlsx')
   const wb = read(data, { type: 'array' })
   const ws = wb.Sheets[wb.SheetNames[0]]
   const raw = utils.sheet_to_json<string[]>(ws, { header: 1, defval: '' })
@@ -130,7 +132,7 @@ export function ImportarItensPlanilha({ produtos, onImportar, disabled }: Props)
     if (!file) return
     setArquivo(file)
     const buffer = await file.arrayBuffer()
-    const mapeados = parsearEMapear(buffer, produtos)
+    const mapeados = await parsearEMapear(buffer, produtos)
     if (mapeados.length === 0) {
       toast.error('Nenhum item encontrado. Verifique se a planilha tem uma coluna "Produto" ou "Nome".')
       return
