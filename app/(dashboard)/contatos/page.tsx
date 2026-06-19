@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { TabelaContatos } from '@/components/contatos/tabela-contatos'
 import { ModalNovoContato } from '@/components/contatos/modal-novo-contato'
 import { BotaoImportarExportar } from '@/components/contatos/botao-importar-exportar'
+import { BuscaContatos } from '@/components/contatos/busca-contatos'
 import { Paginacao } from '@/components/ui/paginacao'
 import type { Contact, Company } from '@/types/database'
 
@@ -10,6 +11,7 @@ type ContatoComEmpresa = Contact & { empresa: Pick<Company, 'id' | 'nome'> | nul
 
 type SearchParams = Promise<{
   pagina?: string
+  busca?: string
 }>
 
 const POR_PAGINA = 50
@@ -33,10 +35,23 @@ export default async function ContatosPage({ searchParams }: { searchParams: Sea
   const from = (pagina - 1) * POR_PAGINA
   const to = from + POR_PAGINA - 1
 
-  const { data: contatos, count } = await supabase
+  // Remove caracteres que quebram a sintaxe do filtro `.or` do PostgREST
+  // (vírgula, parênteses, curingas) para evitar erro de query e injeção.
+  const termo = (params.busca ?? '').trim().replace(/[%,()*]/g, ' ').trim()
+
+  let query = supabase
     .from('contacts')
     .select('*, empresa:companies!empresa_id(id, nome)', { count: 'exact' })
     .eq('organization_id', perfil.organization_id)
+
+  if (termo) {
+    query = query.or(
+      `nome.ilike.%${termo}%,email.ilike.%${termo}%,` +
+      `telefone.ilike.%${termo}%,cpf_cnpj.ilike.%${termo}%`
+    )
+  }
+
+  const { data: contatos, count } = await query
     .order('nome')
     .range(from, to) as { data: ContatoComEmpresa[] | null; count: number | null }
 
@@ -54,6 +69,8 @@ export default async function ContatosPage({ searchParams }: { searchParams: Sea
           <ModalNovoContato />
         </div>
       </div>
+
+      <BuscaContatos />
 
       <TabelaContatos contatos={contatos ?? []} isAdmin={perfil.cargo === 'admin'} />
 
