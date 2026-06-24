@@ -9,8 +9,8 @@
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { ListaConversas } from './lista-conversas'
-import { ChatArea } from './chat-area'
+import { ListaConversas, type ConversaSelecionada } from './lista-conversas'
+import { ChatArea, type ChatHeaderInfo } from './chat-area'
 import { PainelCliente } from './painel-cliente'
 import { ModalNovaConversa } from './modal-nova-conversa'
 import { Button } from '@/components/ui/button'
@@ -222,7 +222,68 @@ export function WhatsappShell(props: Props) {
     status_conexao: i.status_conexao,
   }))
 
-  const conversaAtiva = props.conversaAtiva
+  // ------------------------------------------------------------
+  // Seleção da conversa: CLIENT-SIDE → troca instantânea, sem
+  // re-renderizar a página inteira nem recarregar lista/KPIs.
+  // A URL é mantida sincronizada (history.replaceState) para
+  // refresh/bookmark, mas sem disparar refetch do server.
+  // ------------------------------------------------------------
+  const [selecionada, setSelecionada] = useState<ChatHeaderInfo | null>(() => {
+    const cid = searchParams.get('conversaId')
+    if (!cid) return null
+    if (props.conversaAtiva && props.conversaAtiva.id === cid) {
+      return {
+        id: cid,
+        nome: props.conversaAtiva.nome_contato ?? props.conversaAtiva.telefone_externo,
+        telefone: props.conversaAtiva.telefone_externo,
+        status: props.conversaAtiva.status,
+        instanciaNome: props.conversaAtiva.instancia?.nome ?? null,
+      }
+    }
+    const c = props.conversas.find((x) => x.id === cid)
+    if (c) {
+      return {
+        id: c.id,
+        nome: c.nome_contato ?? c.telefone_externo,
+        telefone: c.telefone_externo,
+        status: c.status,
+        instanciaNome: c.instancia?.nome ?? null,
+      }
+    }
+    return null
+  })
+
+  // Estável (deps []) → não invalida a memoização das linhas da lista
+  const selecionar = useCallback((info: ConversaSelecionada) => {
+    setSelecionada(info)
+    const params = new URLSearchParams(window.location.search)
+    params.set('conversaId', info.id)
+    params.delete('painel')
+    window.history.replaceState(null, '', `?${params.toString()}`)
+  }, [])
+
+  const fecharConversa = useCallback(() => {
+    setSelecionada(null)
+    const params = new URLSearchParams(window.location.search)
+    params.delete('conversaId')
+    params.delete('painel')
+    const qs = params.toString()
+    window.history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname)
+  }, [])
+
+  // Painel lateral precisa de dados completos (notas/deal/tags) → navegação real
+  const abrirPainel = useCallback(() => {
+    if (!selecionada) return
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('conversaId', selecionada.id)
+    params.set('painel', '1')
+    router.replace(`?${params.toString()}`)
+  }, [selecionada, searchParams, router])
+
+  const mensagensSeed =
+    selecionada && props.conversaAtiva && selecionada.id === props.conversaAtiva.id
+      ? props.mensagensIniciais
+      : undefined
 
   return (
     <div className="flex h-full min-h-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -232,7 +293,7 @@ export function WhatsappShell(props: Props) {
       <div
         className={cn(
           'flex w-full shrink-0 flex-col border-r border-slate-200 bg-white min-h-0 md:w-[380px] lg:w-[400px]',
-          conversaAtiva && 'hidden md:flex',
+          selecionada && 'hidden md:flex',
         )}
       >
         {/* Header da coluna */}
@@ -350,7 +411,8 @@ export function WhatsappShell(props: Props) {
         <div className="min-h-0 flex-1 overflow-y-auto">
           <ListaConversas
             conversasIniciais={listaItens}
-            conversaAtivaId={conversaAtiva?.id ?? undefined}
+            conversaAtivaId={selecionada?.id ?? undefined}
+            onSelecionar={selecionar}
           />
         </div>
 
@@ -385,12 +447,12 @@ export function WhatsappShell(props: Props) {
       {/* ============================================================ */}
       {/* Coluna 2: Chat                                               */}
       {/* ============================================================ */}
-      {conversaAtiva ? (
+      {selecionada ? (
         <ChatArea
-          conversa={conversaAtiva}
-          mensagensIniciais={props.mensagensIniciais}
-          onFechar={() => setParam('conversaId', null)}
-          onAbrirPainel={() => setParam('painel', props.painelAberto ? null : '1')}
+          info={selecionada}
+          mensagensIniciais={mensagensSeed}
+          onFechar={fecharConversa}
+          onAbrirPainel={abrirPainel}
         />
       ) : (
         <div className="hidden flex-1 flex-col items-center justify-center bg-slate-50 text-center md:flex">
@@ -407,9 +469,9 @@ export function WhatsappShell(props: Props) {
       {/* ============================================================ */}
       {/* Coluna 3: Painel lateral (se aberto)                         */}
       {/* ============================================================ */}
-      {props.painelAberto && conversaAtiva && (
+      {props.painelAberto && props.conversaAtiva && selecionada?.id === props.conversaAtiva.id && (
         <PainelCliente
-          conversa={conversaAtiva}
+          conversa={props.conversaAtiva}
           totais={props.totais}
           notas={props.notasAtivas}
           deal={props.dealAtivo}

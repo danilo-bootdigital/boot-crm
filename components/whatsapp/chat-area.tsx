@@ -3,12 +3,14 @@
 // ============================================================
 // ChatArea: painel de conversa estilo WhatsApp Web
 // ============================================================
-// - Recebe conversa COMPLETA via props (sem fetch)
-// - Recebe mensagensIniciais do server (sem loading visivel)
-// - Reusa ThreadMensagens e FormEnvioMensagem existentes
-// - Header com avatar + nome + telefone + acoes
+// - Cabeçalho renderiza a partir do RESUMO da conversa (mesma
+//   fonte da lista) → troca instantânea, sem fetch.
+// - ThreadMensagens carrega as mensagens de forma assíncrona,
+//   paginada e com cache (skeleton só na área de mensagens).
+// - Input desabilitado enquanto a 1ª página carrega.
 // ============================================================
 
+import { useState } from 'react'
 import { ArrowLeft, Star, Tag, MoreVertical, PanelRightOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -16,13 +18,20 @@ import { Badge } from '@/components/ui/badge'
 import { iniciais, formatarTelefone } from '@/lib/telefone'
 import { ThreadMensagens } from './thread-mensagens'
 import { FormEnvioMensagem } from './form-envio-mensagem'
-import type { ConversaCompleta } from '@/types/whatsapp-central'
 
 const STATUS_BADGE: Record<string, { label: string; classe: string }> = {
   nao_atendida: { label: 'Não atendida', classe: 'bg-red-100 text-red-700' },
   em_atendimento: { label: 'Em atendimento', classe: 'bg-blue-100 text-blue-700' },
   aguardando_cliente: { label: 'Aguardando', classe: 'bg-amber-100 text-amber-700' },
   finalizada: { label: 'Finalizada', classe: 'bg-emerald-100 text-emerald-700' },
+}
+
+export type ChatHeaderInfo = {
+  id: string
+  nome: string
+  telefone: string
+  status: string
+  instanciaNome?: string | null
 }
 
 type MensagemInicial = {
@@ -35,45 +44,43 @@ type MensagemInicial = {
 }
 
 type Props = {
-  conversa: ConversaCompleta
-  mensagensIniciais: MensagemInicial[]
+  info: ChatHeaderInfo
+  mensagensIniciais?: MensagemInicial[]
   onFechar: () => void
   onAbrirPainel: () => void
 }
 
-export function ChatArea({ conversa, mensagensIniciais, onFechar, onAbrirPainel }: Props) {
-  const badge = STATUS_BADGE[conversa.status] ?? STATUS_BADGE.nao_atendida
-  const nomeExibicao = conversa.nome_contato ?? conversa.telefone_externo
+export function ChatArea({ info, mensagensIniciais, onFechar, onAbrirPainel }: Props) {
+  const [carregando, setCarregando] = useState(true)
+  const badge = STATUS_BADGE[info.status] ?? STATUS_BADGE.nao_atendida
 
   return (
     <div className="flex min-w-0 flex-1 flex-col bg-white">
-      {/* Header */}
+      {/* Header (instantâneo, a partir do resumo da lista) */}
       <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-3 py-2.5 md:px-4">
-        {/* Voltar (mobile) */}
         <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0 md:hidden" onClick={onFechar} title="Voltar">
           <ArrowLeft className="h-5 w-5" />
         </Button>
 
         <Avatar className="h-10 w-10 shrink-0">
           <AvatarFallback className="bg-emerald-100 text-sm font-semibold text-emerald-700">
-            {iniciais(nomeExibicao)}
+            {iniciais(info.nome)}
           </AvatarFallback>
         </Avatar>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="truncate text-sm font-semibold text-slate-900">{nomeExibicao}</p>
+            <p className="truncate text-sm font-semibold text-slate-900">{info.nome}</p>
             <Badge className={badge.classe} variant="secondary">
               {badge.label}
             </Badge>
           </div>
           <p className="truncate text-xs text-slate-400">
-            {formatarTelefone(conversa.telefone_externo)}
-            {conversa.instancia?.nome && <span className="ml-1">· {conversa.instancia.nome}</span>}
+            {formatarTelefone(info.telefone)}
+            {info.instanciaNome && <span className="ml-1">· {info.instanciaNome}</span>}
           </p>
         </div>
 
-        {/* Ações */}
         <div className="flex shrink-0 items-center gap-0.5">
           <Button size="icon" variant="ghost" className="h-9 w-9 text-slate-500" title="Etiquetas" onClick={onAbrirPainel}>
             <Tag className="h-[18px] w-[18px]" />
@@ -90,11 +97,16 @@ export function ChatArea({ conversa, mensagensIniciais, onFechar, onAbrirPainel 
         </div>
       </div>
 
-      {/* Thread (fundo texturizado + separadores + criptografia) */}
-      <ThreadMensagens conversaId={conversa.id} mensagensIniciais={mensagensIniciais as any} />
+      {/* Thread — remonta por conversa (key) para estado limpo; cache no módulo */}
+      <ThreadMensagens
+        key={info.id}
+        conversaId={info.id}
+        mensagensIniciais={mensagensIniciais}
+        onLoadingChange={setCarregando}
+      />
 
-      {/* Form de envio */}
-      <FormEnvioMensagem conversaId={conversa.id} />
+      {/* Form de envio (desabilitado enquanto a 1ª página carrega) */}
+      <FormEnvioMensagem conversaId={info.id} disabled={carregando} />
     </div>
   )
 }

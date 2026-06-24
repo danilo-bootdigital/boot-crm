@@ -159,7 +159,7 @@ async function carregarConversaAtiva(
       .select('id, conteudo, direcao, tipo_midia, url_midia, enviado_em')
       .eq('conversation_id', conversaId)
       .order('enviado_em', { ascending: false })
-      .limit(200),
+      .limit(30), // seed leve p/ deep-link; ThreadMensagens pagina o restante no scroll
   ])
 
   const notas = (notasRes.data ?? []).map((n: any) => ({

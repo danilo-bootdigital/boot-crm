@@ -1,8 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { format, isToday, isYesterday } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { createClient } from '@/lib/supabase/client'
@@ -32,13 +30,20 @@ type Conversa = {
   status: string
 }
 
+export type ConversaSelecionada = {
+  id: string
+  nome: string
+  telefone: string
+  status: string
+}
+
 type Props = {
   conversasIniciais: Conversa[]
   conversaAtivaId?: string
+  onSelecionar: (info: ConversaSelecionada) => void
   onNomeEditado?: (conversaId: string, novoNome: string) => void
 }
 
-// Bolinha de status do atendimento
 const STATUS_DOT: Record<string, string> = {
   nao_atendida: 'bg-red-500',
   em_atendimento: 'bg-blue-500',
@@ -46,7 +51,6 @@ const STATUS_DOT: Record<string, string> = {
   finalizada: 'bg-emerald-500',
 }
 
-// Hora curta estilo WhatsApp (HH:mm hoje, "Ontem", ou dd/mm)
 function horaCurta(dataIso: string | null): string {
   if (!dataIso) return ''
   const d = new Date(dataIso)
@@ -55,62 +59,140 @@ function horaCurta(dataIso: string | null): string {
   return format(d, 'dd/MM/yy', { locale: ptBR })
 }
 
+// ------------------------------------------------------------
+// Item memoizado: só re-renderiza quando seus próprios dados,
+// estado de seleção ou callbacks mudarem.
+// ------------------------------------------------------------
+const ItemConversaRow = memo(function ItemConversaRow({
+  conversa,
+  ativa,
+  onSelecionar,
+  onFinalizar,
+  onNomeEditado,
+}: {
+  conversa: Conversa
+  ativa: boolean
+  onSelecionar: (info: ConversaSelecionada) => void
+  onFinalizar: (e: React.MouseEvent, conversa: Conversa) => void
+  onNomeEditado: (conversaId: string, novoNome: string) => void
+}) {
+  const naoLidas = conversa.nao_lidas ?? 0
+  const selecionar = () =>
+    onSelecionar({
+      id: conversa.id,
+      nome: conversa.nome_contato,
+      telefone: conversa.telefone,
+      status: conversa.status,
+    })
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={selecionar}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          selecionar()
+        }
+      }}
+      className={cn(
+        'group relative flex w-full cursor-pointer items-center gap-3 border-b border-slate-50 px-3 py-3 text-left transition-colors focus:outline-none focus-visible:bg-slate-50',
+        ativa ? 'bg-emerald-50/70' : 'hover:bg-slate-50',
+      )}
+    >
+      {ativa && <span className="absolute inset-y-0 left-0 w-0.5 bg-emerald-500" />}
+
+      <div className="relative shrink-0">
+        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700">
+          {iniciais(conversa.nome_contato)}
+        </div>
+        <span
+          className={cn(
+            'absolute bottom-0 right-0 h-3 w-3 rounded-full ring-2 ring-white',
+            STATUS_DOT[conversa.status] ?? 'bg-slate-300',
+          )}
+        />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-1">
+            <h3 className={cn('truncate text-sm', naoLidas > 0 ? 'font-semibold text-slate-900' : 'font-medium text-slate-800')}>
+              {conversa.nome_contato}
+            </h3>
+            <span className="opacity-0 transition-opacity group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
+              <EditarNome
+                conversaId={conversa.id}
+                nomeAtual={conversa.nome_contato}
+                telefone={conversa.telefone}
+                onEditComplete={(novoNome) => onNomeEditado(conversa.id, novoNome)}
+              />
+            </span>
+          </div>
+          <span className={cn('shrink-0 text-[11px]', naoLidas > 0 ? 'font-medium text-emerald-600' : 'text-slate-400')}>
+            {horaCurta(conversa.ultima_mensagem_em)}
+          </span>
+        </div>
+        <div className="mt-0.5 flex items-center justify-between gap-2">
+          <p className={cn('truncate text-xs', naoLidas > 0 ? 'text-slate-600' : 'text-slate-400')}>
+            {conversa.ultima_mensagem?.trim() || 'Sem mensagens'}
+          </p>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {naoLidas > 0 && (
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-semibold text-white">
+                {naoLidas > 99 ? '99+' : naoLidas}
+              </span>
+            )}
+            {conversa.status !== 'finalizada' && (
+              <span
+                role="button"
+                tabIndex={-1}
+                onClick={(e) => onFinalizar(e, conversa)}
+                className="rounded-full px-2 py-0.5 text-[11px] font-medium text-emerald-600 opacity-0 transition-opacity hover:bg-emerald-100 group-hover:opacity-100"
+                title="Finalizar atendimento"
+              >
+                Fechar
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+})
+
 export function ListaConversas({
   conversasIniciais,
   conversaAtivaId,
+  onSelecionar,
   onNomeEditado,
 }: Props) {
-  const searchParams = useSearchParams()
   const [conversasRealtime, setConversasRealtime] = useState<Conversa[]>([])
   const [dialogOpen, setDialogOpen] = useState(false)
   const [conversaSelecionada, setConversaSelecionada] = useState<Conversa | null>(null)
   const [finalizando, setFinalizando] = useState(false)
 
-  // Mantém os demais filtros da URL ao abrir uma conversa (split view inline)
-  const hrefConversa = (id: string): string => {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set('conversaId', id)
-    return `/whatsapp?${params.toString()}`
-  }
-
   const conversas = useMemo(() => {
     const mapa = new Map<string, Conversa>()
-
-    for (const conversa of conversasIniciais) {
-      mapa.set(conversa.id, conversa)
-    }
-
+    for (const conversa of conversasIniciais) mapa.set(conversa.id, conversa)
     for (const conversa of conversasRealtime) {
-      // Preserva campos enriquecidos do server (última mensagem, etc.) ao mesclar realtime
       const existente = mapa.get(conversa.id)
       mapa.set(conversa.id, existente ? { ...existente, ...conversa } : conversa)
     }
-
     return Array.from(mapa.values()).sort((a, b) => {
-      const dataA = a.ultima_mensagem_em
-        ? new Date(a.ultima_mensagem_em).getTime()
-        : 0
-
-      const dataB = b.ultima_mensagem_em
-        ? new Date(b.ultima_mensagem_em).getTime()
-        : 0
-
+      const dataA = a.ultima_mensagem_em ? new Date(a.ultima_mensagem_em).getTime() : 0
+      const dataB = b.ultima_mensagem_em ? new Date(b.ultima_mensagem_em).getTime() : 0
       return dataB - dataA
     })
   }, [conversasIniciais, conversasRealtime])
 
   useEffect(() => {
     const supabase = createClient()
-
     const channel = supabase
       .channel('lista-conversas')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'conversations',
-        },
+        { event: '*', schema: 'public', table: 'conversations' },
         async () => {
           const { data } = await supabase
             .from('conversations')
@@ -131,7 +213,7 @@ export function ListaConversas({
             }))
             setConversasRealtime(mappedData as Conversa[])
           }
-        }
+        },
       )
       .subscribe()
 
@@ -140,25 +222,22 @@ export function ListaConversas({
     }
   }, [])
 
-  const handleNomeEditado = (conversaId: string, novoNome: string) => {
-    const index = conversas.findIndex(c => c.id === conversaId)
-    if (index !== -1) {
-      setConversasRealtime(prev => [...prev])
-    }
-
+  const handleNomeEditado = useCallback((conversaId: string, novoNome: string) => {
+    setConversasRealtime((prev) =>
+      prev.map((c) => (c.id === conversaId ? { ...c, nome_contato: novoNome } : c)),
+    )
     onNomeEditado?.(conversaId, novoNome)
-  }
+  }, [onNomeEditado])
 
-  const handleFinalizarClick = (e: React.MouseEvent, conversa: Conversa) => {
+  const handleFinalizarClick = useCallback((e: React.MouseEvent, conversa: Conversa) => {
     e.preventDefault()
     e.stopPropagation()
     setConversaSelecionada(conversa)
     setDialogOpen(true)
-  }
+  }, [])
 
   const handleConfirmarFinalizar = async () => {
     if (!conversaSelecionada) return
-
     setFinalizando(true)
     try {
       await alterarStatusConversa(conversaSelecionada.id, 'finalizada')
@@ -181,82 +260,18 @@ export function ListaConversas({
           </p>
         </div>
       ) : (
-        conversas.map((conversa) => {
-          const ativa = conversa.id === conversaAtivaId
-          const naoLidas = conversa.nao_lidas ?? 0
-          return (
-            <Link
-              key={conversa.id}
-              href={hrefConversa(conversa.id)}
-              className={cn(
-                'group relative flex items-center gap-3 border-b border-slate-50 px-3 py-3 transition-colors',
-                ativa ? 'bg-emerald-50/70' : 'hover:bg-slate-50',
-              )}
-            >
-              {/* Barra de seleção */}
-              {ativa && <span className="absolute inset-y-0 left-0 w-0.5 bg-emerald-500" />}
-
-              {/* Avatar */}
-              <div className="relative shrink-0">
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700">
-                  {iniciais(conversa.nome_contato)}
-                </div>
-                <span
-                  className={cn(
-                    'absolute bottom-0 right-0 h-3 w-3 rounded-full ring-2 ring-white',
-                    STATUS_DOT[conversa.status] ?? 'bg-slate-300',
-                  )}
-                />
-              </div>
-
-              {/* Conteúdo */}
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-1">
-                    <h3 className={cn('truncate text-sm', naoLidas > 0 ? 'font-semibold text-slate-900' : 'font-medium text-slate-800')}>
-                      {conversa.nome_contato}
-                    </h3>
-                    <span className="opacity-0 transition-opacity group-hover:opacity-100">
-                      <EditarNome
-                        conversaId={conversa.id}
-                        nomeAtual={conversa.nome_contato}
-                        telefone={conversa.telefone}
-                        onEditComplete={(novoNome) => handleNomeEditado(conversa.id, novoNome)}
-                      />
-                    </span>
-                  </div>
-                  <span className={cn('shrink-0 text-[11px]', naoLidas > 0 ? 'font-medium text-emerald-600' : 'text-slate-400')}>
-                    {horaCurta(conversa.ultima_mensagem_em)}
-                  </span>
-                </div>
-                <div className="mt-0.5 flex items-center justify-between gap-2">
-                  <p className={cn('truncate text-xs', naoLidas > 0 ? 'text-slate-600' : 'text-slate-400')}>
-                    {conversa.ultima_mensagem?.trim() || 'Sem mensagens'}
-                  </p>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    {naoLidas > 0 && (
-                      <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-semibold text-white">
-                        {naoLidas > 99 ? '99+' : naoLidas}
-                      </span>
-                    )}
-                    {conversa.status !== 'finalizada' && (
-                      <button
-                        onClick={(e) => handleFinalizarClick(e, conversa)}
-                        className="rounded-full px-2 py-0.5 text-[11px] font-medium text-emerald-600 opacity-0 transition-opacity hover:bg-emerald-100 group-hover:opacity-100"
-                        title="Finalizar atendimento"
-                      >
-                        Fechar
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </Link>
-          )
-        })
+        conversas.map((conversa) => (
+          <ItemConversaRow
+            key={conversa.id}
+            conversa={conversa}
+            ativa={conversa.id === conversaAtivaId}
+            onSelecionar={onSelecionar}
+            onFinalizar={handleFinalizarClick}
+            onNomeEditado={handleNomeEditado}
+          />
+        ))
       )}
 
-      {/* Dialog de confirmação */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
