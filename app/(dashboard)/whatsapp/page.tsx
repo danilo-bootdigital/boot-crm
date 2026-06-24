@@ -104,6 +104,21 @@ async function carregarConversaAtiva(
     instancia: Array.isArray(raw.instancia) ? raw.instancia[0] ?? null : raw.instancia ?? null,
   }
 
+  // Resolução de nome IDÊNTICA à da lista (listarConversas) para evitar
+  // divergência entre a lista lateral e o cabeçalho do chat.
+  // Prioridade: manual -> contato.nome -> lead.nome -> nome_contato -> telefone.
+  // Nunca usa responsável/atendente/vendedor.
+  conversa.nome_contato =
+    conversa.name_source === 'manual' && conversa.nome_contato
+      ? conversa.nome_contato
+      : conversa.contato?.nome
+        ? conversa.contato.nome
+        : conversa.lead?.nome
+          ? conversa.lead.nome
+          : conversa.nome_contato
+            ? conversa.nome_contato
+            : conversa.telefone_externo
+
   // 2) Carrega dados complementares em paralelo
   //    IMPORTANTE: deals NAO tem conversation_id. Usamos lead_id da conversa.
   //    Se conversa nao tem lead, dealPromise resolve com null sem query.
