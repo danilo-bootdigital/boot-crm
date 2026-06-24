@@ -17,6 +17,8 @@ type Props = {
     empresa?: string
     telefone?: string
   }
+  /** Desabilita o envio enquanto a conversa carrega. */
+  disabled?: boolean
 }
 
 const ACCEPTED_TYPES = ['image/', 'audio/', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument']
@@ -32,7 +34,7 @@ function IconeArquivo({ tipo }: { tipo: string }) {
   return <FileText className="h-5 w-5 text-red-500" />
 }
 
-export function FormEnvioMensagem({ conversaId, variaveis = {} }: Props) {
+export function FormEnvioMensagem({ conversaId, variaveis = {}, disabled = false }: Props) {
   const [texto, setTexto] = useState('')
   const [arquivo, setArquivo] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -226,7 +228,7 @@ export function FormEnvioMensagem({ conversaId, variaveis = {} }: Props) {
           size="icon"
           className="shrink-0 text-slate-500"
           onClick={() => fileInputRef.current?.click()}
-          disabled={isPending}
+          disabled={isPending || disabled}
           title="Anexar arquivo"
         >
           <Paperclip className="h-5 w-5" />
@@ -247,13 +249,13 @@ export function FormEnvioMensagem({ conversaId, variaveis = {} }: Props) {
           placeholder={arquivo ? 'Legenda (opcional)...' : 'Digite uma mensagem...'}
           rows={1}
           className="max-h-32 min-h-10 flex-1 resize-none rounded-2xl bg-slate-50 px-4 py-2.5"
-          disabled={isPending}
+          disabled={isPending || disabled}
         />
         {texto.trim() || arquivo ? (
           <Button
             size="icon"
             onClick={handleEnviar}
-            disabled={isPending}
+            disabled={isPending || disabled}
             className="h-10 w-10 shrink-0 rounded-full"
             title="Enviar"
           >
