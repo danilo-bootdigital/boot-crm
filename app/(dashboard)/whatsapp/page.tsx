@@ -203,11 +203,15 @@ async function buscarUltimasMensagens(
 }
 
 export default async function WhatsappPage({
-  searchParams,
+  searchParams: searchParamsPromise,
 }: {
-  searchParams: CentralSearchParams
+  searchParams: Promise<CentralSearchParams>
 }) {
   const supabase = await createClient()
+
+  // Next 16: searchParams é assíncrono. Sem o await, searchParams.conversaId
+  // (e demais filtros) ficavam undefined e a conversa nunca abria no painel.
+  const searchParams = await searchParamsPromise
 
   // 1) Autenticacao
   const { data: { user } } = await supabase.auth.getUser()
