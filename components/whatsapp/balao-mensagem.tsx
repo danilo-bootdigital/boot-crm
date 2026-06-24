@@ -1,7 +1,7 @@
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
-import { FileText, Download } from 'lucide-react'
+import { FileText, Download, CheckCheck } from 'lucide-react'
 
 type Props = {
   mensagem: {
@@ -85,17 +85,25 @@ export function BalaoMensagem({ mensagem }: Props) {
     <div className={cn('flex', enviada ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
-          'max-w-[75%] rounded-lg px-3 py-2 text-sm shadow-sm',
-          enviada ? 'bg-green-100 text-slate-900' : 'bg-white text-slate-900 border border-slate-100'
+          'max-w-[78%] px-3 py-2 text-sm shadow-sm',
+          enviada
+            ? 'rounded-2xl rounded-br-md bg-emerald-100 text-slate-900'
+            : 'rounded-2xl rounded-bl-md border border-slate-100 bg-white text-slate-900',
         )}
       >
         {!enviada && mensagem.responsavel && (
-          <p className="mb-1 text-[12px] font-medium text-green-700">{mensagem.responsavel.nome}</p>
+          <p className="mb-1 text-[12px] font-medium text-emerald-700">{mensagem.responsavel.nome}</p>
         )}
         <ConteudoMidia tipo={mensagem.tipo_midia} url={mensagem.url_midia} conteudo={mensagem.conteudo} />
-        <p className={cn('mt-1 text-[12px]', enviada ? 'text-right text-green-700' : 'text-slate-400')}>
+        <span
+          className={cn(
+            'mt-1 flex items-center justify-end gap-1 text-[11px]',
+            enviada ? 'text-emerald-700/70' : 'text-slate-400',
+          )}
+        >
           {hora}
-        </p>
+          {enviada && <CheckCheck className="h-3.5 w-3.5 text-sky-500" />}
+        </span>
       </div>
     </div>
   )

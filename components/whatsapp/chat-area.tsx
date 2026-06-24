@@ -1,29 +1,28 @@
 'use client'
 
 // ============================================================
-// ChatArea: coluna 3 com header + thread + form de envio
-// Sub-fase 2.2.1 (com paridade funcional restaurada)
+// ChatArea: painel de conversa estilo WhatsApp Web
 // ============================================================
 // - Recebe conversa COMPLETA via props (sem fetch)
 // - Recebe mensagensIniciais do server (sem loading visivel)
 // - Reusa ThreadMensagens e FormEnvioMensagem existentes
-// - Header com nome_contato + name_source + acoes
+// - Header com avatar + nome + telefone + acoes
 // ============================================================
 
-import { X, PanelRightOpen } from 'lucide-react'
+import { ArrowLeft, Star, Tag, MoreVertical, PanelRightOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { iniciais } from '@/lib/telefone'
+import { iniciais, formatarTelefone } from '@/lib/telefone'
 import { ThreadMensagens } from './thread-mensagens'
 import { FormEnvioMensagem } from './form-envio-mensagem'
 import type { ConversaCompleta } from '@/types/whatsapp-central'
 
 const STATUS_BADGE: Record<string, { label: string; classe: string }> = {
-  nao_atendida: { label: 'Nao atendida', classe: 'bg-red-100 text-red-700' },
+  nao_atendida: { label: 'Não atendida', classe: 'bg-red-100 text-red-700' },
   em_atendimento: { label: 'Em atendimento', classe: 'bg-blue-100 text-blue-700' },
   aguardando_cliente: { label: 'Aguardando', classe: 'bg-amber-100 text-amber-700' },
-  finalizada: { label: 'Finalizada', classe: 'bg-green-100 text-green-700' },
+  finalizada: { label: 'Finalizada', classe: 'bg-emerald-100 text-emerald-700' },
 }
 
 type MensagemInicial = {
@@ -47,37 +46,51 @@ export function ChatArea({ conversa, mensagensIniciais, onFechar, onAbrirPainel 
   const nomeExibicao = conversa.nome_contato ?? conversa.telefone_externo
 
   return (
-    <div className="w-[480px] flex flex-col h-full border-l bg-white">
+    <div className="flex min-w-0 flex-1 flex-col bg-white">
       {/* Header */}
-      <div className="flex items-center gap-3 p-3 border-b">
-        <Button size="icon" variant="ghost" onClick={onFechar}>
-          <X className="h-4 w-4" />
+      <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-3 py-2.5 md:px-4">
+        {/* Voltar (mobile) */}
+        <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0 md:hidden" onClick={onFechar} title="Voltar">
+          <ArrowLeft className="h-5 w-5" />
         </Button>
-        <Avatar className="h-9 w-9">
-          <AvatarFallback className="bg-green-100 text-green-700 text-xs">
+
+        <Avatar className="h-10 w-10 shrink-0">
+          <AvatarFallback className="bg-emerald-100 text-sm font-semibold text-emerald-700">
             {iniciais(nomeExibicao)}
           </AvatarFallback>
         </Avatar>
+
         <div className="min-w-0 flex-1">
-          <p className="font-semibold text-sm truncate">{nomeExibicao}</p>
-          <p className="text-xs text-muted-foreground truncate">
-            {conversa.telefone_externo}
-            {conversa.name_source && (
-              <span className="ml-1 text-[10px] uppercase">
-                · {conversa.name_source}
-              </span>
-            )}
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-semibold text-slate-900">{nomeExibicao}</p>
+            <Badge className={badge.classe} variant="secondary">
+              {badge.label}
+            </Badge>
+          </div>
+          <p className="truncate text-xs text-slate-400">
+            {formatarTelefone(conversa.telefone_externo)}
+            {conversa.instancia?.nome && <span className="ml-1">· {conversa.instancia.nome}</span>}
           </p>
         </div>
-        <Badge className={badge.classe} variant="secondary">
-          {badge.label}
-        </Badge>
-        <Button size="icon" variant="ghost" onClick={onAbrirPainel} title="Abrir painel">
-          <PanelRightOpen className="h-4 w-4" />
-        </Button>
+
+        {/* Ações */}
+        <div className="flex shrink-0 items-center gap-0.5">
+          <Button size="icon" variant="ghost" className="h-9 w-9 text-slate-500" title="Etiquetas" onClick={onAbrirPainel}>
+            <Tag className="h-[18px] w-[18px]" />
+          </Button>
+          <Button size="icon" variant="ghost" className="h-9 w-9 text-slate-500" title="Favoritar" disabled>
+            <Star className="h-[18px] w-[18px]" />
+          </Button>
+          <Button size="icon" variant="ghost" className="h-9 w-9 text-slate-500" title="Detalhes do contato" onClick={onAbrirPainel}>
+            <PanelRightOpen className="h-[18px] w-[18px]" />
+          </Button>
+          <Button size="icon" variant="ghost" className="h-9 w-9 text-slate-500" title="Mais opções" onClick={onAbrirPainel}>
+            <MoreVertical className="h-[18px] w-[18px]" />
+          </Button>
+        </div>
       </div>
 
-      {/* Thread */}
+      {/* Thread (fundo texturizado + separadores + criptografia) */}
       <ThreadMensagens conversaId={conversa.id} mensagensIniciais={mensagensIniciais as any} />
 
       {/* Form de envio */}
