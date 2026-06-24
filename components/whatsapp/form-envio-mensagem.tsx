@@ -3,7 +3,7 @@
 import { useState, useTransition, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Send, Paperclip, X, FileText, Image, Mic } from 'lucide-react'
+import { Send, Paperclip, X, FileText, Image, Mic, Smile } from 'lucide-react'
 import { enviarMensagem, enviarMidia } from '@/app/(dashboard)/whatsapp/actions'
 import { isRedirectError } from 'next/dist/client/components/redirect-error'
 import { SeletorRespostaRapida } from './seletor-resposta-rapida'
@@ -202,7 +202,18 @@ export function FormEnvioMensagem({ conversaId, variaveis = {} }: Props) {
         </div>
       )}
 
-      <div className="relative flex items-end gap-2">
+      <div className="relative flex items-end gap-1">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="shrink-0 text-slate-500"
+          title="Emoji"
+          disabled
+        >
+          <Smile className="h-5 w-5" />
+        </Button>
+
         <SeletorRespostaRapida
           variaveis={variaveis}
           onSelecionar={handleRespostaRapida}
@@ -213,12 +224,12 @@ export function FormEnvioMensagem({ conversaId, variaveis = {} }: Props) {
           type="button"
           variant="ghost"
           size="icon"
-          className="shrink-0"
+          className="shrink-0 text-slate-500"
           onClick={() => fileInputRef.current?.click()}
           disabled={isPending}
           title="Anexar arquivo"
         >
-          <Paperclip className="h-4 w-4" />
+          <Paperclip className="h-5 w-5" />
         </Button>
         <input
           ref={fileInputRef}
@@ -233,19 +244,33 @@ export function FormEnvioMensagem({ conversaId, variaveis = {} }: Props) {
           onChange={(e) => setTexto(e.target.value)}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          placeholder={arquivo ? 'Legenda (opcional)...' : 'Digite uma mensagem... (Enter para enviar)'}
-          rows={2}
-          className="resize-none flex-1"
+          placeholder={arquivo ? 'Legenda (opcional)...' : 'Digite uma mensagem...'}
+          rows={1}
+          className="max-h-32 min-h-10 flex-1 resize-none rounded-2xl bg-slate-50 px-4 py-2.5"
           disabled={isPending}
         />
-        <Button
-          size="icon"
-          onClick={handleEnviar}
-          disabled={isPending || (!texto.trim() && !arquivo)}
-          className="shrink-0"
-        >
-          <Send className="h-4 w-4" />
-        </Button>
+        {texto.trim() || arquivo ? (
+          <Button
+            size="icon"
+            onClick={handleEnviar}
+            disabled={isPending}
+            className="h-10 w-10 shrink-0 rounded-full"
+            title="Enviar"
+          >
+            <Send className="h-4 w-4" />
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-10 w-10 shrink-0 rounded-full text-slate-500"
+            title="Gravar áudio"
+            disabled
+          >
+            <Mic className="h-5 w-5" />
+          </Button>
+        )}
       </div>
     </div>
   )

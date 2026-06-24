@@ -95,9 +95,8 @@ export function ModalNovaConversa({ instancias }: Props) {
 
   if (instancias.length === 0) {
     return (
-      <Button className="gap-2" disabled>
+      <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400" disabled title="Nenhuma instância encontrada">
         <Plus className="h-4 w-4" />
-        Nenhuma instância encontrada
       </Button>
     )
   }
@@ -108,9 +107,8 @@ export function ModalNovaConversa({ instancias }: Props) {
   return (
     <Dialog open={aberto} onOpenChange={(v) => { setAberto(v); if (!v) handleReset() }}>
       <DialogTrigger render={
-        <Button className="gap-2 bg-green-600 hover:bg-green-700 text-white">
+        <Button size="icon" className="h-8 w-8 bg-green-600 hover:bg-green-700 text-white" title="Nova conversa">
           <Plus className="h-4 w-4" />
-          Nova Conversa
         </Button>
       } />
       <DialogContent className="sm:max-w-lg">
