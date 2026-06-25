@@ -136,7 +136,9 @@ export async function buscarKPIsWhatsApp(
       abertas++
     }
 
-    if ((r.nao_lidas ?? 0) > 0) {
+    // Não lidas conta apenas conversas abertas (consistente com a lista
+    // principal, que exclui finalizadas).
+    if (r.status !== 'finalizada' && (r.nao_lidas ?? 0) > 0) {
       naoLidas++
     }
 

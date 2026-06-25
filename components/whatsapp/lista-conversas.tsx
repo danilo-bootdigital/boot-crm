@@ -42,6 +42,8 @@ type Props = {
   conversaAtivaId?: string
   onSelecionar: (info: ConversaSelecionada) => void
   onNomeEditado?: (conversaId: string, novoNome: string) => void
+  /** Chamado após finalizar uma conversa (para limpar a conversa ativa, etc.) */
+  onFinalizada?: (conversaId: string) => void
 }
 
 const STATUS_DOT: Record<string, string> = {
@@ -166,11 +168,15 @@ export function ListaConversas({
   conversaAtivaId,
   onSelecionar,
   onNomeEditado,
+  onFinalizada,
 }: Props) {
   const [conversasRealtime, setConversasRealtime] = useState<Conversa[]>([])
   const [dialogOpen, setDialogOpen] = useState(false)
   const [conversaSelecionada, setConversaSelecionada] = useState<Conversa | null>(null)
   const [finalizando, setFinalizando] = useState(false)
+  // Remoção otimista: ids fechados nesta sessão somem da lista na hora,
+  // sem esperar o round-trip do servidor nem F5.
+  const [removidasIds, setRemovidasIds] = useState<Set<string>>(() => new Set())
 
   const conversas = useMemo(() => {
     const mapa = new Map<string, Conversa>()
@@ -179,12 +185,29 @@ export function ListaConversas({
       const existente = mapa.get(conversa.id)
       mapa.set(conversa.id, existente ? { ...existente, ...conversa } : conversa)
     }
-    return Array.from(mapa.values()).sort((a, b) => {
-      const dataA = a.ultima_mensagem_em ? new Date(a.ultima_mensagem_em).getTime() : 0
-      const dataB = b.ultima_mensagem_em ? new Date(b.ultima_mensagem_em).getTime() : 0
-      return dataB - dataA
+    return Array.from(mapa.values())
+      .filter((c) => !removidasIds.has(c.id))
+      .sort((a, b) => {
+        const dataA = a.ultima_mensagem_em ? new Date(a.ultima_mensagem_em).getTime() : 0
+        const dataB = b.ultima_mensagem_em ? new Date(b.ultima_mensagem_em).getTime() : 0
+        return dataB - dataA
+      })
+  }, [conversasIniciais, conversasRealtime, removidasIds])
+
+  // Auto-recuperação: se uma conversa removida voltar a um status aberto
+  // (reabertura por nova mensagem, etc.), reexibe-a na lista.
+  useEffect(() => {
+    if (removidasIds.size === 0) return
+    const reabertas = [...conversasIniciais, ...conversasRealtime]
+      .filter((c) => removidasIds.has(c.id) && c.status !== 'finalizada')
+      .map((c) => c.id)
+    if (reabertas.length === 0) return
+    setRemovidasIds((prev) => {
+      const next = new Set(prev)
+      for (const id of reabertas) next.delete(id)
+      return next
     })
-  }, [conversasIniciais, conversasRealtime])
+  }, [conversasIniciais, conversasRealtime, removidasIds])
 
   useEffect(() => {
     const supabase = createClient()
@@ -197,6 +220,9 @@ export function ListaConversas({
           const { data } = await supabase
             .from('conversations')
             .select('id, telefone_externo, ultima_mensagem_em, status, nao_lidas, lead:leads!lead_id(nome), contato:contacts!contato_id(nome)')
+            // Lista principal mostra apenas conversas abertas; finalizadas
+            // não devem reaparecer via realtime.
+            .neq('status', 'finalizada')
             .order('ultima_mensagem_em', { ascending: false })
 
           if (data) {
@@ -238,9 +264,18 @@ export function ListaConversas({
 
   const handleConfirmarFinalizar = async () => {
     if (!conversaSelecionada) return
+    const idFinalizada = conversaSelecionada.id
     setFinalizando(true)
     try {
-      await alterarStatusConversa(conversaSelecionada.id, 'finalizada')
+      await alterarStatusConversa(idFinalizada, 'finalizada')
+      // Remoção imediata do estado local (sem reload de página)
+      setRemovidasIds((prev) => {
+        const next = new Set(prev)
+        next.add(idFinalizada)
+        return next
+      })
+      // Se for a conversa ativa no painel direito, o shell limpa a seleção
+      onFinalizada?.(idFinalizada)
       setDialogOpen(false)
       setConversaSelecionada(null)
     } catch (error) {

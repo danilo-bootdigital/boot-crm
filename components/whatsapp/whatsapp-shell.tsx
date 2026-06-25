@@ -271,6 +271,21 @@ export function WhatsappShell(props: Props) {
     window.history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname)
   }, [])
 
+  // Conversa finalizada na lista: se for a que está aberta no painel
+  // direito, limpa a seleção (padrão mais seguro). Caso contrário, não faz
+  // nada — a própria lista já a remove otimisticamente.
+  const aoFinalizarConversa = useCallback((conversaId: string) => {
+    setSelecionada((atual) => {
+      if (!atual || atual.id !== conversaId) return atual
+      const params = new URLSearchParams(window.location.search)
+      params.delete('conversaId')
+      params.delete('painel')
+      const qs = params.toString()
+      window.history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname)
+      return null
+    })
+  }, [])
+
   // Painel lateral precisa de dados completos (notas/deal/tags) → navegação real
   const abrirPainel = useCallback(() => {
     if (!selecionada) return
@@ -413,6 +428,7 @@ export function WhatsappShell(props: Props) {
             conversasIniciais={listaItens}
             conversaAtivaId={selecionada?.id ?? undefined}
             onSelecionar={selecionar}
+            onFinalizada={aoFinalizarConversa}
           />
         </div>
 

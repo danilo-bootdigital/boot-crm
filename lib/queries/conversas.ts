@@ -177,7 +177,13 @@ export async function listarConversas(
   }
 
   if (filtros.status) {
+    // Filtro explícito (ex.: "Finalizadas" usa status = 'finalizada')
     query = query.eq('status', filtros.status)
+  } else {
+    // Lista principal (chips "Todas"/"Não lidas") = apenas conversas
+    // abertas/ativas. Conversas finalizadas só aparecem no filtro
+    // dedicado. Mantém a lista consistente com kpis.abertas.
+    query = query.neq('status', 'finalizada')
   }
 
   if (filtros.responsavelId !== undefined && filtros.responsavelId !== null) {
