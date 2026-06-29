@@ -105,7 +105,7 @@ export async function buscarTotaisCliente(
     const dealsPromise = (async () => {
       const r = await supabase
         .from('deals')
-        .select('id, valor_estimado, status')
+        .select('id, valor_estimado, ganho')
         .eq('organization_id', orgId)
         .eq('lead_id', leadId)
       return { kind: 'deals' as const, data: r.data, error: r.error }
@@ -166,8 +166,9 @@ export async function buscarTotaisCliente(
       }
     } else if (r.kind === 'deals') {
       for (const d of r.data) {
-        // Em aberto = deals nao perdidos
-        if (d.status !== 'perdido') {
+        // Em aberto = deals nao perdidos (ganho === false indica perda).
+        // `deals` não tem coluna `status`; o estado de perda é `ganho`.
+        if (d.ganho !== false) {
           totalEmAberto += Number(d.valor_estimado ?? 0)
         }
       }
