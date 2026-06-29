@@ -339,7 +339,7 @@ export async function iniciarConversa(params: IniciarConversaParams): Promise<st
 
   // Se a mensagem não foi enviada, marcar como aguardando envio e adicionar nota
   if (!messageIdExterno) {
-    updateData.status = 'aguardando_resposta'
+    updateData.status = 'aguardando_cliente'
 
     // Adicionar nota sobre a mensagem pendente
     await supabase.from('conversation_notes').insert({

@@ -197,7 +197,7 @@ export async function POST(req: NextRequest) {
             whatsapp_instance_id: instancia.id,
             telefone_externo: telefone,
             ultima_mensagem_em: enviadoEm,
-            status: 'aguardando_resposta',
+            status: 'aguardando_cliente',
             responsavel_id: instancia.vendedor_id ?? null,
             whatsapp_push_name: pushName,
             nome_contato: nomeProspeccao.display,
