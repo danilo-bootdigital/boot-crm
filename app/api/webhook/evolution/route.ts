@@ -90,6 +90,10 @@ export async function POST(req: NextRequest) {
     const fromMe = (key.fromMe as boolean) ?? false
     const messageIdExterno = (key.id as string) ?? ''
     const pushName = (data?.pushName as string) ?? ''
+    // ATENÇÃO: em mensagens fromMe (enviadas pela própria conta, ex.: broadcast),
+    // pushName é o nome do DONO da linha, NÃO do destinatário. Nunca usar como
+    // nome do contato nesses casos (senão todo não-cadastrado vira o dono da linha).
+    const pushNameContato = fromMe ? null : pushName
     const messageTimestamp = (data?.messageTimestamp as number) ?? Math.floor(Date.now() / 1000)
     const messageType = (data?.messageType as string) ?? 'conversation'
     const message = (data?.message ?? {}) as Record<string, unknown>
@@ -159,15 +163,16 @@ export async function POST(req: NextRequest) {
         orgId: instancia.organization_id,
         telefone,
         leadId: conversaAtual.lead_id ?? null,
-        pushName,
+        pushName: pushNameContato,
         conversationId: conversaAtual.id,
       })
       // So atualiza nome_contato se NAO for manual (manual NAO pode ser sobrescrito)
       const updatePayload: Record<string, unknown> = {
         whatsapp_instance_id: instancia.id,
         atualizado_em: new Date().toISOString(),
-        whatsapp_push_name: pushName,
       }
+      // Só grava push name quando é do destinatário (mensagem recebida)
+      if (pushNameContato) updatePayload.whatsapp_push_name = pushNameContato
       if (nome.source !== 'manual') {
         updatePayload.nome_contato = nome.display
         updatePayload.name_source = nome.source
@@ -188,7 +193,7 @@ export async function POST(req: NextRequest) {
           orgId: instancia.organization_id,
           telefone,
           leadId: null,
-          pushName,
+          pushName: pushNameContato,
         })
         const { data: novaConversa, error: errNovaConversa } = await supabase
           .from('conversations')
@@ -199,7 +204,7 @@ export async function POST(req: NextRequest) {
             ultima_mensagem_em: enviadoEm,
             status: 'aguardando_cliente',
             responsavel_id: instancia.vendedor_id ?? null,
-            whatsapp_push_name: pushName,
+            whatsapp_push_name: pushNameContato,
             nome_contato: nomeProspeccao.display,
             name_source: nomeProspeccao.source,
           })
@@ -492,7 +497,7 @@ export async function POST(req: NextRequest) {
         orgId: instancia.organization_id,
         telefone,
         leadId,
-        pushName,
+        pushName: pushNameContato,
         conversationId: conversaAtual.id,
       })
       // So atualiza se NAO for manual (manual NAO pode ser sobrescrito)
