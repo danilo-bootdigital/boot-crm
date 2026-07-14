@@ -3,36 +3,59 @@
 -- ============================================================
 -- Bug: o webhook usava pushName tambem em mensagens fromMe (ex.: broadcast).
 -- Em mensagem fromMe, pushName e o nome de quem ENVIOU (dono da linha),
--- nao do destinatario. Resultado: conversas de broadcast para numeros nao
--- cadastrados ficaram com nome_contato = nome do dono (ex.: "Juliane Foreze")
--- e name_source = 'pushname'.
+-- nao do destinatario. Resultado: conversas ficaram com
+-- nome_contato = nome do dono (ex.: "Juliane Foreze") e name_source = 'pushname'.
 --
 -- Fix de codigo: app/api/webhook/evolution/route.ts passou a usar
 -- pushNameContato = fromMe ? null : pushName.
 --
--- Este backfill reseta APENAS as conversas afetadas:
---   name_source = 'pushname'
---   AND sem lead vinculado (lead_id IS NULL)
---   AND sem contato vinculado (contato_id IS NULL)
---   AND nao editadas manualmente
--- Essas sao conversas criadas so por mensagem enviada (broadcast/prospeccao),
--- onde o pushName so pode ter vindo do dono da linha.
+-- Este backfill RE-RESOLVE todas as conversas com name_source = 'pushname'
+-- (nao editadas manualmente) pela regra oficial SEM o tier pushname:
+--     contact > lead > phone
+-- Isso e seguro porque um pushName legitimo (nome do cliente vindo de
+-- mensagem RECEBIDA) sempre gera tambem um lead com esse nome -> essas
+-- conversas ficam com name_source = 'lead', nao 'pushname'. Logo, toda
+-- conversa 'pushname' teve o nome sobrescrito por uma mensagem enviada.
 --
--- Pushnames LEGITIMOS (capturados de mensagens recebidas) tem lead_id
--- preenchido (o webhook cria lead ao receber) e NAO sao tocados aqui.
+-- NAO altera a tabela leads (decisao de negocio: nomes de lead poluidos
+-- sao tratados separadamente).
 --
--- Novo nome = fallback de telefone ("Contato " + telefone_externo),
--- identico ao passo 5 de lib/whatsapp/resolver-nome-conversa.ts.
--- whatsapp_push_name tambem e limpo (guardava o nome do dono).
+-- Efeito medido nos dados de producao (2026-07):
+--   contact ~8  | lead ~248 (recupera nome real) | phone ~195
 -- ============================================================
 
-UPDATE conversations
+-- Regra de nome valido (por coluna): nao vazio, nao 'Contato WhatsApp',
+-- nao puramente numerico. Mesma ideia de isValidName() em
+-- resolver-nome-conversa.ts. Em SQL: contem ao menos um caractere nao-digito
+-- => regexp_replace(x,'\D','','g') <> TRIM(x).
+UPDATE conversations c
 SET
-  nome_contato = 'Contato ' || telefone_externo,
-  name_source = 'phone',
+  nome_contato = COALESCE(
+    CASE WHEN TRIM(ct.nome) <> '' AND TRIM(ct.nome) <> 'Contato WhatsApp'
+              AND regexp_replace(ct.nome, '\D', '', 'g') <> TRIM(ct.nome)
+         THEN TRIM(ct.nome) END,                                      -- 1) contact
+    CASE WHEN TRIM(l.nome) <> '' AND TRIM(l.nome) <> 'Contato WhatsApp'
+              AND regexp_replace(l.nome, '\D', '', 'g') <> TRIM(l.nome)
+         THEN TRIM(l.nome) END,                                       -- 2) lead
+    'Contato ' || c.telefone_externo                                  -- 3) phone
+  ),
+  name_source = CASE
+    WHEN TRIM(ct.nome) <> '' AND TRIM(ct.nome) <> 'Contato WhatsApp'
+         AND regexp_replace(ct.nome, '\D', '', 'g') <> TRIM(ct.nome) THEN 'contact'
+    WHEN TRIM(l.nome) <> '' AND TRIM(l.nome) <> 'Contato WhatsApp'
+         AND regexp_replace(l.nome, '\D', '', 'g') <> TRIM(l.nome) THEN 'lead'
+    ELSE 'phone'
+  END,
+  -- whatsapp_push_name guardava o nome do dono da linha: limpar
   whatsapp_push_name = NULL,
   atualizado_em = now()
-WHERE name_source = 'pushname'
-  AND lead_id IS NULL
-  AND contato_id IS NULL
-  AND COALESCE(is_name_manually_edited, false) = false;
+FROM conversations c2
+  LEFT JOIN contacts ct
+    ON ct.id = c2.contato_id
+    AND ct.organization_id = c2.organization_id
+  LEFT JOIN leads l
+    ON l.id = c2.lead_id
+    AND l.organization_id = c2.organization_id
+WHERE c.id = c2.id
+  AND c.name_source = 'pushname'
+  AND COALESCE(c.is_name_manually_edited, false) = false;   -- respeita manual
