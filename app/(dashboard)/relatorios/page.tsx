@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import { Package } from 'lucide-react'
 import { startOfWeek, format, eachWeekOfInterval, subDays } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -330,6 +332,22 @@ export default async function RelatoriosPage({
         mostrarFiltroResponsavel={isAdminGestor}
         fornecedores={fornecedores}
       />
+
+      <Link
+        href="/relatorios/pedidos-por-fornecedor"
+        className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-4 transition-colors hover:border-blue-200 hover:bg-blue-50/40"
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+            <Package className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-900">Relatório de Pedidos por Fornecedor</p>
+            <p className="text-xs text-slate-500">Consulte e exporte os pedidos realizados por fornecedor dentro do período selecionado.</p>
+          </div>
+        </div>
+        <span className="text-sm font-medium text-blue-600">Abrir →</span>
+      </Link>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
         <CardMetrica label="Leads novos" valor={String(leadsNovos ?? 0)} />
